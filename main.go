@@ -23,7 +23,7 @@ import (
 var (
 	listeningAddress       = flag.String("listeningAddress", ":8080", "The address on which to expose generated Prometheus metrics.")
 	statsdListeningAddress = flag.String("statsdListeningAddress", ":8126", "The UDP address on which to receive statsd metric lines.")
-	summaryFlushInterval   = flag.Duration("summaryFlushInterval", time.Hour, "How frequently to reset all summary metrics.")
+	summaryFlushInterval   = flag.Duration("summaryFlushInterval", 15*time.Minute, "How frequently to reset all summary metrics.")
 )
 
 type CounterContainer struct {
@@ -146,14 +146,30 @@ func (b *Bridge) Listen(e <-chan Events) {
 			case *CounterEvent:
 				counter := b.Counters.Get(metricName + "_counter")
 				counter.IncrementBy(prometheus.NilLabels, event.Value())
+
+				eventStats.Increment(map[string]string{"type": "counter"})
+
 			case *GaugeEvent:
 				gauge := b.Gauges.Get(metricName + "_gauge")
 				gauge.Set(prometheus.NilLabels, event.Value())
+
+				eventStats.Increment(map[string]string{"type": "gauge"})
+
 			case *TimerEvent:
 				summary := b.Summaries.Get(metricName + "_timer")
 				summary.Add(prometheus.NilLabels, event.Value())
+
+				sum := b.Counters.Get(metricName + "_timer_total")
+				sum.IncrementBy(prometheus.NilLabels, event.Value())
+
+				count := b.Counters.Get(metricName + "_timer_count")
+				count.Increment(prometheus.NilLabels)
+
+				eventStats.Increment(map[string]string{"type": "timer"})
+
 			default:
 				log.Println("Unsupported event type")
+				eventStats.Increment(map[string]string{"type": "illegal"})
 			}
 		}
 	}
@@ -217,6 +233,7 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 
 		elements := strings.Split(line, ":")
 		if len(elements) < 2 {
+			networkStats.Increment(map[string]string{"type": "malformed_line"})
 			log.Println("Bad line from StatsD:", line)
 			continue
 		}
@@ -226,6 +243,7 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 			components := strings.Split(sample, "|")
 			samplingFactor := 1.0
 			if len(components) < 2 || len(components) > 3 {
+				networkStats.Increment(map[string]string{"type": "malformed_component"})
 				log.Println("Bad component on line:", line)
 				continue
 			}
@@ -233,21 +251,25 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 			value, err := strconv.ParseFloat(valueStr, 64)
 			if err != nil {
 				log.Printf("Bad value %s on line: %s", valueStr, line)
+				networkStats.Increment(map[string]string{"type": "malformed_value"})
 				continue
 			}
 
 			if len(components) == 3 {
 				if statType != "c" {
 					log.Println("Illegal sampling factor for non-counter metric on line", line)
+					networkStats.Increment(map[string]string{"type": "illegal_sample_factor"})
 				}
 				samplingStr := components[2]
 				if samplingStr[0] != '@' {
 					log.Printf("Invalid sampling factor %s on line %s", samplingStr, line)
+					networkStats.Increment(map[string]string{"type": "invalid_sample_factor"})
 					continue
 				}
 				samplingFactor, err = strconv.ParseFloat(samplingStr[1:], 64)
 				if err != nil {
 					log.Printf("Invalid sampling factor %s on line %s", samplingStr, line)
+					networkStats.Increment(map[string]string{"type": "invalid_sample_factor"})
 					continue
 				}
 				if samplingFactor == 0 {
@@ -261,9 +283,11 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 			event, err := buildEvent(statType, metric, value)
 			if err != nil {
 				log.Printf("Error building event on line %s: %s", line, err)
+				networkStats.Increment(map[string]string{"type": "illegal_event"})
 				continue
 			}
 			events = append(events, event)
+			networkStats.Increment(map[string]string{"type": "legal"})
 		}
 	}
 	e <- events
@@ -303,6 +327,10 @@ func udpAddrFromString(addr string) *net.UDPAddr {
 func main() {
 	flag.Parse()
 
+	log.Println("Starting StatsD -> Prometheus Bridge...")
+	log.Println("Accepting StatsD Traffic on", *statsdListeningAddress)
+	log.Println("Accepting Prometheus Requests on", *listeningAddress)
+
 	go serveHTTP()
 
 	events := make(chan Events, 1024)
@@ -323,4 +351,15 @@ func main() {
 		}
 	}()
 	bridge.Listen(events)
+}
+
+var (
+	eventStats   = prometheus.NewCounter()
+	networkStats = prometheus.NewCounter()
+)
+
+func init() {
+	prometheus.Register("statsd_bridge_events_total", "The total number of StatsD events seen.", prometheus.NilLabels, eventStats)
+	prometheus.Register("statsd_bridge_packets_total", "The total number of StatsD packets seen.", prometheus.NilLabels, networkStats)
+
 }
