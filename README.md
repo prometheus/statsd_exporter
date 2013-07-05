@@ -1,7 +1,7 @@
 StatsD-Bridge
 =============
 
-StatsD-Bridge receives StatsD-style metrics and exporting them as Prometheus metrics.
+StatsD-Bridge receives StatsD-style metrics and exports them as Prometheus metrics.
 
 ## Overview
 
@@ -18,7 +18,7 @@ To pipe metrics from an existing StatsD environment into Prometheus, configure S
     Usage of ./statsd_bridge:
     -listeningAddress=":8080": The address on which to expose generated Prometheus metrics.
     -mappingConfig="mapping.conf": Metric mapping configuration file name.
-    -statsdListeningAddress=":8126": The UDP address on which to receive statsd metric lines.
+    -statsdListeningAddress=":9125": The UDP address on which to receive statsd metric lines.
     -summaryFlushInterval=15m0s: How frequently to reset all summary metrics.
 
 ## Tests
@@ -44,7 +44,7 @@ An example mapping configuration:
     outcome="$3"
     job="$1_server"
     
-This would transform these example StatsD metrics as into Prometheus metrics as follows:
+This would transform these example StatsD metrics into Prometheus metrics as follows:
 
     test.dispatcher.FooProcessor.send.success
      => dispatcher_events{processor="FooProcessor", action="send", outcome="success", job="test_dispatcher"}
