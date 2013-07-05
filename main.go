@@ -22,7 +22,7 @@ import (
 
 var (
 	listeningAddress       = flag.String("listeningAddress", ":8080", "The address on which to expose generated Prometheus metrics.")
-	statsdListeningAddress = flag.String("statsdListeningAddress", ":8126", "The UDP address on which to receive statsd metric lines.")
+	statsdListeningAddress = flag.String("statsdListeningAddress", ":9125", "The UDP address on which to receive statsd metric lines.")
 	mappingConfig          = flag.String("mappingConfig", "mapping.conf", "Metric mapping configuration file name.")
 	summaryFlushInterval   = flag.Duration("summaryFlushInterval", 15*time.Minute, "How frequently to reset all summary metrics.")
 )
