@@ -5,7 +5,10 @@ StatsD-Bridge receives StatsD-style metrics and exports them as Prometheus metri
 
 ## Overview
 
-To pipe metrics from an existing StatsD environment into Prometheus, configure StatsD's repeater backend to repeat all received packets to a StatsD-Bridge process. This bridge translates StatsD metrics to Prometheus metrics via configured mapping rules.
+To pipe metrics from an existing StatsD environment into Prometheus, configure
+StatsD's repeater backend to repeat all received packets to a StatsD-Bridge
+process. This bridge translates StatsD metrics to Prometheus metrics via
+configured mapping rules.
 
     +----------+                     +-----------------+                        +--------------+
     |  StatsD  |---(UDP repeater)--->|  StatsD-Bridge  |<---(scrape /metrics)---|  Prometheus  |
@@ -27,7 +30,16 @@ To pipe metrics from an existing StatsD environment into Prometheus, configure S
 
 ## Metric Mapping and Configuration
 
-The StatsD-Bridge can be configured to translate specific dot-separated StatsD metrics into labeled Prometheus metrics via a simple mapping language. A mapping definition starts with a line matching the StatsD metric in question, with `*`s acting as wildcards for each dot-separated metric component. The lines following the matching expression must contain one `label="value"` pair each, and at least define the metric name (label name `name`). The Prometheus metric is then constructed from these labels. `$n`-style references in the label value are replaced by the n-th wildcard match in the matching line, starting at 1. Multiple matching definitions are separated by one or more empty lines. The first mapping rule that matches a StatsD metric wins.
+The StatsD-Bridge can be configured to translate specific dot-separated StatsD
+metrics into labeled Prometheus metrics via a simple mapping language. A
+mapping definition starts with a line matching the StatsD metric in question,
+with `*`s acting as wildcards for each dot-separated metric component. The
+lines following the matching expression must contain one `label="value"` pair
+each, and at least define the metric name (label name `name`). The Prometheus
+metric is then constructed from these labels. `$n`-style references in the
+label value are replaced by the n-th wildcard match in the matching line,
+starting at 1. Multiple matching definitions are separated by one or more empty
+lines. The first mapping rule that matches a StatsD metric wins.
 
 An example mapping configuration:
 
@@ -44,7 +56,8 @@ An example mapping configuration:
     outcome="$3"
     job="$1_server"
     
-This would transform these example StatsD metrics into Prometheus metrics as follows:
+This would transform these example StatsD metrics into Prometheus metrics as
+follows:
 
     test.dispatcher.FooProcessor.send.success
      => dispatcher_events{processor="FooProcessor", action="send", outcome="success", job="test_dispatcher"}
@@ -52,9 +65,12 @@ This would transform these example StatsD metrics into Prometheus metrics as fol
     foo_product.signup.facebook.failure
      => signup_events{provider="facebook", outcome="failure", job="foo_product_server"}
 
-Metrics that don't match any mapping in the configuration file are translated into Prometheus metrics without any labels and with certain characters escaped (`_` -> `__`; `-` -> `__`; `.` -> `_`).
+Metrics that don't match any mapping in the configuration file are translated
+into Prometheus metrics without any labels and with certain characters escaped
+(`_` -> `__`; `-` -> `__`; `.` -> `_`).
 
-In general, the different metric types are translated as follows, with certain suffixes appended to the Prometheus metric names:
+In general, the different metric types are translated as follows, with certain
+suffixes appended to the Prometheus metric names:
 
     StatsD gauge   -> Prometheus gauge (suffix `_gauge`)
     
