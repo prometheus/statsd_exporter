@@ -23,6 +23,7 @@ import (
 var (
 	listeningAddress       = flag.String("listeningAddress", ":8080", "The address on which to expose generated Prometheus metrics.")
 	statsdListeningAddress = flag.String("statsdListeningAddress", ":8126", "The UDP address on which to receive statsd metric lines.")
+	mappingConfig          = flag.String("mappingConfig", "mapping.conf", "Metric mapping configuration file name.")
 	summaryFlushInterval   = flag.Duration("summaryFlushInterval", 15*time.Minute, "How frequently to reset all summary metrics.")
 )
 
@@ -127,6 +128,7 @@ type Bridge struct {
 	Counters  *CounterContainer
 	Gauges    *GaugeContainer
 	Summaries *SummaryContainer
+	mapper    *metricMapper
 }
 
 func escapeMetricName(metricName string) string {
@@ -141,29 +143,43 @@ func (b *Bridge) Listen(e <-chan Events) {
 	for {
 		events := <-e
 		for _, event := range events {
-			metricName := escapeMetricName(event.MetricName())
+			metricName := ""
+			prometheusLabels := map[string]string{}
+
+			labels, present := b.mapper.getMapping(event.MetricName())
+			if present {
+				metricName = labels["name"]
+				for label, value := range labels {
+					if label != "name" {
+						prometheusLabels[label] = value
+					}
+				}
+			} else {
+				metricName = escapeMetricName(event.MetricName())
+			}
+
 			switch event.(type) {
 			case *CounterEvent:
 				counter := b.Counters.Get(metricName + "_counter")
-				counter.IncrementBy(prometheus.NilLabels, event.Value())
+				counter.IncrementBy(prometheusLabels, event.Value())
 
 				eventStats.Increment(map[string]string{"type": "counter"})
 
 			case *GaugeEvent:
 				gauge := b.Gauges.Get(metricName + "_gauge")
-				gauge.Set(prometheus.NilLabels, event.Value())
+				gauge.Set(prometheusLabels, event.Value())
 
 				eventStats.Increment(map[string]string{"type": "gauge"})
 
 			case *TimerEvent:
 				summary := b.Summaries.Get(metricName + "_timer")
-				summary.Add(prometheus.NilLabels, event.Value())
+				summary.Add(prometheusLabels, event.Value())
 
 				sum := b.Counters.Get(metricName + "_timer_total")
-				sum.IncrementBy(prometheus.NilLabels, event.Value())
+				sum.IncrementBy(prometheusLabels, event.Value())
 
 				count := b.Counters.Get(metricName + "_timer_count")
-				count.Increment(prometheus.NilLabels)
+				count.Increment(prometheusLabels)
 
 				eventStats.Increment(map[string]string{"type": "timer"})
 
@@ -175,11 +191,12 @@ func (b *Bridge) Listen(e <-chan Events) {
 	}
 }
 
-func NewBridge() *Bridge {
+func NewBridge(mapper *metricMapper) *Bridge {
 	return &Bridge{
 		Counters:  NewCounterContainer(),
 		Gauges:    NewGaugeContainer(),
 		Summaries: NewSummaryContainer(),
+		mapper:    mapper,
 	}
 }
 
@@ -344,7 +361,14 @@ func main() {
 	l := &StatsDListener{conn: conn}
 	go l.Listen(events)
 
-	bridge := NewBridge()
+	mapper := metricMapper{}
+	if mappingConfig != nil {
+		err := mapper.initFromFile(*mappingConfig)
+		if err != nil {
+			log.Fatal("Error loading config:", err)
+		}
+	}
+	bridge := NewBridge(&mapper)
 	go func() {
 		for _ = range time.Tick(*summaryFlushInterval) {
 			bridge.Summaries.Flush()
