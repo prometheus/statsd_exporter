@@ -298,14 +298,3 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 	}
 	e <- events
 }
-
-var (
-	eventStats   = prometheus.NewCounter()
-	networkStats = prometheus.NewCounter()
-)
-
-func init() {
-	prometheus.Register("statsd_bridge_events_total", "The total number of StatsD events seen.", prometheus.NilLabels, eventStats)
-	prometheus.Register("statsd_bridge_packets_total", "The total number of StatsD packets seen.", prometheus.NilLabels, networkStats)
-
-}

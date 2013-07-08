@@ -71,8 +71,8 @@ func TestMetricMapper(t *testing.T) {
 		},
 	}
 
+	mapper := metricMapper{}
 	for i, scenario := range scenarios {
-		mapper := metricMapper{}
 		err := mapper.initFromString(scenario.config)
 		if err != nil && !scenario.configBad {
 			t.Fatalf("%d. Config load error: %s", i, err)
