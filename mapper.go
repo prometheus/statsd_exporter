@@ -20,6 +20,7 @@ var (
 	identifierRE = `[a-zA-Z_][a-zA-Z0-9_]+`
 	metricLineRE = regexp.MustCompile(`^(\*\.|` + identifierRE + `\.)+(\*|` + identifierRE + `)$`)
 	labelLineRE  = regexp.MustCompile(`^(` + identifierRE + `)\s*=\s*"(.*)"$`)
+	metricNameRE = regexp.MustCompile(`^` + identifierRE + `$`)
 )
 
 type metricMapping struct {
@@ -85,7 +86,11 @@ func (m *metricMapper) initFromString(fileContents string) error {
 			if len(matches) != 3 {
 				return fmt.Errorf("Line %d: expected label mapping line, got: %s", i, line)
 			}
-			currentMapping.labels[matches[1]] = matches[2]
+			label, value := matches[1], matches[2]
+			if label == "name" && !metricNameRE.MatchString(value) {
+				return fmt.Errorf("Line %d: metric name '%s' doesn't match regex '%s'", i, value, metricNameRE)
+			}
+			currentMapping.labels[label] = value
 		default:
 			panic("illegal state")
 		}

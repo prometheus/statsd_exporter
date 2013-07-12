@@ -69,6 +69,14 @@ func TestMetricMapper(t *testing.T) {
 			`,
 			configBad: true,
 		},
+		// Config with bad metric name.
+		{
+			config: `
+				test.*.*
+				name="0foo"
+			`,
+			configBad: true,
+		},
 	}
 
 	mapper := metricMapper{}

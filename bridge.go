@@ -10,10 +10,15 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
+)
+
+var (
+	illegalCharsRE = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 )
 
 type CounterContainer struct {
@@ -121,10 +126,13 @@ type Bridge struct {
 }
 
 func escapeMetricName(metricName string) string {
-	// TODO: evaluate what kind of escaping we really want.
-	metricName = strings.Replace(metricName, "_", "__", -1)
-	metricName = strings.Replace(metricName, "-", "__", -1)
-	metricName = strings.Replace(metricName, ".", "_", -1)
+	// If a metric starts with a digit, prepend an underscore.
+	if metricName[0] >= '0' && metricName[0] <= '9' {
+		metricName = "_" + metricName
+	}
+
+	// Replace all illegal metric chars with underscores.
+	metricName = illegalCharsRE.ReplaceAllString(metricName, "_")
 	return metricName
 }
 
