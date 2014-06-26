@@ -11,16 +11,36 @@ import (
 )
 
 var (
-	eventStats    = prometheus.NewCounter()
-	networkStats  = prometheus.NewCounter()
-	configLoads   = prometheus.NewCounter()
-	mappingsCount = prometheus.NewGauge()
+	eventStats = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "statsd_bridge_events_count",
+			Help: "The total number of StatsD events seen.",
+		},
+		[]string{"type"},
+	)
+	networkStats = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "statsd_bridge_packets_count",
+			Help: "The total number of StatsD packets seen.",
+		},
+		[]string{"type"},
+	)
+	configLoads = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "statsd_bridge_config_reloads_count",
+			Help: "The number of configuration reloads.",
+		},
+		[]string{"outcome"},
+	)
+	mappingsCount = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "statsd_bridge_loaded_mappings_count",
+		Help: "The number of configured metric mappings.",
+	})
 )
 
 func init() {
-	prometheus.Register("statsd_bridge_events_count", "The total number of StatsD events seen.", prometheus.NilLabels, eventStats)
-	prometheus.Register("statsd_bridge_packets_count", "The total number of StatsD packets seen.", prometheus.NilLabels, networkStats)
-	prometheus.Register("statsd_bridge_config_reloads_count", "The number of configuration reloads.", prometheus.NilLabels, configLoads)
-	prometheus.Register("statsd_bridge_loaded_mappings_count", "The number of configured metric mappings.", prometheus.NilLabels, mappingsCount)
-
+	prometheus.MustRegister(eventStats)
+	prometheus.MustRegister(networkStats)
+	prometheus.MustRegister(configLoads)
+	prometheus.MustRegister(mappingsCount)
 }
