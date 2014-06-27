@@ -13,21 +13,21 @@ import (
 var (
 	eventStats = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "statsd_bridge_events_count",
+			Name: "statsd_bridge_events_total",
 			Help: "The total number of StatsD events seen.",
 		},
 		[]string{"type"},
 	)
 	networkStats = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "statsd_bridge_packets_count",
+			Name: "statsd_bridge_packets_total",
 			Help: "The total number of StatsD packets seen.",
 		},
 		[]string{"type"},
 	)
 	configLoads = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "statsd_bridge_config_reloads_count",
+			Name: "statsd_bridge_config_reloads_total",
 			Help: "The number of configuration reloads.",
 		},
 		[]string{"outcome"},
