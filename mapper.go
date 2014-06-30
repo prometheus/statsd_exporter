@@ -25,7 +25,7 @@ var (
 
 type metricMapping struct {
 	regex  *regexp.Regexp
-	labels map[string]string
+	labels prometheus.Labels
 }
 
 type metricMapper struct {
@@ -45,7 +45,7 @@ func (m *metricMapper) initFromString(fileContents string) error {
 	state := SEARCHING
 
 	parsedMappings := []metricMapping{}
-	currentMapping := metricMapping{labels: map[string]string{}}
+	currentMapping := metricMapping{labels: prometheus.Labels{}}
 	for i, line := range lines {
 		line := strings.TrimSpace(line)
 
@@ -78,7 +78,7 @@ func (m *metricMapper) initFromString(fileContents string) error {
 				parsedMappings = append(parsedMappings, currentMapping)
 
 				state = SEARCHING
-				currentMapping = metricMapping{labels: map[string]string{}}
+				currentMapping = metricMapping{labels: prometheus.Labels{}}
 				continue
 			}
 
@@ -100,7 +100,7 @@ func (m *metricMapper) initFromString(fileContents string) error {
 	defer m.mutex.Unlock()
 	m.mappings = parsedMappings
 
-	mappingsCount.Set(prometheus.NilLabels, float64(len(parsedMappings)))
+	mappingsCount.Set(float64(len(parsedMappings)))
 
 	return nil
 }
@@ -113,7 +113,7 @@ func (m *metricMapper) initFromFile(fileName string) error {
 	return m.initFromString(string(mappingStr))
 }
 
-func (m *metricMapper) getMapping(statsdMetric string) (labels map[string]string, present bool) {
+func (m *metricMapper) getMapping(statsdMetric string) (labels prometheus.Labels, present bool) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
@@ -123,7 +123,7 @@ func (m *metricMapper) getMapping(statsdMetric string) (labels map[string]string
 			continue
 		}
 
-		labels := map[string]string{}
+		labels := prometheus.Labels{}
 		for label, valueExpr := range mapping.labels {
 			value := mapping.regex.ExpandString([]byte{}, valueExpr, statsdMetric, matches)
 			labels[label] = string(value)

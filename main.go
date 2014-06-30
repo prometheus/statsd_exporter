@@ -12,23 +12,20 @@ import (
 	"net"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/howeyc/fsnotify"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/exp"
 )
 
 var (
 	listeningAddress       = flag.String("listeningAddress", ":8080", "The address on which to expose generated Prometheus metrics.")
 	statsdListeningAddress = flag.String("statsdListeningAddress", ":9125", "The UDP address on which to receive statsd metric lines.")
 	mappingConfig          = flag.String("mappingConfig", "", "Metric mapping configuration file name.")
-	summaryFlushInterval   = flag.Duration("summaryFlushInterval", 15*time.Minute, "How frequently to reset all summary metrics.")
 )
 
 func serveHTTP() {
-	exp.Handle(prometheus.ExpositionResource, prometheus.DefaultHandler)
-	http.ListenAndServe(*listeningAddress, exp.DefaultCoarseMux)
+	http.Handle("/metrics", prometheus.Handler())
+	http.ListenAndServe(*listeningAddress, nil)
 }
 
 func udpAddrFromString(addr string) *net.UDPAddr {
@@ -75,10 +72,10 @@ func watchConfig(fileName string, mapper *metricMapper) {
 			err = mapper.initFromFile(fileName)
 			if err != nil {
 				log.Println("Error reloading config:", err)
-				configLoads.Increment(map[string]string{"outcome": "failure"})
+				configLoads.WithLabelValues("failure").Inc()
 			} else {
 				log.Println("Config reloaded successfully")
-				configLoads.Increment(map[string]string{"outcome": "success"})
+				configLoads.WithLabelValues("success").Inc()
 			}
 			// Re-add the file watcher since it can get lost on some changes. E.g.
 			// saving a file with vim results in a RENAME-MODIFY-DELETE event
@@ -119,10 +116,5 @@ func main() {
 		go watchConfig(*mappingConfig, mapper)
 	}
 	bridge := NewBridge(mapper)
-	go func() {
-		for _ = range time.Tick(*summaryFlushInterval) {
-			bridge.Summaries.Flush()
-		}
-	}()
 	bridge.Listen(events)
 }
