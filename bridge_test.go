@@ -7,7 +7,7 @@
 package main
 
 import (
-	"fmt"
+	"reflect"
 	"testing"
 )
 
@@ -26,6 +26,7 @@ func TestHandlePacket(t *testing.T) {
 				&CounterEvent{
 					metricName: "foo",
 					value:      2,
+					labels:     map[string]string{},
 				},
 			},
 		}, {
@@ -35,6 +36,7 @@ func TestHandlePacket(t *testing.T) {
 				&GaugeEvent{
 					metricName: "foo",
 					value:      3,
+					labels:     map[string]string{},
 				},
 			},
 		}, {
@@ -44,6 +46,27 @@ func TestHandlePacket(t *testing.T) {
 				&TimerEvent{
 					metricName: "foo",
 					value:      200,
+					labels:     map[string]string{},
+				},
+			},
+		}, {
+			name: "datadog tag extension",
+			in:   "foo:100|c|#tag1:bar,tag2:baz,tag3,tag4",
+			out: Events{
+				&CounterEvent{
+					metricName: "foo",
+					value:      100,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz", "tag3": ".", "tag4": "."},
+				},
+			},
+		}, {
+			name: "datadog tag extension with sampling",
+			in:   "foo:100|c|@0.1|#tag1:bar,tag2,tag3:baz",
+			out: Events{
+				&CounterEvent{
+					metricName: "foo",
+					value:      1000,
+					labels:     map[string]string{"tag1": "bar", "tag2": ".", "tag3": "baz"},
 				},
 			},
 		}, {
@@ -53,26 +76,32 @@ func TestHandlePacket(t *testing.T) {
 				&TimerEvent{
 					metricName: "foo",
 					value:      200,
+					labels:     map[string]string{},
 				},
 				&TimerEvent{
 					metricName: "foo",
 					value:      300,
+					labels:     map[string]string{},
 				},
 				&CounterEvent{
 					metricName: "foo",
 					value:      50,
+					labels:     map[string]string{},
 				},
 				&GaugeEvent{
 					metricName: "foo",
 					value:      6,
+					labels:     map[string]string{},
 				},
 				&CounterEvent{
 					metricName: "bar",
 					value:      1,
+					labels:     map[string]string{},
 				},
 				&TimerEvent{
 					metricName: "bar",
 					value:      5,
+					labels:     map[string]string{},
 				},
 			},
 		}, {
@@ -87,6 +116,13 @@ func TestHandlePacket(t *testing.T) {
 		}, {
 			name: "illegal sampling factor",
 			in:   "foo:1|c|@bar",
+			out: Events{
+				&CounterEvent{
+					metricName: "foo",
+					value:      1,
+					labels:     map[string]string{},
+				},
+			},
 		}, {
 			name: "zero sampling factor",
 			in:   "foo:2|c|@0",
@@ -94,6 +130,7 @@ func TestHandlePacket(t *testing.T) {
 				&CounterEvent{
 					metricName: "foo",
 					value:      2,
+					labels:     map[string]string{},
 				},
 			},
 		}, {
@@ -114,12 +151,12 @@ func TestHandlePacket(t *testing.T) {
 		}
 
 		if len(actual) != len(scenario.out) {
-			t.Fatalf("%d. Expected %d events, got %d", i, len(scenario.out), len(actual))
+			t.Fatalf("%d. Expected %d events, got %d in scenario '%s'", i, len(scenario.out), len(actual), scenario.name)
 		}
 
 		for j, expected := range scenario.out {
-			if fmt.Sprintf("%v", actual[j]) != fmt.Sprintf("%v", expected) {
-				t.Fatalf("%d.%d. Expected %v, got %v", i, j, actual[j], expected)
+			if !reflect.DeepEqual(&expected, &actual[j]) {
+				t.Fatalf("%d.%d. Expected %#v, got %#v in scenario '%s'", i, j, expected, actual[j], scenario.name)
 			}
 		}
 	}
