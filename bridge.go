@@ -71,7 +71,7 @@ func (c *CounterContainer) Get(metricName string, labels prometheus.Labels) prom
 			ConstLabels: labels,
 		})
 		c.Elements[hash] = counter
-		if _, err := prometheus.Register(counter); err != nil {
+		if err := prometheus.Register(counter); err != nil {
 			log.Fatalf(regErrF, metricName, err)
 		}
 	}
@@ -98,7 +98,7 @@ func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels) promet
 			ConstLabels: labels,
 		})
 		c.Elements[hash] = gauge
-		if _, err := prometheus.Register(gauge); err != nil {
+		if err := prometheus.Register(gauge); err != nil {
 			log.Fatalf(regErrF, metricName, err)
 		}
 	}
@@ -126,7 +126,7 @@ func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels) prom
 				ConstLabels: labels,
 			})
 		c.Elements[hash] = summary
-		if _, err := prometheus.Register(summary); err != nil {
+		if err := prometheus.Register(summary); err != nil {
 			log.Fatalf(regErrF, metricName, err)
 		}
 	}
