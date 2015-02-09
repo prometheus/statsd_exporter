@@ -18,20 +18,21 @@ import (
 )
 
 var (
-	listeningAddress       = flag.String("listeningAddress", ":8080", "The address on which to expose generated Prometheus metrics.")
-	statsdListeningAddress = flag.String("statsdListeningAddress", ":9125", "The UDP address on which to receive statsd metric lines.")
-	mappingConfig          = flag.String("mappingConfig", "", "Metric mapping configuration file name.")
+	listenAddress       = flag.String("web.listen-address", ":9102", "The address on which to expose the web interface and generated Prometheus metrics.")
+	metricsEndpoint     = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
+	statsdListenAddress = flag.String("statsd.listen-address", ":9125", "The UDP address on which to receive statsd metric lines.")
+	mappingConfig       = flag.String("statsd.mapping-config", "", "Metric mapping configuration file name.")
 )
 
 func serveHTTP() {
-	http.Handle("/metrics", prometheus.Handler())
-	http.ListenAndServe(*listeningAddress, nil)
+	http.Handle(*metricsEndpoint, prometheus.Handler())
+	http.ListenAndServe(*listenAddress, nil)
 }
 
 func udpAddrFromString(addr string) *net.UDPAddr {
-	host, portStr, err := net.SplitHostPort(*statsdListeningAddress)
+	host, portStr, err := net.SplitHostPort(*statsdListenAddress)
 	if err != nil {
-		log.Fatal("Bad StatsD listening address", *statsdListeningAddress)
+		log.Fatal("Bad StatsD listening address", *statsdListenAddress)
 	}
 
 	if host == "" {
@@ -91,15 +92,15 @@ func main() {
 	flag.Parse()
 
 	log.Println("Starting StatsD -> Prometheus Bridge...")
-	log.Println("Accepting StatsD Traffic on", *statsdListeningAddress)
-	log.Println("Accepting Prometheus Requests on", *listeningAddress)
+	log.Println("Accepting StatsD Traffic on", *statsdListenAddress)
+	log.Println("Accepting Prometheus Requests on", *listenAddress)
 
 	go serveHTTP()
 
 	events := make(chan Events, 1024)
 	defer close(events)
 
-	listenAddr := udpAddrFromString(*statsdListeningAddress)
+	listenAddr := udpAddrFromString(*statsdListenAddress)
 	conn, err := net.ListenUDP("udp", listenAddr)
 	if err != nil {
 		log.Fatal(err)
