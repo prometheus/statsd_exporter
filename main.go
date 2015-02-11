@@ -30,9 +30,9 @@ func serveHTTP() {
 }
 
 func udpAddrFromString(addr string) *net.UDPAddr {
-	host, portStr, err := net.SplitHostPort(*statsdListenAddress)
+	host, portStr, err := net.SplitHostPort(addr)
 	if err != nil {
-		log.Fatal("Bad StatsD listening address", *statsdListenAddress)
+		log.Fatal("Bad StatsD listening address", addr)
 	}
 
 	if host == "" {
