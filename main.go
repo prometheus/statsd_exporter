@@ -45,7 +45,7 @@ func udpAddrFromString(addr string) *net.UDPAddr {
 
 	port, err := strconv.Atoi(portStr)
 	if err != nil || port < 0 || port > 65535 {
-		log.Fatal("Bad port %s: %s", portStr, err)
+		log.Fatalf("Bad port %s: %s", portStr, err)
 	}
 
 	return &net.UDPAddr{
