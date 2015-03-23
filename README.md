@@ -19,10 +19,10 @@ configured mapping rules.
     $ go build
     $ ./statsd_bridge --help
     Usage of ./statsd_bridge:
-    -listeningAddress=":8080": The address on which to expose generated Prometheus metrics.
-    -mappingConfig="mapping.conf": Metric mapping configuration file name.
-    -statsdListeningAddress=":9125": The UDP address on which to receive statsd metric lines.
-    -summaryFlushInterval=15m0s: How frequently to reset all summary metrics.
+      -statsd.listen-address=":9125": The UDP address on which to receive statsd metric lines.
+      -statsd.mapping-config="": Metric mapping configuration file name.
+      -web.listen-address=":9102": The address on which to expose the web interface and generated Prometheus metrics.
+      -web.telemetry-path="/metrics": Path under which to expose metrics.
 
 ## Tests
 
