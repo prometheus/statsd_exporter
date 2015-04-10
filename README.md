@@ -86,9 +86,9 @@ follows:
 ## Docker
 
 ```
-docker run -d --name="statsd_bridge" \
+docker run -d --name="statsd-bridge" \
   -p 9102:9102 \
   -p 9125:9125 \
   -v /path/on/host/to/mapping.conf:/mapping.conf \
-  statsd_bridge -statsd.mapping-config="/mapping.conf"
+  statsd-bridge -statsd.mapping-config="/mapping.conf"
 ```
