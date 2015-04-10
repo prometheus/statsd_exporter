@@ -82,3 +82,13 @@ follows:
      
     test.web-server.foo.bar (gauge)
      => test_web__server_foo_bar_gauge{}
+
+## Docker
+
+```
+docker run -d --name="statsd_bridge" \
+  -p 9102:9102 \
+  -p 9125:9125 \
+  -v /path/on/host/to/mapping.conf:/mapping.conf \
+  statsd_bridge -statsd.mapping-config="/mapping.conf"
+```
