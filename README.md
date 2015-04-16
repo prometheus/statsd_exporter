@@ -69,7 +69,7 @@ An example mapping configuration:
     name="signup_events"
     provider="$2"
     outcome="$3"
-    job="$1_server"
+    job="${1}_server"
     
 This would transform these example StatsD metrics into Prometheus metrics as
 follows:
