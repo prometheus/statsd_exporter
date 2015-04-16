@@ -60,6 +60,34 @@ func TestMetricMapper(t *testing.T) {
 				"foo.bar.baz": map[string]string{},
 			},
 		},
+		// Config with bad regex reference.
+		{
+			config: `
+				test.*
+				name="name"
+				label="$1_foo"
+			`,
+			mappings: map[string]map[string]string{
+				"test.a": map[string]string{
+					"name":  "name",
+					"label": "",
+				},
+			},
+		},
+		// Config with good regex reference.
+		{
+			config: `
+				test.*
+				name="name"
+				label="${1}_foo"
+			`,
+			mappings: map[string]map[string]string{
+				"test.a": map[string]string{
+					"name":  "name",
+					"label": "a_foo",
+				},
+			},
+		},
 		// Config with bad metric line.
 		{
 			config: `
