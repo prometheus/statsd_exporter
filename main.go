@@ -15,13 +15,13 @@ package main
 
 import (
 	"flag"
-	"log"
 	"net"
 	"net/http"
 	"strconv"
 
 	"github.com/howeyc/fsnotify"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/log"
 )
 
 var (
