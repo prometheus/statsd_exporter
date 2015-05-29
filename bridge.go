@@ -18,7 +18,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"hash/fnv"
-	"log"
 	"net"
 	"regexp"
 	"strconv"
@@ -26,6 +25,7 @@ import (
 
 	"github.com/prometheus/client_golang/model"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/log"
 )
 
 const (
