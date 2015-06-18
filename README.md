@@ -5,6 +5,8 @@ StatsD-Bridge receives StatsD-style metrics and exports them as Prometheus metri
 
 ## Overview
 
+### With StatsD
+
 To pipe metrics from an existing StatsD environment into Prometheus, configure
 StatsD's repeater backend to repeat all received packets to a StatsD-Bridge
 process. This bridge translates StatsD metrics to Prometheus metrics via
@@ -13,6 +15,16 @@ configured mapping rules.
     +----------+                     +-----------------+                        +--------------+
     |  StatsD  |---(UDP repeater)--->|  StatsD-Bridge  |<---(scrape /metrics)---|  Prometheus  |
     +----------+                     +-----------------+                        +--------------+
+
+### Without StatsD
+
+Since the StatsD bridge uses the same UDP protocol as StatsD itself, you can
+also configure your applications to send StatsD metrics directly to the bridge.
+In that case, you don't need to run a StatsD server anymore.
+
+We recommend this only as an intermediate solution and recommend switching to
+[native Prometheus instrumentation](http://prometheus.io/docs/instrumenting/clientlibs/)
+in the long term.
 
 ## Building and Running
 
