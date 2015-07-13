@@ -61,9 +61,9 @@ In general, the different metric types are translated as follows, with certain
 suffixes appended to the Prometheus metric names:
 
     StatsD gauge   -> Prometheus gauge (suffix `_gauge`)
-    
+
     StatsD counter -> Prometheus counter (suffix `_counter`)
-    
+
     StatsD timer   -> Prometheus summary (suffix `_timer`)        <-- indicates timer quantiles
                    -> Prometheus counter (suffix `_timer_total`)  <-- indicates total time spent
                    -> Prometheus counter (suffix `_timer_count`)  <-- indicates total number of timer events
@@ -76,21 +76,35 @@ An example mapping configuration:
     action="$2"
     outcome="$3"
     job="test_dispatcher"
-    
+
     *.signup.*.*
     name="signup_events"
     provider="$2"
     outcome="$3"
     job="${1}_server"
-    
+
 This would transform these example StatsD metrics into Prometheus metrics as
 follows:
 
     test.dispatcher.FooProcessor.send.success (counter)
      => dispatcher_events_counter{processor="FooProcessor", action="send", outcome="success", job="test_dispatcher"}
-    
+
     foo_product.signup.facebook.failure (counter)
      => signup_events_counter{provider="facebook", outcome="failure", job="foo_product_server"}
-     
+
     test.web-server.foo.bar (gauge)
      => test_web__server_foo_bar_gauge{}
+
+## Using Docker
+
+You can deploy this exporter using the [prom/statsd-bridge](https://registry.hub.docker.com/u/prom/statsd-bridge/) Docker image.
+
+For example:
+
+```bash
+docker pull prom/statsd-bridge
+
+docker run -d -p 9102:9102 -p 9125/udp:9125/udp \
+        -v $PWD/statsd_mapping.conf:/tmp/statsd_mapping.conf \
+        prom/statsd-bridge -statsd.mapping-config=/tmp/statsd_mapping.conf
+```
