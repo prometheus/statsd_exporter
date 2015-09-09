@@ -29,6 +29,7 @@ var (
 	metricsEndpoint     = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
 	statsdListenAddress = flag.String("statsd.listen-address", ":9125", "The UDP address on which to receive statsd metric lines.")
 	mappingConfig       = flag.String("statsd.mapping-config", "", "Metric mapping configuration file name.")
+	readBuffer          = flag.Int("statsd.read-buffer", 0, "Size (in bytes) of the operating system's transmit read buffer associated with the UDP connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.")
 )
 
 func serveHTTP() {
@@ -112,6 +113,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	if *readBuffer != 0 {
+		err = conn.SetReadBuffer(*readBuffer)
+		if err != nil {
+			log.Fatal("Error setting UDP read buffer:", err)
+		}
+	}
+
 	l := &StatsDListener{conn: conn}
 	go l.Listen(events)
 
