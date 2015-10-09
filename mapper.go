@@ -24,8 +24,10 @@ import (
 )
 
 var (
-	identifierRE = `[a-zA-Z_][a-zA-Z0-9_]+`
-	metricLineRE = regexp.MustCompile(`^(\*\.|` + identifierRE + `\.)+(\*|` + identifierRE + `)$`)
+	identifierRE   = `[a-zA-Z_][a-zA-Z0-9_]+`
+	statsdMetricRE = `[a-zA-Z_](-?[a-zA-Z0-9_])+`
+
+	metricLineRE = regexp.MustCompile(`^(\*\.|` + statsdMetricRE + `\.)+(\*|` + statsdMetricRE + `)$`)
 	labelLineRE  = regexp.MustCompile(`^(` + identifierRE + `)\s*=\s*"(.*)"$`)
 	metricNameRE = regexp.MustCompile(`^` + identifierRE + `$`)
 )
