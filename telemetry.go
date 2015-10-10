@@ -20,27 +20,27 @@ import (
 var (
 	eventStats = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "statsd_bridge_events_total",
+			Name: "statsd_exporter_events_total",
 			Help: "The total number of StatsD events seen.",
 		},
 		[]string{"type"},
 	)
 	networkStats = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "statsd_bridge_packets_total",
+			Name: "statsd_exporter_packets_total",
 			Help: "The total number of StatsD packets seen.",
 		},
 		[]string{"type"},
 	)
 	configLoads = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "statsd_bridge_config_reloads_total",
+			Name: "statsd_exporter_config_reloads_total",
 			Help: "The number of configuration reloads.",
 		},
 		[]string{"outcome"},
 	)
 	mappingsCount = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "statsd_bridge_loaded_mappings_count",
+		Name: "statsd_exporter_loaded_mappings_count",
 		Help: "The number of configured metric mappings.",
 	})
 )

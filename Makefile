@@ -12,6 +12,6 @@
 # limitations under the License.
 
 VERSION  := 0.1.0
-TARGET   := statsd_bridge
+TARGET   := statsd_exporter
 
 include Makefile.COMMON
