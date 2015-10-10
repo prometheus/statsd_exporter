@@ -34,6 +34,15 @@ var (
 
 func serveHTTP() {
 	http.Handle(*metricsEndpoint, prometheus.Handler())
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`<html>
+			<head><title>StatsD Bridge</title></head>
+			<body>
+			<h1>StatsD Bridge</h1>
+			<p><a href="` + *metricsEndpoint + `">Metrics</a></p>
+			</body>
+			</html>`))
+	})
 	http.ListenAndServe(*listenAddress, nil)
 }
 
