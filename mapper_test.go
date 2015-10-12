@@ -35,6 +35,13 @@ func TestMetricMapper(t *testing.T) {
 				result="$3"
 				job="test_dispatcher"
 
+				test.my-dispatch-host01.name.dispatcher.*.*.*
+				name="host_dispatch_events"
+				processor="$1"
+				action="$2"
+				result="$3"
+				job="test_dispatcher"
+
 				*.*
 				name="catchall"
 				first="$1"
@@ -45,6 +52,13 @@ func TestMetricMapper(t *testing.T) {
 			mappings: map[string]map[string]string{
 				"test.dispatcher.FooProcessor.send.succeeded": map[string]string{
 					"name":      "dispatch_events",
+					"processor": "FooProcessor",
+					"action":    "send",
+					"result":    "succeeded",
+					"job":       "test_dispatcher",
+				},
+				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": map[string]string{
+					"name":      "host_dispatch_events",
 					"processor": "FooProcessor",
 					"action":    "send",
 					"result":    "succeeded",
@@ -91,7 +105,7 @@ func TestMetricMapper(t *testing.T) {
 		// Config with bad metric line.
 		{
 			config: `
-				bad-metric-line.*.*
+				bad--metric-line.*.*
 				name="foo"
 			`,
 			configBad: true,
@@ -101,6 +115,14 @@ func TestMetricMapper(t *testing.T) {
 			config: `
 				test.*.*
 				name=foo
+			`,
+			configBad: true,
+		},
+		// Config with bad label line.
+		{
+			config: `
+				test.*.*
+				name="foo-name"
 			`,
 			configBad: true,
 		},
