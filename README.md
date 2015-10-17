@@ -1,25 +1,25 @@
-StatsD-Bridge
+statsd_exporter
 =============
 
-StatsD-Bridge receives StatsD-style metrics and exports them as Prometheus metrics.
+`statsd_exporter` receives StatsD-style metrics and exports them as Prometheus metrics.
 
 ## Overview
 
 ### With StatsD
 
 To pipe metrics from an existing StatsD environment into Prometheus, configure
-StatsD's repeater backend to repeat all received packets to a StatsD-Bridge
-process. This bridge translates StatsD metrics to Prometheus metrics via
+StatsD's repeater backend to repeat all received packets to a `statsd_exporter`
+process. This exporter translates StatsD metrics to Prometheus metrics via
 configured mapping rules.
 
-    +----------+                     +-----------------+                        +--------------+
-    |  StatsD  |---(UDP repeater)--->|  StatsD-Bridge  |<---(scrape /metrics)---|  Prometheus  |
-    +----------+                     +-----------------+                        +--------------+
+    +----------+                     +-------------------+                        +--------------+
+    |  StatsD  |---(UDP repeater)--->|  statsd_exporter  |<---(scrape /metrics)---|  Prometheus  |
+    +----------+                     +-------------------+                        +--------------+
 
 ### Without StatsD
 
-Since the StatsD bridge uses the same UDP protocol as StatsD itself, you can
-also configure your applications to send StatsD metrics directly to the bridge.
+Since the StatsD exporter uses the same UDP protocol as StatsD itself, you can
+also configure your applications to send StatsD metrics directly to the exporter.
 In that case, you don't need to run a StatsD server anymore.
 
 We recommend this only as an intermediate solution and recommend switching to
@@ -29,8 +29,8 @@ in the long term.
 ## Building and Running
 
     $ go build
-    $ ./statsd_bridge --help
-    Usage of ./statsd_bridge:
+    $ ./statsd_exporter --help
+    Usage of ./statsd_exporter:
       -statsd.listen-address=":9125": The UDP address on which to receive statsd metric lines.
       -statsd.mapping-config="": Metric mapping configuration file name.
       -web.listen-address=":9102": The address on which to expose the web interface and generated Prometheus metrics.
@@ -42,7 +42,7 @@ in the long term.
 
 ## Metric Mapping and Configuration
 
-The StatsD-Bridge can be configured to translate specific dot-separated StatsD
+The `statsd_exporter` can be configured to translate specific dot-separated StatsD
 metrics into labeled Prometheus metrics via a simple mapping language. A
 mapping definition starts with a line matching the StatsD metric in question,
 with `*`s acting as wildcards for each dot-separated metric component. The
@@ -97,14 +97,14 @@ follows:
 
 ## Using Docker
 
-You can deploy this exporter using the [prom/statsd-bridge](https://registry.hub.docker.com/u/prom/statsd-bridge/) Docker image.
+You can deploy this exporter using the [prom/statsd-exporter](https://registry.hub.docker.com/u/prom/statsd-exporter/) Docker image.
 
 For example:
 
 ```bash
-docker pull prom/statsd-bridge
+docker pull prom/statsd-exporter
 
 docker run -d -p 9102:9102 -p 9125/udp:9125/udp \
         -v $PWD/statsd_mapping.conf:/tmp/statsd_mapping.conf \
-        prom/statsd-bridge -statsd.mapping-config=/tmp/statsd_mapping.conf
+        prom/statsd-exporter -statsd.mapping-config=/tmp/statsd_mapping.conf
 ```

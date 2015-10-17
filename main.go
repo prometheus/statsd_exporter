@@ -108,7 +108,7 @@ func watchConfig(fileName string, mapper *metricMapper) {
 func main() {
 	flag.Parse()
 
-	log.Println("Starting StatsD -> Prometheus Bridge...")
+	log.Println("Starting StatsD -> Prometheus Exporter...")
 	log.Println("Accepting StatsD Traffic on", *statsdListenAddress)
 	log.Println("Accepting Prometheus Requests on", *listenAddress)
 
@@ -141,6 +141,6 @@ func main() {
 		}
 		go watchConfig(*mappingConfig, mapper)
 	}
-	bridge := NewBridge(mapper)
-	bridge.Listen(events)
+	exporter := NewExporter(mapper)
+	exporter.Listen(events)
 }
