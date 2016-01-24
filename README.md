@@ -1,5 +1,8 @@
-statsd_exporter
-=============
+# statsd exporter [![Build Status](https://travis-ci.org/prometheus/statsd_exporter.svg)][travis]
+
+[![CircleCI](https://circleci.com/gh/prometheus/statsd_exporter/tree/master.svg?style=shield)][circleci]
+[![Docker Repository on Quay](https://quay.io/repository/prometheus/statsd-exporter/status)][quay]
+[![Docker Pulls](https://img.shields.io/docker/pulls/prom/statsd-exporter.svg)][hub]
 
 `statsd_exporter` receives StatsD-style metrics and exports them as Prometheus metrics.
 
@@ -123,3 +126,9 @@ docker run -d -p 9102:9102 -p 9125:9125/udp \
         -v $PWD/statsd_mapping.conf:/tmp/statsd_mapping.conf \
         prom/statsd-exporter -statsd.mapping-config=/tmp/statsd_mapping.conf
 ```
+
+
+[travis]: https://travis-ci.org/prometheus/statsd_exporter
+[circleci]: https://circleci.com/gh/prometheus/statsd_exporter
+[quay]: https://quay.io/repository/prometheus/statsd-exporter
+[hub]: https://hub.docker.com/r/prom/statsd-exporter/
