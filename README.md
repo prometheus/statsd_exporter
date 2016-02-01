@@ -104,7 +104,7 @@ For example:
 ```bash
 docker pull prom/statsd-exporter
 
-docker run -d -p 9102:9102 -p 9125/udp:9125/udp \
+docker run -d -p 9102:9102 -p 9125:9125/udp \
         -v $PWD/statsd_mapping.conf:/tmp/statsd_mapping.conf \
         prom/statsd-exporter -statsd.mapping-config=/tmp/statsd_mapping.conf
 ```
