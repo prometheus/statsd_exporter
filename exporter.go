@@ -361,15 +361,17 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 						value /= samplingFactor
 					case '#':
 						networkStats.WithLabelValues("dogstasd_tags").Inc()
-						tags := strings.Split(component[1:], ",")
+						tags := strings.Split(component, ",")
 						for _, t := range tags {
 							kv := strings.Split(t, ":")
 							if len(kv) == 2 {
 								if len(kv[1]) > 0 {
-									labels[kv[0]] = kv[1]
+									var metric_key = kv[0][1:]
+									metric_key = strings.Trim(metric_key, " ")
+									labels[metric_key] = kv[1]
 								}
 							} else if len(kv) == 1 {
-								labels[kv[0]] = "."
+								labels[kv[0][1:]] = "."
 							}
 						}
 					default:

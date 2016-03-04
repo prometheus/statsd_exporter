@@ -58,7 +58,7 @@ func TestHandlePacket(t *testing.T) {
 			},
 		}, {
 			name: "datadog tag extension",
-			in:   "foo:100|c|#tag1:bar,tag2:baz,tag3,tag4",
+			in:   "foo:100|c|#tag1:bar,#tag2:baz,#tag3,#tag4",
 			out: Events{
 				&CounterEvent{
 					metricName: "foo",
@@ -68,7 +68,7 @@ func TestHandlePacket(t *testing.T) {
 			},
 		}, {
 			name: "datadog tag extension with sampling",
-			in:   "foo:100|c|@0.1|#tag1:bar,tag2,tag3:baz",
+			in:   "foo:100|c|@0.1|#tag1:bar,#tag2,#tag3:baz",
 			out: Events{
 				&CounterEvent{
 					metricName: "foo",
