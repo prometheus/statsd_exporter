@@ -360,7 +360,7 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 						}
 						value /= samplingFactor
 					case '#':
-						networkStats.WithLabelValues("dogstasd_tags").Inc()
+						networkStats.WithLabelValues("dogstatsd_tags").Inc()
 						tags := strings.Split(component, ",")
 						for _, t := range tags {
 							t = strings.TrimPrefix(t, "#")
