@@ -191,7 +191,11 @@ func escapeMetricName(metricName string) string {
 
 func (b *Exporter) Listen(e <-chan Events) {
 	for {
-		events := <-e
+		events, ok := <-e
+		if !ok {
+			log.Debug("Channel is closed. Break out of Exporter.Listener.")
+			return
+		}
 		for _, event := range events {
 			metricName := ""
 			prometheusLabels := prometheus.Labels{}
@@ -214,6 +218,13 @@ func (b *Exporter) Listen(e <-chan Events) {
 					metricName+"_counter",
 					prometheusLabels,
 				)
+				// We don't accept negative values for counters. Incrementing the counter with a negative number
+				// will cause the exporter to panic. Instead we will warn and continue to the next event.
+				if event.Value() < 0.0 {
+					log.Warnf("Counter %q is: '%f' (counter must be non-negative value)", metricName, event.Value())
+					continue
+				}
+
 				counter.Add(event.Value())
 
 				eventStats.WithLabelValues("counter").Inc()
