@@ -25,6 +25,14 @@ In that case, you don't need to run a StatsD server anymore.
 We recommend this only as an intermediate solution and recommend switching to
 [native Prometheus instrumentation](http://prometheus.io/docs/instrumenting/clientlibs/)
 in the long term.
+### DogStatsD extensions
+
+The exporter will convert DogStatsD-style tags to prometheus labels. See
+[Tags](http://docs.datadoghq.com/guides/dogstatsd/#tags) in the DogStatsD
+documentation for the concept description and
+[Datagram Format](http://docs.datadoghq.com/guides/dogstatsd/#datagram-format)
+for specifics. It boils down to appending
+`#tag:value,another_tag:another_value` to the normal StatsD format.
 
 ## Building and Running
 
