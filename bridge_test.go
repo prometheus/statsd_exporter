@@ -58,42 +58,82 @@ func TestHandlePacket(t *testing.T) {
 			},
 		}, {
 			name: "datadog tag extension",
-			in:   "foo:100|c|#tag1:bar,tag2:baz,tag3,tag4",
+			in:   "foo:100|c|#tag1:bar,tag2:baz",
 			out: Events{
 				&CounterEvent{
 					metricName: "foo",
 					value:      100,
-					labels:     map[string]string{"tag1": "bar", "tag2": "baz", "tag3": ".", "tag4": "."},
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
 			},
 		}, {
 			name: "datadog tag extension with # in all keys (as sent by datadog php client)",
-			in:   "foo:100|c|#tag1:bar,#tag2:baz,#tag3,#tag4",
+			in:   "foo:100|c|#tag1:bar,#tag2:baz",
 			out: Events{
 				&CounterEvent{
 					metricName: "foo",
 					value:      100,
-					labels:     map[string]string{"tag1": "bar", "tag2": "baz", "tag3": ".", "tag4": "."},
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
 			},
 		}, {
-			name: "datadog tag extension with tags unsupported by prometheus",
-			in:   "foo:100|c|#09digits:0,tag.with.dots,tag_with_empty_value:",
+			name: "datadog tag extension with tag keys unsupported by prometheus",
+			in:   "foo:100|c|#09digits:0,tag.with.dots:1",
 			out: Events{
 				&CounterEvent{
 					metricName: "foo",
 					value:      100,
-					labels:     map[string]string{"_09digits": "0", "tag_with_dots": ".", "tag_with_empty_value": "."},
+					labels:     map[string]string{"_09digits": "0", "tag_with_dots": "1"},
+				},
+			},
+		}, {
+			name: "datadog tag extension with valueless tags: ignored",
+			in:   "foo:100|c|#tag_without_a_value",
+			out: Events{
+				&CounterEvent{
+					metricName: "foo",
+					value:      100,
+					labels:     map[string]string{},
+				},
+			},
+		}, {
+			name: "datadog tag extension with valueless tags (edge case)",
+			in:   "foo:100|c|#tag_without_a_value,tag:value",
+			out: Events{
+				&CounterEvent{
+					metricName: "foo",
+					value:      100,
+					labels:     map[string]string{"tag": "value"},
+				},
+			},
+		}, {
+			name: "datadog tag extension with empty tags (edge case)",
+			in:   "foo:100|c|#tag:value,,",
+			out: Events{
+				&CounterEvent{
+					metricName: "foo",
+					value:      100,
+					labels:     map[string]string{"tag": "value"},
 				},
 			},
 		}, {
 			name: "datadog tag extension with sampling",
-			in:   "foo:100|c|@0.1|#tag1:bar,tag2,tag3:baz",
+			in:   "foo:100|c|@0.1|#tag1:bar,#tag2:baz",
 			out: Events{
 				&CounterEvent{
 					metricName: "foo",
 					value:      1000,
-					labels:     map[string]string{"tag1": "bar", "tag2": ".", "tag3": "baz"},
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		}, {
+			name: "datadog tag extension with multiple colons",
+			in:   "foo:100|c|@0.1|#tag1:foo:bar",
+			out: Events{
+				&CounterEvent{
+					metricName: "foo",
+					value:      1000,
+					labels:     map[string]string{"tag1": "foo:bar"},
 				},
 			},
 		}, {
