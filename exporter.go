@@ -303,6 +303,30 @@ func (l *StatsDListener) Listen(e chan<- Events) {
 	}
 }
 
+func parseDogStatsDTagsToLabels(component string) map[string]string {
+	labels := map[string]string{}
+	networkStats.WithLabelValues("dogstatsd_tags").Inc()
+	tags := strings.Split(component, ",")
+	for _, t := range tags {
+		t = strings.TrimPrefix(t, "#")
+		kv := strings.Split(t, ":")
+		key := escapeMetricName(kv[0])
+
+		var value string
+		if len(kv) == 2 {
+			if len(kv[1]) > 0 {
+				value = kv[1]
+			} else {
+				value = "."
+			}
+		} else if len(kv) == 1 {
+			value = "."
+		}
+		labels[key] = value
+	}
+	return labels
+}
+
 func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 	lines := strings.Split(string(packet), "\n")
 	events := Events{}
@@ -360,26 +384,7 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 						}
 						value /= samplingFactor
 					case '#':
-						networkStats.WithLabelValues("dogstatsd_tags").Inc()
-						tags := strings.Split(component, ",")
-						for _, t := range tags {
-							t = strings.TrimPrefix(t, "#")
-							kv := strings.Split(t, ":")
-							tag_key := kv[0]
-							tag_key = escapeMetricName(tag_key)
-
-							var tag_value string
-							if len(kv) == 2 {
-								if len(kv[1]) > 0 {
-									tag_value = kv[1]
-								} else {
-									tag_value = "."
-								}
-							} else if len(kv) == 1 {
-								tag_value = "."
-							}
-							labels[tag_key] = tag_value
-						}
+						labels = parseDogStatsDTagsToLabels(component)
 					default:
 						log.Printf("Invalid sampling factor or tag section %s on line %s", components[2], line)
 						networkStats.WithLabelValues("invalid_sample_factor").Inc()
