@@ -359,7 +359,6 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 				continue
 			}
 			valueStr, statType := components[0], components[1]
-			labels := map[string]string{}
 			value, err := strconv.ParseFloat(valueStr, 64)
 			if err != nil {
 				log.Printf("Bad value %s on line: %s", valueStr, line)
@@ -367,6 +366,7 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 				continue
 			}
 
+			labels := map[string]string{}
 			if len(components) >= 3 {
 				for _, component := range components[2:] {
 					switch component[0] {
