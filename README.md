@@ -25,6 +25,7 @@ In that case, you don't need to run a StatsD server anymore.
 We recommend this only as an intermediate solution and recommend switching to
 [native Prometheus instrumentation](http://prometheus.io/docs/instrumenting/clientlibs/)
 in the long term.
+
 ### DogStatsD extensions
 
 The exporter will convert DogStatsD-style tags to prometheus labels. See
