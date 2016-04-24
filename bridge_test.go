@@ -63,7 +63,7 @@ func TestHandlePacket(t *testing.T) {
 				&CounterEvent{
 					metricName: "foo",
 					value:      100,
-					labels:     map[string]string{"tag1": "bar", "tag2": "baz", "tag3": ".", "tag4": "."},
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz", "tag3": "<n/a>", "tag4": "<n/a>"},
 				},
 			},
 		}, {
@@ -73,7 +73,7 @@ func TestHandlePacket(t *testing.T) {
 				&CounterEvent{
 					metricName: "foo",
 					value:      100,
-					labels:     map[string]string{"tag1": "bar", "tag2": "baz", "tag3": ".", "tag4": "."},
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz", "tag3": "<n/a>", "tag4": "<n/a>"},
 				},
 			},
 		}, {
@@ -83,7 +83,7 @@ func TestHandlePacket(t *testing.T) {
 				&CounterEvent{
 					metricName: "foo",
 					value:      100,
-					labels:     map[string]string{"_09digits": "0", "tag_with_dots": ".", "tag_with_empty_value": "."},
+					labels:     map[string]string{"_09digits": "0", "tag_with_dots": "<n/a>", "tag_with_empty_value": "<n/a>"},
 				},
 			},
 		}, {
@@ -93,7 +93,7 @@ func TestHandlePacket(t *testing.T) {
 				&CounterEvent{
 					metricName: "foo",
 					value:      1000,
-					labels:     map[string]string{"tag1": "bar", "tag2": ".", "tag3": "baz"},
+					labels:     map[string]string{"tag1": "bar", "tag2": "<n/a>", "tag3": "baz"},
 				},
 			},
 		}, {

@@ -33,6 +33,7 @@ const (
 	regErrF     = "A change of configuration created inconsistent metrics for " +
 		"%q. You have to restart the statsd_exporter, and you should " +
 		"consider the effects on your monitoring setup. Error: %s"
+	dogStatsDDefaultTagValue = "<n/a>"
 )
 
 var (
@@ -317,10 +318,10 @@ func parseDogStatsDTagsToLabels(component string) map[string]string {
 			if len(kv[1]) > 0 {
 				value = kv[1]
 			} else {
-				value = "."
+				value = dogStatsDDefaultTagValue
 			}
 		} else if len(kv) == 1 {
-			value = "."
+			value = dogStatsDDefaultTagValue
 		}
 		labels[key] = value
 	}
