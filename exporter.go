@@ -293,10 +293,9 @@ func buildEvent(statType, metric string, value float64) (Event, error) {
 }
 
 func (l *StatsDListener) Listen(e chan<- Events) {
-	// TODO: evaluate proper size according to MTU
-	var buf [512]byte
+	buf := make([]byte, 65535)
 	for {
-		n, _, err := l.conn.ReadFromUDP(buf[0:])
+		n, _, err := l.conn.ReadFromUDP(buf)
 		if err != nil {
 			log.Fatal(err)
 		}
