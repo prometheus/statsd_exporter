@@ -33,7 +33,6 @@ const (
 	regErrF     = "A change of configuration created inconsistent metrics for " +
 		"%q. You have to restart the statsd_exporter, and you should " +
 		"consider the effects on your monitoring setup. Error: %s"
-	dogStatsDDefaultTagValue = "<n/a>"
 )
 
 var (
@@ -311,19 +310,14 @@ func parseDogStatsDTagsToLabels(component string) map[string]string {
 	for _, t := range tags {
 		t = strings.TrimPrefix(t, "#")
 		kv := strings.SplitN(t, ":", 2)
-		key := escapeMetricName(kv[0])
 
-		var value string
-		if len(kv) == 2 {
-			if len(kv[1]) > 0 {
-				value = kv[1]
-			} else {
-				value = dogStatsDDefaultTagValue
-			}
-		} else if len(kv) == 1 {
-			value = dogStatsDDefaultTagValue
+		if len(kv) < 2 || len(kv[1]) == 0 {
+			networkStats.WithLabelValues("malformed_dogstatsd_tag").Inc()
+			log.Printf("Malformed or empty DogStatsD tag %s in component %s", t, component)
+			continue
 		}
-		labels[key] = value
+
+		labels[escapeMetricName(kv[0])] = kv[1]
 	}
 	return labels
 }

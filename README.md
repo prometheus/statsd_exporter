@@ -33,7 +33,8 @@ The exporter will convert DogStatsD-style tags to prometheus labels. See
 documentation for the concept description and
 [Datagram Format](http://docs.datadoghq.com/guides/dogstatsd/#datagram-format)
 for specifics. It boils down to appending
-`|#tag:value,another_tag:another_value` to the normal StatsD format.
+`|#tag:value,another_tag:another_value` to the normal StatsD format.  Tags
+without values (`#some_tag`) are not supported.
 
 ## Building and Running
 
