@@ -97,6 +97,16 @@ func TestHandlePacket(t *testing.T) {
 				},
 			},
 		}, {
+			name: "datadog tag extension with multiple colons",
+			in:   "foo:100|c|@0.1|#tag1:foo:bar",
+			out: Events{
+				&CounterEvent{
+					metricName: "foo",
+					value:      1000,
+					labels:     map[string]string{"tag1": "foo:bar"},
+				},
+			},
+		}, {
 			name: "combined multiline metrics",
 			in:   "foo:200|ms:300|ms:5|c|@0.1:6|g\nbar:1|c:5|ms",
 			out: Events{

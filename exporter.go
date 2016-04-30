@@ -310,7 +310,7 @@ func parseDogStatsDTagsToLabels(component string) map[string]string {
 	tags := strings.Split(component, ",")
 	for _, t := range tags {
 		t = strings.TrimPrefix(t, "#")
-		kv := strings.Split(t, ":")
+		kv := strings.SplitN(t, ":", 2)
 		key := escapeMetricName(kv[0])
 
 		var value string
