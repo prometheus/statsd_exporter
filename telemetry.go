@@ -25,6 +25,10 @@ var (
 		},
 		[]string{"type"},
 	)
+	eventsUnmapped = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "statsd_exporter_events_unmapped_total",
+		Help: "The total number of StatsD events no mapping was found for.",
+	})
 	networkStats = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_packets_total",
@@ -41,7 +45,7 @@ var (
 	)
 	mappingsCount = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "statsd_exporter_loaded_mappings_count",
-		Help: "The number of configured metric mappings.",
+		Help: "The current number of configured metric mappings.",
 	})
 )
 
