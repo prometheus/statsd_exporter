@@ -30,6 +30,7 @@ var (
 	statsdListenAddress = flag.String("statsd.listen-address", ":9125", "The UDP address on which to receive statsd metric lines.")
 	mappingConfig       = flag.String("statsd.mapping-config", "", "Metric mapping configuration file name.")
 	readBuffer          = flag.Int("statsd.read-buffer", 0, "Size (in bytes) of the operating system's transmit read buffer associated with the UDP connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.")
+	addSuffix           = flag.Bool("statsd.add-suffix", true, "Add the metric type (counter/gauge/timer) as suffix to the generated Prometheus metric (NOT recommended, but set by default for backward compatibility).")
 )
 
 func serveHTTP() {
@@ -108,6 +109,9 @@ func watchConfig(fileName string, mapper *metricMapper) {
 func main() {
 	flag.Parse()
 
+	if *addSuffix {
+		log.Println("Warning: Using -statsd.add-suffix is discouraged. We recommend explicitly naming metrics appropriately in the mapping configuration.")
+	}
 	log.Println("Starting StatsD -> Prometheus Exporter...")
 	log.Println("Accepting StatsD Traffic on", *statsdListenAddress)
 	log.Println("Accepting Prometheus Requests on", *listenAddress)
@@ -141,6 +145,6 @@ func main() {
 		}
 		go watchConfig(*mappingConfig, mapper)
 	}
-	exporter := NewExporter(mapper)
+	exporter := NewExporter(mapper, *addSuffix)
 	exporter.Listen(events)
 }

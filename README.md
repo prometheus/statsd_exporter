@@ -57,28 +57,33 @@ Metrics that don't match any mapping in the configuration file are translated
 into Prometheus metrics without any labels and with certain characters escaped
 (`_` -> `__`; `-` -> `__`; `.` -> `_`).
 
-In general, the different metric types are translated as follows, with certain
-suffixes appended to the Prometheus metric names:
+In general, the different metric types are translated as follows:
 
-    StatsD gauge   -> Prometheus gauge (suffix `_gauge`)
+    StatsD gauge   -> Prometheus gauge
 
-    StatsD counter -> Prometheus counter (suffix `_counter`)
+    StatsD counter -> Prometheus counter
 
-    StatsD timer   -> Prometheus summary (suffix `_timer`)        <-- indicates timer quantiles
-                   -> Prometheus counter (suffix `_timer_total`)  <-- indicates total time spent
-                   -> Prometheus counter (suffix `_timer_count`)  <-- indicates total number of timer events
+    StatsD timer   -> Prometheus summary                    <-- indicates timer quantiles
+                   -> Prometheus counter (suffix `_total`)  <-- indicates total time spent
+                   -> Prometheus counter (suffix `_count`)  <-- indicates total number of timer events
 
-An example mapping configuration:
+If `-statsd.add-suffix` is set, the exporter appends the metric type (`_gauge`,
+`_counter`, `_timer`) to the resulting metrics. This is enabled by default for
+backward compatibility but discouraged to use. Instead, it is better to
+explicitly define the full metric name in your mapping and run the exporter
+with `-statsd.add-suffix=false`.
+
+An example mapping configuration with `-statsd.add-suffix=false`:
 
     test.dispatcher.*.*.*
-    name="dispatcher_events"
+    name="dispatcher_events_total"
     processor="$1"
     action="$2"
     outcome="$3"
     job="test_dispatcher"
 
     *.signup.*.*
-    name="signup_events"
+    name="signup_events_total"
     provider="$2"
     outcome="$3"
     job="${1}_server"
@@ -86,14 +91,14 @@ An example mapping configuration:
 This would transform these example StatsD metrics into Prometheus metrics as
 follows:
 
-    test.dispatcher.FooProcessor.send.success (counter)
-     => dispatcher_events_counter{processor="FooProcessor", action="send", outcome="success", job="test_dispatcher"}
+    test.dispatcher.FooProcessor.send.success
+     => dispatcher_events_total{processor="FooProcessor", action="send", outcome="success", job="test_dispatcher"}
 
-    foo_product.signup.facebook.failure (counter)
-     => signup_events_counter{provider="facebook", outcome="failure", job="foo_product_server"}
+    foo_product.signup.facebook.failure
+     => signup_events_total{provider="facebook", outcome="failure", job="foo_product_server"}
 
-    test.web-server.foo.bar (gauge)
-     => test_web__server_foo_bar_gauge{}
+    test.web-server.foo.bar
+     => test_web__server_foo_bar{}
 
 ## Using Docker
 

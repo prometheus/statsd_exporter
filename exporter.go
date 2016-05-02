@@ -176,6 +176,7 @@ type Exporter struct {
 	Gauges    *GaugeContainer
 	Summaries *SummaryContainer
 	mapper    *metricMapper
+	addSuffix bool
 }
 
 func escapeMetricName(metricName string) string {
@@ -187,6 +188,14 @@ func escapeMetricName(metricName string) string {
 	// Replace all illegal metric chars with underscores.
 	metricName = illegalCharsRE.ReplaceAllString(metricName, "_")
 	return metricName
+}
+
+func (b *Exporter) suffix(metricName, suffix string) string {
+	str := metricName
+	if b.addSuffix {
+		str += "_" + suffix
+	}
+	return str
 }
 
 func (b *Exporter) Listen(e <-chan Events) {
@@ -215,7 +224,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 			switch event.(type) {
 			case *CounterEvent:
 				counter := b.Counters.Get(
-					metricName+"_counter",
+					b.suffix(metricName, "counter"),
 					prometheusLabels,
 				)
 				// We don't accept negative values for counters. Incrementing the counter with a negative number
@@ -231,7 +240,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 
 			case *GaugeEvent:
 				gauge := b.Gauges.Get(
-					metricName+"_gauge",
+					b.suffix(metricName, "gauge"),
 					prometheusLabels,
 				)
 				gauge.Set(event.Value())
@@ -240,7 +249,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 
 			case *TimerEvent:
 				summary := b.Summaries.Get(
-					metricName+"_timer",
+					b.suffix(metricName, "timer"),
 					prometheusLabels,
 				)
 				summary.Observe(event.Value())
@@ -255,8 +264,9 @@ func (b *Exporter) Listen(e <-chan Events) {
 	}
 }
 
-func NewExporter(mapper *metricMapper) *Exporter {
+func NewExporter(mapper *metricMapper, addSuffix bool) *Exporter {
 	return &Exporter{
+		addSuffix: addSuffix,
 		Counters:  NewCounterContainer(),
 		Gauges:    NewGaugeContainer(),
 		Summaries: NewSummaryContainer(),
