@@ -40,7 +40,7 @@ func TestNegativeCounter(t *testing.T) {
 		},
 	}
 	events <- c
-	ex := NewExporter(&metricMapper{})
+	ex := NewExporter(&metricMapper{}, true)
 
 	// Close channel to signify we are done with the listener after a short period.
 	go func() {
