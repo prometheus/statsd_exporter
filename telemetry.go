@@ -44,7 +44,7 @@ var (
 		[]string{"outcome"},
 	)
 	mappingsCount = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "statsd_exporter_loaded_mappings_count",
+		Name: "statsd_exporter_loaded_mappings",
 		Help: "The current number of configured metric mappings.",
 	})
 )
