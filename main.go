@@ -25,6 +25,9 @@ import (
 )
 
 var (
+	// Version of statsd_exporter. Set at build time.
+	Version = "0.0.0.dev"
+
 	listenAddress       = flag.String("web.listen-address", ":9102", "The address on which to expose the web interface and generated Prometheus metrics.")
 	metricsEndpoint     = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
 	statsdListenAddress = flag.String("statsd.listen-address", ":9125", "The UDP address on which to receive statsd metric lines.")
@@ -112,7 +115,7 @@ func main() {
 	if *addSuffix {
 		log.Println("Warning: Using -statsd.add-suffix is discouraged. We recommend explicitly naming metrics appropriately in the mapping configuration.")
 	}
-	log.Println("Starting StatsD -> Prometheus Exporter...")
+	log.Printf("Starting StatsD -> Prometheus Exporter v%s...", Version)
 	log.Println("Accepting StatsD Traffic on", *statsdListenAddress)
 	log.Println("Accepting Prometheus Requests on", *listenAddress)
 
