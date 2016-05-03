@@ -143,31 +143,38 @@ func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels) prom
 type Event interface {
 	MetricName() string
 	Value() float64
+	Labels() map[string]string
 }
 
 type CounterEvent struct {
 	metricName string
 	value      float64
+	labels     map[string]string
 }
 
-func (c *CounterEvent) MetricName() string { return c.metricName }
-func (c *CounterEvent) Value() float64     { return c.value }
+func (c *CounterEvent) MetricName() string        { return c.metricName }
+func (c *CounterEvent) Value() float64            { return c.value }
+func (c *CounterEvent) Labels() map[string]string { return c.labels }
 
 type GaugeEvent struct {
 	metricName string
 	value      float64
+	labels     map[string]string
 }
 
-func (g *GaugeEvent) MetricName() string { return g.metricName }
-func (g *GaugeEvent) Value() float64     { return g.value }
+func (g *GaugeEvent) MetricName() string        { return g.metricName }
+func (g *GaugeEvent) Value() float64            { return g.value }
+func (c *GaugeEvent) Labels() map[string]string { return c.labels }
 
 type TimerEvent struct {
 	metricName string
 	value      float64
+	labels     map[string]string
 }
 
-func (t *TimerEvent) MetricName() string { return t.metricName }
-func (t *TimerEvent) Value() float64     { return t.value }
+func (t *TimerEvent) MetricName() string        { return t.metricName }
+func (t *TimerEvent) Value() float64            { return t.value }
+func (c *TimerEvent) Labels() map[string]string { return c.labels }
 
 type Events []Event
 
@@ -198,7 +205,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 		}
 		for _, event := range events {
 			metricName := ""
-			prometheusLabels := prometheus.Labels{}
+			prometheusLabels := event.Labels()
 
 			labels, present := b.mapper.getMapping(event.MetricName())
 			if present {
@@ -268,22 +275,25 @@ type StatsDListener struct {
 	conn *net.UDPConn
 }
 
-func buildEvent(statType, metric string, value float64) (Event, error) {
+func buildEvent(statType, metric string, value float64, labels map[string]string) (Event, error) {
 	switch statType {
 	case "c":
 		return &CounterEvent{
 			metricName: metric,
 			value:      float64(value),
+			labels:     labels,
 		}, nil
 	case "g":
 		return &GaugeEvent{
 			metricName: metric,
 			value:      float64(value),
+			labels:     labels,
 		}, nil
-	case "ms":
+	case "ms", "h":
 		return &TimerEvent{
 			metricName: metric,
 			value:      float64(value),
+			labels:     labels,
 		}, nil
 	case "s":
 		return nil, fmt.Errorf("No support for StatsD sets")
@@ -303,6 +313,25 @@ func (l *StatsDListener) Listen(e chan<- Events) {
 	}
 }
 
+func parseDogStatsDTagsToLabels(component string) map[string]string {
+	labels := map[string]string{}
+	networkStats.WithLabelValues("dogstatsd_tags").Inc()
+	tags := strings.Split(component, ",")
+	for _, t := range tags {
+		t = strings.TrimPrefix(t, "#")
+		kv := strings.SplitN(t, ":", 2)
+
+		if len(kv) < 2 || len(kv[1]) == 0 {
+			networkStats.WithLabelValues("malformed_dogstatsd_tag").Inc()
+			log.Printf("Malformed or empty DogStatsD tag %s in component %s", t, component)
+			continue
+		}
+
+		labels[escapeMetricName(kv[0])] = kv[1]
+	}
+	return labels
+}
+
 func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 	lines := strings.Split(string(packet), "\n")
 	events := Events{}
@@ -311,18 +340,24 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 			continue
 		}
 
-		elements := strings.Split(line, ":")
+		elements := strings.SplitN(line, ":", 2)
 		if len(elements) < 2 {
 			networkStats.WithLabelValues("malformed_line").Inc()
 			log.Println("Bad line from StatsD:", line)
 			continue
 		}
 		metric := elements[0]
-		samples := elements[1:]
+		var samples []string
+		if strings.Contains(elements[1], "|#") {
+			// using datadog extensions, disable multi-metrics
+			samples = elements[1:]
+		} else {
+			samples = strings.Split(elements[1], ":")
+		}
 		for _, sample := range samples {
 			components := strings.Split(sample, "|")
 			samplingFactor := 1.0
-			if len(components) < 2 || len(components) > 3 {
+			if len(components) < 2 || len(components) > 4 {
 				networkStats.WithLabelValues("malformed_component").Inc()
 				log.Println("Bad component on line:", line)
 				continue
@@ -335,32 +370,35 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 				continue
 			}
 
-			if len(components) == 3 {
-				if statType != "c" {
-					log.Println("Illegal sampling factor for non-counter metric on line", line)
-					networkStats.WithLabelValues("illegal_sample_factor").Inc()
+			labels := map[string]string{}
+			if len(components) >= 3 {
+				for _, component := range components[2:] {
+					switch component[0] {
+					case '@':
+						if statType != "c" {
+							log.Println("Illegal sampling factor for non-counter metric on line", line)
+							networkStats.WithLabelValues("illegal_sample_factor").Inc()
+						}
+						samplingFactor, err = strconv.ParseFloat(component[1:], 64)
+						if err != nil {
+							log.Printf("Invalid sampling factor %s on line %s", component[1:], line)
+							networkStats.WithLabelValues("invalid_sample_factor").Inc()
+						}
+						if samplingFactor == 0 {
+							samplingFactor = 1
+						}
+						value /= samplingFactor
+					case '#':
+						labels = parseDogStatsDTagsToLabels(component)
+					default:
+						log.Printf("Invalid sampling factor or tag section %s on line %s", components[2], line)
+						networkStats.WithLabelValues("invalid_sample_factor").Inc()
+						continue
+					}
 				}
-				samplingStr := components[2]
-				if samplingStr[0] != '@' {
-					log.Printf("Invalid sampling factor %s on line %s", samplingStr, line)
-					networkStats.WithLabelValues("invalid_sample_factor").Inc()
-					continue
-				}
-				samplingFactor, err = strconv.ParseFloat(samplingStr[1:], 64)
-				if err != nil {
-					log.Printf("Invalid sampling factor %s on line %s", samplingStr, line)
-					networkStats.WithLabelValues("invalid_sample_factor").Inc()
-					continue
-				}
-				if samplingFactor == 0 {
-					// This should never happen, but avoid division by zero if it does.
-					log.Printf("Invalid zero sampling factor %s on line %s, setting to 1", samplingStr, line)
-					samplingFactor = 1
-				}
-				value /= samplingFactor
 			}
 
-			event, err := buildEvent(statType, metric, value)
+			event, err := buildEvent(statType, metric, value, labels)
 			if err != nil {
 				log.Printf("Error building event on line %s: %s", line, err)
 				networkStats.WithLabelValues("illegal_event").Inc()

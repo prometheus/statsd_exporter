@@ -14,7 +14,7 @@
 package main
 
 import (
-	"fmt"
+	"reflect"
 	"testing"
 )
 
@@ -33,6 +33,7 @@ func TestHandlePacket(t *testing.T) {
 				&CounterEvent{
 					metricName: "foo",
 					value:      2,
+					labels:     map[string]string{},
 				},
 			},
 		}, {
@@ -42,6 +43,7 @@ func TestHandlePacket(t *testing.T) {
 				&GaugeEvent{
 					metricName: "foo",
 					value:      3,
+					labels:     map[string]string{},
 				},
 			},
 		}, {
@@ -51,6 +53,87 @@ func TestHandlePacket(t *testing.T) {
 				&TimerEvent{
 					metricName: "foo",
 					value:      200,
+					labels:     map[string]string{},
+				},
+			},
+		}, {
+			name: "datadog tag extension",
+			in:   "foo:100|c|#tag1:bar,tag2:baz",
+			out: Events{
+				&CounterEvent{
+					metricName: "foo",
+					value:      100,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		}, {
+			name: "datadog tag extension with # in all keys (as sent by datadog php client)",
+			in:   "foo:100|c|#tag1:bar,#tag2:baz",
+			out: Events{
+				&CounterEvent{
+					metricName: "foo",
+					value:      100,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		}, {
+			name: "datadog tag extension with tag keys unsupported by prometheus",
+			in:   "foo:100|c|#09digits:0,tag.with.dots:1",
+			out: Events{
+				&CounterEvent{
+					metricName: "foo",
+					value:      100,
+					labels:     map[string]string{"_09digits": "0", "tag_with_dots": "1"},
+				},
+			},
+		}, {
+			name: "datadog tag extension with valueless tags: ignored",
+			in:   "foo:100|c|#tag_without_a_value",
+			out: Events{
+				&CounterEvent{
+					metricName: "foo",
+					value:      100,
+					labels:     map[string]string{},
+				},
+			},
+		}, {
+			name: "datadog tag extension with valueless tags (edge case)",
+			in:   "foo:100|c|#tag_without_a_value,tag:value",
+			out: Events{
+				&CounterEvent{
+					metricName: "foo",
+					value:      100,
+					labels:     map[string]string{"tag": "value"},
+				},
+			},
+		}, {
+			name: "datadog tag extension with empty tags (edge case)",
+			in:   "foo:100|c|#tag:value,,",
+			out: Events{
+				&CounterEvent{
+					metricName: "foo",
+					value:      100,
+					labels:     map[string]string{"tag": "value"},
+				},
+			},
+		}, {
+			name: "datadog tag extension with sampling",
+			in:   "foo:100|c|@0.1|#tag1:bar,#tag2:baz",
+			out: Events{
+				&CounterEvent{
+					metricName: "foo",
+					value:      1000,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		}, {
+			name: "datadog tag extension with multiple colons",
+			in:   "foo:100|c|@0.1|#tag1:foo:bar",
+			out: Events{
+				&CounterEvent{
+					metricName: "foo",
+					value:      1000,
+					labels:     map[string]string{"tag1": "foo:bar"},
 				},
 			},
 		}, {
@@ -60,26 +143,32 @@ func TestHandlePacket(t *testing.T) {
 				&TimerEvent{
 					metricName: "foo",
 					value:      200,
+					labels:     map[string]string{},
 				},
 				&TimerEvent{
 					metricName: "foo",
 					value:      300,
+					labels:     map[string]string{},
 				},
 				&CounterEvent{
 					metricName: "foo",
 					value:      50,
+					labels:     map[string]string{},
 				},
 				&GaugeEvent{
 					metricName: "foo",
 					value:      6,
+					labels:     map[string]string{},
 				},
 				&CounterEvent{
 					metricName: "bar",
 					value:      1,
+					labels:     map[string]string{},
 				},
 				&TimerEvent{
 					metricName: "bar",
 					value:      5,
+					labels:     map[string]string{},
 				},
 			},
 		}, {
@@ -94,6 +183,13 @@ func TestHandlePacket(t *testing.T) {
 		}, {
 			name: "illegal sampling factor",
 			in:   "foo:1|c|@bar",
+			out: Events{
+				&CounterEvent{
+					metricName: "foo",
+					value:      1,
+					labels:     map[string]string{},
+				},
+			},
 		}, {
 			name: "zero sampling factor",
 			in:   "foo:2|c|@0",
@@ -101,6 +197,7 @@ func TestHandlePacket(t *testing.T) {
 				&CounterEvent{
 					metricName: "foo",
 					value:      2,
+					labels:     map[string]string{},
 				},
 			},
 		}, {
@@ -121,12 +218,12 @@ func TestHandlePacket(t *testing.T) {
 		}
 
 		if len(actual) != len(scenario.out) {
-			t.Fatalf("%d. Expected %d events, got %d", i, len(scenario.out), len(actual))
+			t.Fatalf("%d. Expected %d events, got %d in scenario '%s'", i, len(scenario.out), len(actual), scenario.name)
 		}
 
 		for j, expected := range scenario.out {
-			if fmt.Sprintf("%v", actual[j]) != fmt.Sprintf("%v", expected) {
-				t.Fatalf("%d.%d. Expected %v, got %v", i, j, actual[j], expected)
+			if !reflect.DeepEqual(&expected, &actual[j]) {
+				t.Fatalf("%d.%d. Expected %#v, got %#v in scenario '%s'", i, j, expected, actual[j], scenario.name)
 			}
 		}
 	}
