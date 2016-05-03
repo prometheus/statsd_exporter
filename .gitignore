@@ -1,4 +1,6 @@
-.build/
 dependencies-stamp
-*.tar.gz
-statsd_exporter
+/statsd_exporter
+/.build
+/.deps
+/.release
+/.tarballs
