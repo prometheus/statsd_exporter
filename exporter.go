@@ -24,8 +24,8 @@ import (
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
-	"github.com/prometheus/log"
 )
 
 const (
@@ -238,7 +238,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 				// We don't accept negative values for counters. Incrementing the counter with a negative number
 				// will cause the exporter to panic. Instead we will warn and continue to the next event.
 				if event.Value() < 0.0 {
-					log.Warnf("Counter %q is: '%f' (counter must be non-negative value)", metricName, event.Value())
+					log.Errorf("Counter %q is: '%f' (counter must be non-negative value)", metricName, event.Value())
 					continue
 				}
 
@@ -265,7 +265,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 				eventStats.WithLabelValues("timer").Inc()
 
 			default:
-				log.Println("Unsupported event type")
+				log.Errorln("Unsupported event type")
 				eventStats.WithLabelValues("illegal").Inc()
 			}
 		}
@@ -334,7 +334,7 @@ func parseDogStatsDTagsToLabels(component string) map[string]string {
 
 		if len(kv) < 2 || len(kv[1]) == 0 {
 			networkStats.WithLabelValues("malformed_dogstatsd_tag").Inc()
-			log.Printf("Malformed or empty DogStatsD tag %s in component %s", t, component)
+			log.Errorf("Malformed or empty DogStatsD tag %s in component %s", t, component)
 			continue
 		}
 
@@ -354,7 +354,7 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 		elements := strings.SplitN(line, ":", 2)
 		if len(elements) < 2 {
 			networkStats.WithLabelValues("malformed_line").Inc()
-			log.Println("Bad line from StatsD:", line)
+			log.Errorln("Bad line from StatsD:", line)
 			continue
 		}
 		metric := elements[0]
@@ -370,13 +370,13 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 			samplingFactor := 1.0
 			if len(components) < 2 || len(components) > 4 {
 				networkStats.WithLabelValues("malformed_component").Inc()
-				log.Println("Bad component on line:", line)
+				log.Errorln("Bad component on line:", line)
 				continue
 			}
 			valueStr, statType := components[0], components[1]
 			value, err := strconv.ParseFloat(valueStr, 64)
 			if err != nil {
-				log.Printf("Bad value %s on line: %s", valueStr, line)
+				log.Errorf("Bad value %s on line: %s", valueStr, line)
 				networkStats.WithLabelValues("malformed_value").Inc()
 				continue
 			}
@@ -387,12 +387,12 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 					switch component[0] {
 					case '@':
 						if statType != "c" {
-							log.Println("Illegal sampling factor for non-counter metric on line", line)
+							log.Errorln("Illegal sampling factor for non-counter metric on line", line)
 							networkStats.WithLabelValues("illegal_sample_factor").Inc()
 						}
 						samplingFactor, err = strconv.ParseFloat(component[1:], 64)
 						if err != nil {
-							log.Printf("Invalid sampling factor %s on line %s", component[1:], line)
+							log.Errorf("Invalid sampling factor %s on line %s", component[1:], line)
 							networkStats.WithLabelValues("invalid_sample_factor").Inc()
 						}
 						if samplingFactor == 0 {
@@ -402,7 +402,7 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 					case '#':
 						labels = parseDogStatsDTagsToLabels(component)
 					default:
-						log.Printf("Invalid sampling factor or tag section %s on line %s", components[2], line)
+						log.Errorf("Invalid sampling factor or tag section %s on line %s", components[2], line)
 						networkStats.WithLabelValues("invalid_sample_factor").Inc()
 						continue
 					}
@@ -411,7 +411,7 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 
 			event, err := buildEvent(statType, metric, value, labels)
 			if err != nil {
-				log.Printf("Error building event on line %s: %s", line, err)
+				log.Errorf("Error building event on line %s: %s", line, err)
 				networkStats.WithLabelValues("illegal_event").Inc()
 				continue
 			}
