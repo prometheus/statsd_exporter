@@ -15,25 +15,30 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/howeyc/fsnotify"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/log"
+	"github.com/prometheus/common/log"
+	"github.com/prometheus/common/version"
 )
 
-var (
-	// Version of statsd_exporter. Set at build time.
-	Version = "0.0.0.dev"
+func init() {
+	prometheus.MustRegister(version.NewCollector("statsd_exporter"))
+}
 
+var (
 	listenAddress       = flag.String("web.listen-address", ":9102", "The address on which to expose the web interface and generated Prometheus metrics.")
 	metricsEndpoint     = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
 	statsdListenAddress = flag.String("statsd.listen-address", ":9125", "The UDP address on which to receive statsd metric lines.")
 	mappingConfig       = flag.String("statsd.mapping-config", "", "Metric mapping configuration file name.")
 	readBuffer          = flag.Int("statsd.read-buffer", 0, "Size (in bytes) of the operating system's transmit read buffer associated with the UDP connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.")
 	addSuffix           = flag.Bool("statsd.add-suffix", true, "Add the metric type (counter/gauge/timer) as suffix to the generated Prometheus metric (NOT recommended, but set by default for backward compatibility).")
+	showVersion         = flag.Bool("version", false, "Print version information.")
 )
 
 func serveHTTP() {
@@ -90,13 +95,13 @@ func watchConfig(fileName string, mapper *metricMapper) {
 	for {
 		select {
 		case ev := <-watcher.Event:
-			log.Printf("Config file changed (%s), attempting reload", ev)
+			log.Infof("Config file changed (%s), attempting reload", ev)
 			err = mapper.initFromFile(fileName)
 			if err != nil {
-				log.Println("Error reloading config:", err)
+				log.Errorln("Error reloading config:", err)
 				configLoads.WithLabelValues("failure").Inc()
 			} else {
-				log.Println("Config reloaded successfully")
+				log.Infoln("Config reloaded successfully")
 				configLoads.WithLabelValues("success").Inc()
 			}
 			// Re-add the file watcher since it can get lost on some changes. E.g.
@@ -104,7 +109,7 @@ func watchConfig(fileName string, mapper *metricMapper) {
 			// sequence, after which the newly written file is no longer watched.
 			err = watcher.WatchFlags(fileName, fsnotify.FSN_MODIFY)
 		case err := <-watcher.Error:
-			log.Println("Error watching config:", err)
+			log.Errorln("Error watching config:", err)
 		}
 	}
 }
@@ -112,12 +117,18 @@ func watchConfig(fileName string, mapper *metricMapper) {
 func main() {
 	flag.Parse()
 
-	if *addSuffix {
-		log.Println("Warning: Using -statsd.add-suffix is discouraged. We recommend explicitly naming metrics appropriately in the mapping configuration.")
+	if *showVersion {
+		fmt.Fprintln(os.Stdout, version.Print("statsd_exporter"))
+		os.Exit(0)
 	}
-	log.Printf("Starting StatsD -> Prometheus Exporter v%s...", Version)
-	log.Println("Accepting StatsD Traffic on", *statsdListenAddress)
-	log.Println("Accepting Prometheus Requests on", *listenAddress)
+
+	if *addSuffix {
+		log.Warnln("Warning: Using -statsd.add-suffix is discouraged. We recommend explicitly naming metrics appropriately in the mapping configuration.")
+	}
+	log.Infoln("Starting StatsD -> Prometheus Exporter", version.Info())
+	log.Infoln("Build context", version.BuildContext())
+	log.Infoln("Accepting StatsD Traffic on", *statsdListenAddress)
+	log.Infoln("Accepting Prometheus Requests on", *listenAddress)
 
 	go serveHTTP()
 
