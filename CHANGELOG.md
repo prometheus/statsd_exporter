@@ -1,3 +1,11 @@
+## 0.3.0 / 2016-05-05
+
+* [CHANGE] Drop `_count` suffix for `loaded_mappings` metric (#41)
+* [IMPROVEMENT] Use common's log and version packages, and add -version flag (#44)
+* [IMPROVEMENT] Add flag to disable metric type suffixes (#37)
+* [BUGFIX] Increase receivable UDP datagram size to 65535 bytes (#36)
+* [BUGFIX] Warn, not panic when negative number counter is submitted (#33)
+
 ## 0.2.0 / 2016-03-19
 
 NOTE: This release renames `statsd_bridge` to `statsd_exporter`
