@@ -352,7 +352,7 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 		}
 
 		elements := strings.SplitN(line, ":", 2)
-		if len(elements) < 2 {
+		if len(elements) < 2 || len(elements[0]) == 0 {
 			networkStats.WithLabelValues("malformed_line").Inc()
 			log.Errorln("Bad line from StatsD:", line)
 			continue
@@ -365,7 +365,7 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 		} else {
 			samples = strings.Split(elements[1], ":")
 		}
-		for _, sample := range samples {
+		samples: for _, sample := range samples {
 			components := strings.Split(sample, "|")
 			samplingFactor := 1.0
 			if len(components) < 2 || len(components) > 4 {
@@ -383,6 +383,14 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 
 			labels := map[string]string{}
 			if len(components) >= 3 {
+				for _, component := range components[2:] {
+					if len(component) == 0 {
+						log.Errorln("Empty component on line: ", line)
+						networkStats.WithLabelValues("malformed_component").Inc()
+						continue samples
+					}
+				}
+
 				for _, component := range components[2:] {
 					switch component[0] {
 					case '@':
