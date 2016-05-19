@@ -204,6 +204,14 @@ func TestHandlePacket(t *testing.T) {
 			name: "illegal stat type",
 			in:   "foo:2|t",
 		},
+		{
+			name: "empty metric name",
+			in:   ":100|ms",
+		},
+		{
+			name: "empty component",
+			in:   "foo:1|c|",
+		},
 	}
 
 	l := StatsDListener{}
