@@ -50,3 +50,25 @@ func TestNegativeCounter(t *testing.T) {
 
 	ex.Listen(events)
 }
+
+// TestInvalidUtf8InDatadogTagValue validates robustness of exporter listener
+// against datadog tags with invalid tag values.
+// It sends the same tags first with a valid value, then with an invalid one.
+// The exporter should not panic, but drop the invalid event
+func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
+	l := StatsDListener{}
+	events := make(chan Events, 2)
+
+	l.handlePacket([]byte("bar:200|c|#tag:value"), events)
+	l.handlePacket([]byte("bar:200|c|#tag:\xc3\x28invalid"), events)
+
+	ex := NewExporter(&metricMapper{}, true)
+
+	// Close channel to signify we are done with the listener after a short period.
+	go func() {
+		time.Sleep(time.Millisecond * 100)
+		close(events)
+	}()
+
+	ex.Listen(events)
+}

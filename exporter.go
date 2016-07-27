@@ -22,6 +22,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
@@ -352,7 +353,7 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 		}
 
 		elements := strings.SplitN(line, ":", 2)
-		if len(elements) < 2 || len(elements[0]) == 0 {
+		if len(elements) < 2 || len(elements[0]) == 0 || !utf8.ValidString(line) {
 			networkStats.WithLabelValues("malformed_line").Inc()
 			log.Errorln("Bad line from StatsD:", line)
 			continue
