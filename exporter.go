@@ -366,7 +366,8 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 		} else {
 			samples = strings.Split(elements[1], ":")
 		}
-		samples: for _, sample := range samples {
+	samples:
+		for _, sample := range samples {
 			components := strings.Split(sample, "|")
 			samplingFactor := 1.0
 			if len(components) < 2 || len(components) > 4 {
@@ -425,8 +426,8 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 				continue
 			}
 			events = append(events, event)
-			networkStats.WithLabelValues("legal").Inc()
 		}
 	}
+	networkStats.WithLabelValues("legal").Inc()
 	e <- events
 }
