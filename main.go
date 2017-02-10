@@ -52,7 +52,7 @@ func serveHTTP() {
 			</body>
 			</html>`))
 	})
-	http.ListenAndServe(*listenAddress, nil)
+	log.Fatal(http.ListenAndServe(*listenAddress, nil))
 }
 
 func udpAddrFromString(addr string) *net.UDPAddr {
