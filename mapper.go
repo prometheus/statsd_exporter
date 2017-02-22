@@ -51,6 +51,7 @@ const (
 
 func (m *metricMapper) initFromString(fileContents string) error {
 	lines := strings.Split(fileContents, "\n")
+	numLines := len(lines)
 	state := SEARCHING
 
 	parsedMappings := []metricMapping{}
@@ -76,7 +77,7 @@ func (m *metricMapper) initFromString(fileContents string) error {
 			state = METRIC_DEFINITION
 
 		case METRIC_DEFINITION:
-			if line == "" {
+			if (line == "") || (i == numLines-1) {
 				if len(currentMapping.labels) == 0 {
 					return fmt.Errorf("Line %d: metric mapping didn't set any labels", i)
 				}
