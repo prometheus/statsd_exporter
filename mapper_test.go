@@ -134,7 +134,7 @@ func TestMetricMapper(t *testing.T) {
 			`,
 			configBad: true,
 		},
-		// Config without a terminating newline.
+		// A single mapping config without a terminating newline.
 		{
 			config: `
 				test.*
@@ -144,6 +144,27 @@ func TestMetricMapper(t *testing.T) {
 				"test.a": map[string]string{
 					"name":  "name",
 					"label": "foo",
+				},
+			},
+		},
+		// Multiple mapping configs and no terminating newline.
+		{
+			config: `
+				test.bar
+				name="name_bar"
+				label="foo"
+				
+				test.foo
+				name="name_foo"
+				label="bar"`,
+			mappings: map[string]map[string]string{
+				"test.bar": map[string]string{
+					"name":  "name_bar",
+					"label": "foo",
+				},
+				"test.foo": map[string]string{
+					"name":  "name_foo",
+					"label": "bar",
 				},
 			},
 		},
