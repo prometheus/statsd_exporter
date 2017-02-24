@@ -140,12 +140,7 @@ func TestMetricMapper(t *testing.T) {
 				test.*
 				name="name"
 				label="foo"`,
-			mappings: map[string]map[string]string{
-				"test.a": map[string]string{
-					"name":  "name",
-					"label": "foo",
-				},
-			},
+			configBad: true,
 		},
 		// Multiple mapping configs and no terminating newline.
 		{
@@ -157,16 +152,7 @@ func TestMetricMapper(t *testing.T) {
 				test.foo
 				name="name_foo"
 				label="bar"`,
-			mappings: map[string]map[string]string{
-				"test.bar": map[string]string{
-					"name":  "name_bar",
-					"label": "foo",
-				},
-				"test.foo": map[string]string{
-					"name":  "name_foo",
-					"label": "bar",
-				},
-			},
+			configBad: true,
 		},
 	}
 

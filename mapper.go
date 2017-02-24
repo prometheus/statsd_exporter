@@ -77,19 +77,10 @@ func (m *metricMapper) initFromString(fileContents string) error {
 			state = METRIC_DEFINITION
 
 		case METRIC_DEFINITION:
-			emptyLine, lastLine := false, false
+			if (i == numLines-1) && (line != "") {
+				return fmt.Errorf("Line %d: missing terminating newline", i)
+			}
 			if line == "" {
-				emptyLine = true
-			}
-			if i == numLines-1 {
-				lastLine = true
-			}
-			if (emptyLine) || (lastLine) {
-				if !emptyLine {
-					if err := m.updateMapping(line, i, &currentMapping); err != nil {
-						return err
-					}
-				}
 				if len(currentMapping.labels) == 0 {
 					return fmt.Errorf("Line %d: metric mapping didn't set any labels", i)
 				}
