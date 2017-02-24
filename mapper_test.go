@@ -134,6 +134,26 @@ func TestMetricMapper(t *testing.T) {
 			`,
 			configBad: true,
 		},
+		// A single mapping config without a terminating newline.
+		{
+			config: `
+				test.*
+				name="name"
+				label="foo"`,
+			configBad: true,
+		},
+		// Multiple mapping configs and no terminating newline.
+		{
+			config: `
+				test.bar
+				name="name_bar"
+				label="foo"
+				
+				test.foo
+				name="name_foo"
+				label="bar"`,
+			configBad: true,
+		},
 	}
 
 	mapper := metricMapper{}

@@ -51,6 +51,7 @@ const (
 
 func (m *metricMapper) initFromString(fileContents string) error {
 	lines := strings.Split(fileContents, "\n")
+	numLines := len(lines)
 	state := SEARCHING
 
 	parsedMappings := []metricMapping{}
@@ -76,6 +77,9 @@ func (m *metricMapper) initFromString(fileContents string) error {
 			state = METRIC_DEFINITION
 
 		case METRIC_DEFINITION:
+			if (i == numLines-1) && (line != "") {
+				return fmt.Errorf("Line %d: missing terminating newline", i)
+			}
 			if line == "" {
 				if len(currentMapping.labels) == 0 {
 					return fmt.Errorf("Line %d: metric mapping didn't set any labels", i)
@@ -83,23 +87,14 @@ func (m *metricMapper) initFromString(fileContents string) error {
 				if _, ok := currentMapping.labels["name"]; !ok {
 					return fmt.Errorf("Line %d: metric mapping didn't set a metric name", i)
 				}
-
 				parsedMappings = append(parsedMappings, currentMapping)
-
 				state = SEARCHING
 				currentMapping = metricMapping{labels: prometheus.Labels{}}
 				continue
 			}
-
-			matches := labelLineRE.FindStringSubmatch(line)
-			if len(matches) != 3 {
-				return fmt.Errorf("Line %d: expected label mapping line, got: %s", i, line)
+			if err := m.updateMapping(line, i, &currentMapping); err != nil {
+				return err
 			}
-			label, value := matches[1], matches[2]
-			if label == "name" && !metricNameRE.MatchString(value) {
-				return fmt.Errorf("Line %d: metric name '%s' doesn't match regex '%s'", i, value, metricNameRE)
-			}
-			currentMapping.labels[label] = value
 		default:
 			panic("illegal state")
 		}
@@ -141,4 +136,17 @@ func (m *metricMapper) getMapping(statsdMetric string) (labels prometheus.Labels
 	}
 
 	return nil, false
+}
+
+func (m *metricMapper) updateMapping(line string, i int, mapping *metricMapping) error {
+	matches := labelLineRE.FindStringSubmatch(line)
+	if len(matches) != 3 {
+		return fmt.Errorf("Line %d: expected label mapping line, got: %s", i, line)
+	}
+	label, value := matches[1], matches[2]
+	if label == "name" && !metricNameRE.MatchString(value) {
+		return fmt.Errorf("Line %d: metric name '%s' doesn't match regex '%s'", i, value, metricNameRE)
+	}
+	(*mapping).labels[label] = value
+	return nil
 }
