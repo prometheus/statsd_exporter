@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+	"math"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
@@ -144,37 +145,44 @@ func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels) prom
 type Event interface {
 	MetricName() string
 	Value() float64
+	ValueStr() string
 	Labels() map[string]string
 }
 
 type CounterEvent struct {
 	metricName string
 	value      float64
+	valueStr   string
 	labels     map[string]string
 }
 
 func (c *CounterEvent) MetricName() string        { return c.metricName }
 func (c *CounterEvent) Value() float64            { return c.value }
+func (c *CounterEvent) ValueStr() string          { return c.valueStr }
 func (c *CounterEvent) Labels() map[string]string { return c.labels }
 
 type GaugeEvent struct {
 	metricName string
 	value      float64
+	valueStr   string
 	labels     map[string]string
 }
 
 func (g *GaugeEvent) MetricName() string        { return g.metricName }
 func (g *GaugeEvent) Value() float64            { return g.value }
+func (g *GaugeEvent) ValueStr() string          { return g.valueStr }
 func (c *GaugeEvent) Labels() map[string]string { return c.labels }
 
 type TimerEvent struct {
 	metricName string
 	value      float64
+	valueStr   string
 	labels     map[string]string
 }
 
 func (t *TimerEvent) MetricName() string        { return t.metricName }
 func (t *TimerEvent) Value() float64            { return t.value }
+func (t *TimerEvent) ValueStr() string          { return t.valueStr }
 func (c *TimerEvent) Labels() map[string]string { return c.labels }
 
 type Events []Event
@@ -252,7 +260,15 @@ func (b *Exporter) Listen(e <-chan Events) {
 					b.suffix(metricName, "gauge"),
 					prometheusLabels,
 				)
-				gauge.Set(event.Value())
+
+				var value = event.ValueStr()
+				if strings.Index(value, "+") == 0 {
+					gauge.Add(event.Value())
+				} else if strings.Index(value, "-") == 0 {
+					gauge.Sub(math.Abs(event.Value()))
+				} else {
+					gauge.Set(event.Value())
+				}
 
 				eventStats.WithLabelValues("gauge").Inc()
 
@@ -287,24 +303,27 @@ type StatsDListener struct {
 	conn *net.UDPConn
 }
 
-func buildEvent(statType, metric string, value float64, labels map[string]string) (Event, error) {
+func buildEvent(statType, metric string, value float64, valueStr string, labels map[string]string) (Event, error) {
 	switch statType {
 	case "c":
 		return &CounterEvent{
 			metricName: metric,
 			value:      float64(value),
+			valueStr:   valueStr,
 			labels:     labels,
 		}, nil
 	case "g":
 		return &GaugeEvent{
 			metricName: metric,
 			value:      float64(value),
+			valueStr:   valueStr,
 			labels:     labels,
 		}, nil
 	case "ms", "h":
 		return &TimerEvent{
 			metricName: metric,
 			value:      float64(value),
+			valueStr:   valueStr,
 			labels:     labels,
 		}, nil
 	case "s":
@@ -375,6 +394,14 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 				continue
 			}
 			valueStr, statType := components[0], components[1]
+
+			var prefix = ""
+			if strings.Index(valueStr, "+") == 0 {
+				prefix = "+"
+			} else if strings.Index(valueStr, "-") == 0 {
+				prefix = "-"
+			}
+
 			value, err := strconv.ParseFloat(valueStr, 64)
 			if err != nil {
 				log.Errorf("Bad value %s on line: %s", valueStr, line)
@@ -418,7 +445,9 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 				}
 			}
 
-			event, err := buildEvent(statType, metric, value, labels)
+			// convert the (possibly) sampled value to a string and add the operation prefix back on
+			valueStr = prefix + strconv.FormatFloat(math.Abs(value), 'f', -1, 64)
+			event, err := buildEvent(statType, metric, value, valueStr, labels)
 			if err != nil {
 				log.Errorf("Error building event on line %s: %s", line, err)
 				networkStats.WithLabelValues("illegal_event").Inc()
