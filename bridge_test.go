@@ -33,7 +33,6 @@ func TestHandlePacket(t *testing.T) {
 				&CounterEvent{
 					metricName: "foo",
 					value:      2,
-					valueStr:  "2",
 					labels:     map[string]string{},
 				},
 			},
@@ -44,18 +43,6 @@ func TestHandlePacket(t *testing.T) {
 				&GaugeEvent{
 					metricName: "foo",
 					value:      3,
-					valueStr:  "3",
-					labels:     map[string]string{},
-				},
-			},
-		}, {
-			name: "simple gauge with sampling",
-			in:   "foo:100|g|@0.1",
-			out: Events{
-				&GaugeEvent{
-					metricName: "foo",
-					value:      1000,
-					valueStr:  "1000",
 					labels:     map[string]string{},
 				},
 			},
@@ -66,7 +53,7 @@ func TestHandlePacket(t *testing.T) {
 				&GaugeEvent{
 					metricName: "foo",
 					value:      -10,
-					valueStr:  "-10",
+					relative:   true,
 					labels:     map[string]string{},
 				},
 			},
@@ -77,7 +64,6 @@ func TestHandlePacket(t *testing.T) {
 				&TimerEvent{
 					metricName: "foo",
 					value:      200,
-					valueStr:  "200",
 					labels:     map[string]string{},
 				},
 			},
@@ -88,7 +74,6 @@ func TestHandlePacket(t *testing.T) {
 				&CounterEvent{
 					metricName: "foo",
 					value:      100,
-					valueStr:  "100",
 					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
 			},
@@ -99,7 +84,6 @@ func TestHandlePacket(t *testing.T) {
 				&CounterEvent{
 					metricName: "foo",
 					value:      100,
-					valueStr:  "100",
 					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
 			},
@@ -110,7 +94,6 @@ func TestHandlePacket(t *testing.T) {
 				&CounterEvent{
 					metricName: "foo",
 					value:      100,
-					valueStr:  "100",
 					labels:     map[string]string{"_09digits": "0", "tag_with_dots": "1"},
 				},
 			},
@@ -121,7 +104,6 @@ func TestHandlePacket(t *testing.T) {
 				&CounterEvent{
 					metricName: "foo",
 					value:      100,
-					valueStr:  "100",
 					labels:     map[string]string{},
 				},
 			},
@@ -132,7 +114,6 @@ func TestHandlePacket(t *testing.T) {
 				&CounterEvent{
 					metricName: "foo",
 					value:      100,
-					valueStr:  "100",
 					labels:     map[string]string{"tag": "value"},
 				},
 			},
@@ -143,7 +124,6 @@ func TestHandlePacket(t *testing.T) {
 				&CounterEvent{
 					metricName: "foo",
 					value:      100,
-					valueStr:  "100",
 					labels:     map[string]string{"tag": "value"},
 				},
 			},
@@ -154,7 +134,6 @@ func TestHandlePacket(t *testing.T) {
 				&CounterEvent{
 					metricName: "foo",
 					value:      1000,
-					valueStr:  "1000",
 					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
 			},
@@ -165,7 +144,6 @@ func TestHandlePacket(t *testing.T) {
 				&CounterEvent{
 					metricName: "foo",
 					value:      1000,
-					valueStr:  "1000",
 					labels:     map[string]string{"tag1": "foo:bar"},
 				},
 			},
@@ -182,7 +160,6 @@ func TestHandlePacket(t *testing.T) {
 				&CounterEvent{
 					metricName: "foo",
 					value:      200,
-					valueStr:  "200",
 					labels:     map[string]string{"tag": "value"},
 				},
 			},
@@ -193,37 +170,31 @@ func TestHandlePacket(t *testing.T) {
 				&TimerEvent{
 					metricName: "foo",
 					value:      200,
-					valueStr:  "200",
 					labels:     map[string]string{},
 				},
 				&TimerEvent{
 					metricName: "foo",
 					value:      300,
-					valueStr:  "300",
 					labels:     map[string]string{},
 				},
 				&CounterEvent{
 					metricName: "foo",
 					value:      50,
-					valueStr:  "50",
 					labels:     map[string]string{},
 				},
 				&GaugeEvent{
 					metricName: "foo",
 					value:      6,
-					valueStr:  "6",
 					labels:     map[string]string{},
 				},
 				&CounterEvent{
 					metricName: "bar",
 					value:      1,
-					valueStr:  "1",
 					labels:     map[string]string{},
 				},
 				&TimerEvent{
 					metricName: "bar",
 					value:      5,
-					valueStr:  "5",
 					labels:     map[string]string{},
 				},
 			},
@@ -243,7 +214,6 @@ func TestHandlePacket(t *testing.T) {
 				&CounterEvent{
 					metricName: "foo",
 					value:      1,
-					valueStr:  "1",
 					labels:     map[string]string{},
 				},
 			},
@@ -254,7 +224,6 @@ func TestHandlePacket(t *testing.T) {
 				&CounterEvent{
 					metricName: "foo",
 					value:      2,
-					valueStr:  "2",
 					labels:     map[string]string{},
 				},
 			},
@@ -281,7 +250,6 @@ func TestHandlePacket(t *testing.T) {
 				&CounterEvent{
 					metricName: "valid_utf8",
 					value:      1,
-					valueStr:  "1",
 					labels:     map[string]string{},
 				},
 			},
