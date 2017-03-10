@@ -384,9 +384,7 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 			valueStr, statType := components[0], components[1]
 
 			var relative = false
-			if strings.Index(valueStr, "+") == 0 {
-				relative = true
-			} else if strings.Index(valueStr, "-") == 0 {
+			if strings.Index(valueStr, "+") == 0 || strings.Index(valueStr, "-") == 0 {
 				relative = true
 			}
 
