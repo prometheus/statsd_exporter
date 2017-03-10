@@ -160,6 +160,7 @@ func (c *CounterEvent) Labels() map[string]string { return c.labels }
 type GaugeEvent struct {
 	metricName string
 	value      float64
+	relative   bool
 	labels     map[string]string
 }
 
@@ -230,7 +231,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 				metricName = escapeMetricName(event.MetricName())
 			}
 
-			switch event.(type) {
+			switch ev := event.(type) {
 			case *CounterEvent:
 				counter := b.Counters.Get(
 					b.suffix(metricName, "counter"),
@@ -252,7 +253,12 @@ func (b *Exporter) Listen(e <-chan Events) {
 					b.suffix(metricName, "gauge"),
 					prometheusLabels,
 				)
-				gauge.Set(event.Value())
+
+				if ev.relative {
+					gauge.Add(event.Value())
+				} else {
+					gauge.Set(event.Value())
+				}
 
 				eventStats.WithLabelValues("gauge").Inc()
 
@@ -287,7 +293,7 @@ type StatsDListener struct {
 	conn *net.UDPConn
 }
 
-func buildEvent(statType, metric string, value float64, labels map[string]string) (Event, error) {
+func buildEvent(statType, metric string, value float64, relative bool, labels map[string]string) (Event, error) {
 	switch statType {
 	case "c":
 		return &CounterEvent{
@@ -299,6 +305,7 @@ func buildEvent(statType, metric string, value float64, labels map[string]string
 		return &GaugeEvent{
 			metricName: metric,
 			value:      float64(value),
+			relative:   relative,
 			labels:     labels,
 		}, nil
 	case "ms", "h":
@@ -375,6 +382,12 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 				continue
 			}
 			valueStr, statType := components[0], components[1]
+
+			var relative = false
+			if strings.Index(valueStr, "+") == 0 || strings.Index(valueStr, "-") == 0 {
+				relative = true
+			}
+
 			value, err := strconv.ParseFloat(valueStr, 64)
 			if err != nil {
 				log.Errorf("Bad value %s on line: %s", valueStr, line)
@@ -418,7 +431,7 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 				}
 			}
 
-			event, err := buildEvent(statType, metric, value, labels)
+			event, err := buildEvent(statType, metric, value, relative, labels)
 			if err != nil {
 				log.Errorf("Error building event on line %s: %s", line, err)
 				networkStats.WithLabelValues("illegal_event").Inc()

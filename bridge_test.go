@@ -47,6 +47,17 @@ func TestHandlePacket(t *testing.T) {
 				},
 			},
 		}, {
+			name: "gauge decrement",
+			in:   "foo:-10|g",
+			out: Events{
+				&GaugeEvent{
+					metricName: "foo",
+					value:      -10,
+					relative:   true,
+					labels:     map[string]string{},
+				},
+			},
+		}, {
 			name: "simple timer",
 			in:   "foo:200|ms",
 			out: Events{
