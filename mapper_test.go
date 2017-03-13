@@ -148,7 +148,7 @@ func TestMetricMapper(t *testing.T) {
 				test.bar
 				name="name_bar"
 				label="foo"
-				
+
 				test.foo
 				name="name_foo"
 				label="bar"`,
@@ -167,7 +167,7 @@ func TestMetricMapper(t *testing.T) {
 		}
 
 		for metric, mapping := range scenario.mappings {
-			labels, present := mapper.getMapping(metric)
+			_, labels, present := mapper.getMapping(metric)
 			if len(labels) == 0 && present {
 				t.Fatalf("%d.%q: Expected metric to not be present", i, metric)
 			}
