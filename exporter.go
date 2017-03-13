@@ -143,11 +143,13 @@ func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels) prom
 
 type HistogramContainer struct {
 	Elements map[uint64]prometheus.Histogram
+	mapper   *metricMapper
 }
 
-func NewHistogramContainer() *HistogramContainer {
+func NewHistogramContainer(mapper *metricMapper) *HistogramContainer {
 	return &HistogramContainer{
 		Elements: make(map[uint64]prometheus.Histogram),
+		mapper:   mapper,
 	}
 }
 
@@ -155,13 +157,16 @@ func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, ma
 	hash := hashNameAndLabels(metricName, labels)
 	histogram, ok := c.Elements[hash]
 	if !ok {
-		// TODO: buckets
+		buckets := c.mapper.Defaults.Buckets
+		if mapping != nil && mapping.Buckets != nil && len(mapping.Buckets) > 0 {
+			buckets = mapping.Buckets
+		}
 		histogram = prometheus.NewHistogram(
 			prometheus.HistogramOpts{
 				Name:        metricName,
 				Help:        defaultHelp,
 				ConstLabels: labels,
-				Buckets:     mapping.Buckets,
+				Buckets:     buckets,
 			})
 		c.Elements[hash] = histogram
 		if err := prometheus.Register(histogram); err != nil {
@@ -294,7 +299,15 @@ func (b *Exporter) Listen(e <-chan Events) {
 				eventStats.WithLabelValues("gauge").Inc()
 
 			case *TimerEvent:
-				if mapping.TimerType == "histogram" {
+				timerType := ""
+				if mapping != nil {
+					timerType = mapping.TimerType
+				}
+				if timerType == "" {
+					timerType = b.mapper.Defaults.TimerType
+				}
+
+				if timerType == "histogram" {
 					histogram := b.Histograms.Get(
 						b.suffix(metricName, "timer"),
 						prometheusLabels,
@@ -308,6 +321,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 					)
 					summary.Observe(event.Value())
 				}
+
 				eventStats.WithLabelValues("timer").Inc()
 
 			default:
@@ -324,7 +338,7 @@ func NewExporter(mapper *metricMapper, addSuffix bool) *Exporter {
 		Counters:   NewCounterContainer(),
 		Gauges:     NewGaugeContainer(),
 		Summaries:  NewSummaryContainer(),
-		Histograms: NewHistogramContainer(),
+		Histograms: NewHistogramContainer(mapper),
 		mapper:     mapper,
 	}
 }
