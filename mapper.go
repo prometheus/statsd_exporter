@@ -16,11 +16,13 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
+	yaml "gopkg.in/yaml.v2"
 )
 
 var (
@@ -32,14 +34,23 @@ var (
 	metricNameRE = regexp.MustCompile(`^` + identifierRE + `$`)
 )
 
-type metricMapping struct {
-	regex  *regexp.Regexp
-	labels prometheus.Labels
+type mapperConfigDefaults struct {
+	TimerType string    `yaml:"timer_type"`
+	Buckets   []float64 `yaml:"buckets"`
 }
 
 type metricMapper struct {
-	mappings []metricMapping
+	Defaults mapperConfigDefaults `yaml:"defaults"`
+	Mappings []metricMapping      `yaml:"mappings"`
 	mutex    sync.Mutex
+}
+
+type metricMapping struct {
+	Match     string `yaml:"match"`
+	regex     *regexp.Regexp
+	Labels    prometheus.Labels
+	TimerType string    `yaml:"timer_type"`
+	Buckets   []float64 `yaml:"buckets"`
 }
 
 type configLoadStates int
@@ -55,9 +66,9 @@ func (m *metricMapper) initFromString(fileContents string) error {
 	state := SEARCHING
 
 	parsedMappings := []metricMapping{}
-	currentMapping := metricMapping{labels: prometheus.Labels{}}
+	currentMapping := metricMapping{Labels: prometheus.Labels{}}
 	for i, line := range lines {
-		line := strings.TrimSpace(line)
+		line = strings.TrimSpace(line)
 
 		switch state {
 		case SEARCHING:
@@ -81,15 +92,15 @@ func (m *metricMapper) initFromString(fileContents string) error {
 				return fmt.Errorf("Line %d: missing terminating newline", i)
 			}
 			if line == "" {
-				if len(currentMapping.labels) == 0 {
+				if len(currentMapping.Labels) == 0 {
 					return fmt.Errorf("Line %d: metric mapping didn't set any labels", i)
 				}
-				if _, ok := currentMapping.labels["name"]; !ok {
+				if _, ok := currentMapping.Labels["name"]; !ok {
 					return fmt.Errorf("Line %d: metric mapping didn't set a metric name", i)
 				}
 				parsedMappings = append(parsedMappings, currentMapping)
 				state = SEARCHING
-				currentMapping = metricMapping{labels: prometheus.Labels{}}
+				currentMapping = metricMapping{Labels: prometheus.Labels{}}
 				continue
 			}
 			if err := m.updateMapping(line, i, &currentMapping); err != nil {
@@ -102,9 +113,54 @@ func (m *metricMapper) initFromString(fileContents string) error {
 
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	m.mappings = parsedMappings
+	m.Mappings = parsedMappings
 
 	mappingsCount.Set(float64(len(parsedMappings)))
+
+	return nil
+}
+
+func (m *metricMapper) initFromYamlString(fileContents string) error {
+
+	var n metricMapper
+
+	if err := yaml.Unmarshal([]byte(fileContents), &n); err != nil {
+		return err
+	}
+
+	if n.Defaults.Buckets == nil || len(n.Defaults.Buckets) == 0 {
+		n.Defaults.Buckets = prometheus.DefBuckets
+	}
+
+	for i := range n.Mappings {
+		currentMapping := &n.Mappings[i]
+
+		if !metricLineRE.MatchString(currentMapping.Match) {
+			return fmt.Errorf("invalid match: %s", currentMapping.Match)
+		}
+
+		// Translate the glob-style metric match line into a proper regex that we
+		// can use to match metrics later on.
+		metricRe := strings.Replace(currentMapping.Match, ".", "\\.", -1)
+		metricRe = strings.Replace(metricRe, "*", "([^.]+)", -1)
+		currentMapping.regex = regexp.MustCompile("^" + metricRe + "$")
+
+		if currentMapping.TimerType == "" {
+			currentMapping.TimerType = n.Defaults.TimerType
+		}
+
+		if currentMapping.Buckets == nil || len(currentMapping.Buckets) == 0 {
+			currentMapping.Buckets = n.Defaults.Buckets
+		}
+	}
+
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	m.Defaults = n.Defaults
+	m.Mappings = n.Mappings
+
+	mappingsCount.Set(float64(len(n.Mappings)))
 
 	return nil
 }
@@ -114,28 +170,33 @@ func (m *metricMapper) initFromFile(fileName string) error {
 	if err != nil {
 		return err
 	}
-	return m.initFromString(string(mappingStr))
+	switch strings.ToLower(filepath.Ext(fileName)) {
+	case ".yaml", ".yml":
+		return m.initFromYamlString(string(mappingStr))
+	default:
+		return m.initFromString(string(mappingStr))
+	}
 }
 
-func (m *metricMapper) getMapping(statsdMetric string) (labels prometheus.Labels, present bool) {
+func (m *metricMapper) getMapping(statsdMetric string) (*metricMapping, prometheus.Labels, bool) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	for _, mapping := range m.mappings {
+	for _, mapping := range m.Mappings {
 		matches := mapping.regex.FindStringSubmatchIndex(statsdMetric)
 		if len(matches) == 0 {
 			continue
 		}
 
 		labels := prometheus.Labels{}
-		for label, valueExpr := range mapping.labels {
+		for label, valueExpr := range mapping.Labels {
 			value := mapping.regex.ExpandString([]byte{}, valueExpr, statsdMetric, matches)
 			labels[label] = string(value)
 		}
-		return labels, true
+		return &mapping, labels, true
 	}
 
-	return nil, false
+	return nil, nil, false
 }
 
 func (m *metricMapper) updateMapping(line string, i int, mapping *metricMapping) error {
@@ -147,6 +208,6 @@ func (m *metricMapper) updateMapping(line string, i int, mapping *metricMapping)
 	if label == "name" && !metricNameRE.MatchString(value) {
 		return fmt.Errorf("Line %d: metric name '%s' doesn't match regex '%s'", i, value, metricNameRE)
 	}
-	(*mapping).labels[label] = value
+	(*mapping).Labels[label] = value
 	return nil
 }
