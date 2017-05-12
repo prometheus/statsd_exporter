@@ -1,3 +1,11 @@
+## v1.4.0 / 2017-05-12
+
+* [IMPROVEMENT] Improve mapping configuration parser #61
+* [IMPROVEMENT] Add increment/decrement support to Gauges #65
+* [BUGFIX] Tolerate more forms of broken lines from StatsD #48
+* [BUGFIX] Skip metrics with invalid utf8 #50
+* [BUGFIX] ListenAndServe now fails on exit #58
+
 ## 0.3.0 / 2016-05-05
 
 * [CHANGE] Drop `_count` suffix for `loaded_mappings` metric (#41)
