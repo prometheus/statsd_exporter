@@ -1,4 +1,4 @@
-## v1.4.0 / 2017-05-12
+## v0.4.0 / 2017-05-12
 
 * [IMPROVEMENT] Improve mapping configuration parser #61
 * [IMPROVEMENT] Add increment/decrement support to Gauges #65
