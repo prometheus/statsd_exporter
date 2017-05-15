@@ -373,7 +373,8 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 		} else {
 			samples = strings.Split(elements[1], ":")
 		}
-		samples: for _, sample := range samples {
+	samples:
+		for _, sample := range samples {
 			components := strings.Split(sample, "|")
 			samplingFactor := 1.0
 			if len(components) < 2 || len(components) > 4 {
@@ -395,6 +396,7 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 				continue
 			}
 
+			multiplyEvents := 1
 			labels := map[string]string{}
 			if len(components) >= 3 {
 				for _, component := range components[2:] {
@@ -408,9 +410,10 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 				for _, component := range components[2:] {
 					switch component[0] {
 					case '@':
-						if statType != "c" {
+						if statType != "c" && statType != "ms" {
 							log.Errorln("Illegal sampling factor for non-counter metric on line", line)
 							networkStats.WithLabelValues("illegal_sample_factor").Inc()
+							continue
 						}
 						samplingFactor, err = strconv.ParseFloat(component[1:], 64)
 						if err != nil {
@@ -420,7 +423,12 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 						if samplingFactor == 0 {
 							samplingFactor = 1
 						}
-						value /= samplingFactor
+
+						if statType == "c" {
+							value /= samplingFactor
+						} else if statType == "ms" {
+							multiplyEvents = int(1 / samplingFactor)
+						}
 					case '#':
 						labels = parseDogStatsDTagsToLabels(component)
 					default:
@@ -431,13 +439,15 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 				}
 			}
 
-			event, err := buildEvent(statType, metric, value, relative, labels)
-			if err != nil {
-				log.Errorf("Error building event on line %s: %s", line, err)
-				networkStats.WithLabelValues("illegal_event").Inc()
-				continue
+			for i := 0; i < multiplyEvents; i++ {
+				event, err := buildEvent(statType, metric, value, relative, labels)
+				if err != nil {
+					log.Errorf("Error building event on line %s: %s", line, err)
+					networkStats.WithLabelValues("illegal_event").Inc()
+					continue
+				}
+				events = append(events, event)
 			}
-			events = append(events, event)
 			networkStats.WithLabelValues("legal").Inc()
 		}
 	}
