@@ -88,6 +88,7 @@ with `-statsd.add-suffix=false`.
 
 An example mapping configuration with `-statsd.add-suffix=false`:
 
+    # comments are allowed
     test.dispatcher.*.*.*
     name="dispatcher_events_total"
     processor="$1"

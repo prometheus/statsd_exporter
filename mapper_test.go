@@ -28,11 +28,14 @@ func TestMetricMapper(t *testing.T) {
 		// Config with several mapping definitions.
 		{
 			config: `
+				# this is a comment
+				# this is another
 				test.dispatcher.*.*.*
 				name="dispatch_events"
 				processor="$1"
 				action="$2"
 				result="$3"
+				# here is a third
 				job="test_dispatcher"
 
 				test.my-dispatch-host01.name.dispatcher.*.*.*
@@ -148,7 +151,7 @@ func TestMetricMapper(t *testing.T) {
 				test.bar
 				name="name_bar"
 				label="foo"
-				
+
 				test.foo
 				name="name_foo"
 				label="bar"`,
