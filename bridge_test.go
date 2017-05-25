@@ -199,6 +199,21 @@ func TestHandlePacket(t *testing.T) {
 				},
 			},
 		}, {
+			name: "timings with sampling factor",
+			in:   "foo.timing:0.5|ms|@0.1",
+			out: Events{
+				&TimerEvent{metricName: "foo.timing", value: 0.5, labels: map[string]string{}},
+				&TimerEvent{metricName: "foo.timing", value: 0.5, labels: map[string]string{}},
+				&TimerEvent{metricName: "foo.timing", value: 0.5, labels: map[string]string{}},
+				&TimerEvent{metricName: "foo.timing", value: 0.5, labels: map[string]string{}},
+				&TimerEvent{metricName: "foo.timing", value: 0.5, labels: map[string]string{}},
+				&TimerEvent{metricName: "foo.timing", value: 0.5, labels: map[string]string{}},
+				&TimerEvent{metricName: "foo.timing", value: 0.5, labels: map[string]string{}},
+				&TimerEvent{metricName: "foo.timing", value: 0.5, labels: map[string]string{}},
+				&TimerEvent{metricName: "foo.timing", value: 0.5, labels: map[string]string{}},
+				&TimerEvent{metricName: "foo.timing", value: 0.5, labels: map[string]string{}},
+			},
+		}, {
 			name: "bad line",
 			in:   "foo",
 		}, {
