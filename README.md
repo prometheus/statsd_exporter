@@ -116,16 +116,16 @@ follows:
 
 ## Using Docker
 
-You can deploy this exporter using the [prom/statsd-exporter](https://registry.hub.docker.com/u/prom/statsd-exporter/) Docker image.
+You can deploy this exporter using the [prom/statsd-bridge](https://registry.hub.docker.com/u/prom/statsd-bridge/) Docker image.
 
 For example:
 
 ```bash
-docker pull prom/statsd-exporter
+docker pull prom/statsd-bridge
 
 docker run -d -p 9102:9102 -p 9125:9125/udp \
         -v $PWD/statsd_mapping.conf:/tmp/statsd_mapping.conf \
-        prom/statsd-exporter -statsd.mapping-config=/tmp/statsd_mapping.conf
+        prom/statsd-bridge -statsd.mapping-config=/tmp/statsd_mapping.conf
 ```
 
 
