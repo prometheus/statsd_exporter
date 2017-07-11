@@ -56,7 +56,7 @@ func serveHTTP() {
 	log.Fatal(http.ListenAndServe(*listenAddress, nil))
 }
 
-func ipPortFromString(addr string) (ip *net.IPAddr, port int) {
+func ipPortFromString(addr string) (*net.IPAddr, int) {
 	host, portStr, err := net.SplitHostPort(addr)
 	if err != nil {
 		log.Fatal("Bad StatsD listening address", addr)
@@ -65,12 +65,12 @@ func ipPortFromString(addr string) (ip *net.IPAddr, port int) {
 	if host == "" {
 		host = "0.0.0.0"
 	}
-	ip, err = net.ResolveIPAddr("ip", host)
+	ip, err := net.ResolveIPAddr("ip", host)
 	if err != nil {
 		log.Fatalf("Unable to resolve %s: %s", host, err)
 	}
 
-	port, err = strconv.Atoi(portStr)
+	port, err := strconv.Atoi(portStr)
 	if err != nil || port < 0 || port > 65535 {
 		log.Fatalf("Bad port %s: %s", portStr, err)
 	}
