@@ -271,7 +271,7 @@ func TestHandlePacket(t *testing.T) {
 		},
 	}
 
-	l := StatsDListener{}
+	l := StatsDUDPListener{}
 	events := make(chan Events, 32)
 	for i, scenario := range scenarios {
 		l.handlePacket([]byte(scenario.in), events)

@@ -56,7 +56,7 @@ func TestNegativeCounter(t *testing.T) {
 // It sends the same tags first with a valid value, then with an invalid one.
 // The exporter should not panic, but drop the invalid event
 func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
-	l := StatsDListener{}
+	l := StatsDUDPListener{}
 	events := make(chan Events, 2)
 
 	l.handlePacket([]byte("bar:200|c|#tag:value"), events)

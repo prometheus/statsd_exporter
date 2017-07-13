@@ -170,7 +170,7 @@ func main() {
 			}
 		}
 
-		l := &StatsDListener{conn: conn}
+		l := &StatsDUDPListener{conn: conn}
 		go l.Listen(events)
 	}
 

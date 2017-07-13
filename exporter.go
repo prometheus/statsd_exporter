@@ -437,11 +437,11 @@ samples:
 	return
 }
 
-type StatsDListener struct {
+type StatsDUDPListener struct {
 	conn *net.UDPConn
 }
 
-func (l *StatsDListener) Listen(e chan<- Events) {
+func (l *StatsDUDPListener) Listen(e chan<- Events) {
 	buf := make([]byte, 65535)
 	for {
 		n, _, err := l.conn.ReadFromUDP(buf)
@@ -452,7 +452,7 @@ func (l *StatsDListener) Listen(e chan<- Events) {
 	}
 }
 
-func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
+func (l *StatsDUDPListener) handlePacket(packet []byte, e chan<- Events) {
 	lines := strings.Split(string(packet), "\n")
 	events := Events{}
 	for _, line := range lines {
