@@ -157,21 +157,21 @@ func main() {
 	defer close(events)
 
 	if *statsdListenUDP {
-		listenAddr := udpAddrFromString(*statsdListenAddress)
-		conn, err := net.ListenUDP("udp", listenAddr)
+		udpListenAddr := udpAddrFromString(*statsdListenAddress)
+		uconn, err := net.ListenUDP("udp", udpListenAddr)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		if *readBuffer != 0 {
-			err = conn.SetReadBuffer(*readBuffer)
+			err = uconn.SetReadBuffer(*readBuffer)
 			if err != nil {
 				log.Fatal("Error setting UDP read buffer:", err)
 			}
 		}
 
-		l := &StatsDUDPListener{conn: conn}
-		go l.Listen(events)
+		ul := &StatsDUDPListener{conn: uconn}
+		go ul.Listen(events)
 	}
 
 	if *statsdListenTCP {
