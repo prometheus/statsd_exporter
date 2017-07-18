@@ -250,6 +250,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 					eventStats.WithLabelValues("counter").Inc()
 				} else {
 					log.Errorf(regErrF, metricName, err)
+					conflictingEventStats.WithLabelValues("counter").Inc()
 				}
 
 			case *GaugeEvent:
@@ -268,6 +269,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 					eventStats.WithLabelValues("gauge").Inc()
 				} else {
 					log.Errorf(regErrF, metricName, err)
+					conflictingEventStats.WithLabelValues("gauge").Inc()
 				}
 
 			case *TimerEvent:
@@ -281,6 +283,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 					eventStats.WithLabelValues("timer").Inc()
 				} else {
 					log.Errorf(regErrF, metricName, err)
+					conflictingEventStats.WithLabelValues("timer").Inc()
 				}
 
 			default:
