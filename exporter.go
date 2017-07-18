@@ -233,16 +233,17 @@ func (b *Exporter) Listen(e <-chan Events) {
 
 			switch ev := event.(type) {
 			case *CounterEvent:
-				counter := b.Counters.Get(
-					b.suffix(metricName, "counter"),
-					prometheusLabels,
-				)
 				// We don't accept negative values for counters. Incrementing the counter with a negative number
 				// will cause the exporter to panic. Instead we will warn and continue to the next event.
 				if event.Value() < 0.0 {
 					log.Errorf("Counter %q is: '%f' (counter must be non-negative value)", metricName, event.Value())
 					continue
 				}
+
+				counter := b.Counters.Get(
+					b.suffix(metricName, "counter"),
+					prometheusLabels,
+				)
 
 				counter.Add(event.Value())
 
