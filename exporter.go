@@ -78,10 +78,10 @@ func (c *CounterContainer) Get(metricName string, labels prometheus.Labels) (pro
 			Help:        defaultHelp,
 			ConstLabels: labels,
 		})
-		c.Elements[hash] = counter
 		if err := prometheus.Register(counter); err != nil {
 			return nil, err
 		}
+		c.Elements[hash] = counter
 	}
 	return counter, nil
 }
@@ -105,10 +105,10 @@ func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels) (prome
 			Help:        defaultHelp,
 			ConstLabels: labels,
 		})
-		c.Elements[hash] = gauge
 		if err := prometheus.Register(gauge); err != nil {
 			return nil, err
 		}
+		c.Elements[hash] = gauge
 	}
 	return gauge, nil
 }
@@ -133,10 +133,10 @@ func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels) (pro
 				Help:        defaultHelp,
 				ConstLabels: labels,
 			})
-		c.Elements[hash] = summary
 		if err := prometheus.Register(summary); err != nil {
 			return nil, err
 		}
+		c.Elements[hash] = summary
 	}
 	return summary, nil
 }
