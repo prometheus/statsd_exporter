@@ -69,7 +69,7 @@ func NewCounterContainer() *CounterContainer {
 	}
 }
 
-func (c *CounterContainer) Get(metricName string, labels prometheus.Labels) prometheus.Counter {
+func (c *CounterContainer) Get(metricName string, labels prometheus.Labels) (prometheus.Counter, error) {
 	hash := hashNameAndLabels(metricName, labels)
 	counter, ok := c.Elements[hash]
 	if !ok {
@@ -78,12 +78,12 @@ func (c *CounterContainer) Get(metricName string, labels prometheus.Labels) prom
 			Help:        defaultHelp,
 			ConstLabels: labels,
 		})
-		c.Elements[hash] = counter
 		if err := prometheus.Register(counter); err != nil {
-			log.Fatalf(regErrF, metricName, err)
+			return nil, err
 		}
+		c.Elements[hash] = counter
 	}
-	return counter
+	return counter, nil
 }
 
 type GaugeContainer struct {
@@ -96,7 +96,7 @@ func NewGaugeContainer() *GaugeContainer {
 	}
 }
 
-func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels) prometheus.Gauge {
+func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels) (prometheus.Gauge, error) {
 	hash := hashNameAndLabels(metricName, labels)
 	gauge, ok := c.Elements[hash]
 	if !ok {
@@ -105,12 +105,12 @@ func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels) promet
 			Help:        defaultHelp,
 			ConstLabels: labels,
 		})
-		c.Elements[hash] = gauge
 		if err := prometheus.Register(gauge); err != nil {
-			log.Fatalf(regErrF, metricName, err)
+			return nil, err
 		}
+		c.Elements[hash] = gauge
 	}
-	return gauge
+	return gauge, nil
 }
 
 type SummaryContainer struct {
@@ -123,7 +123,7 @@ func NewSummaryContainer() *SummaryContainer {
 	}
 }
 
-func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels) prometheus.Summary {
+func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels) (prometheus.Summary, error) {
 	hash := hashNameAndLabels(metricName, labels)
 	summary, ok := c.Elements[hash]
 	if !ok {
@@ -133,12 +133,12 @@ func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels) prom
 				Help:        defaultHelp,
 				ConstLabels: labels,
 			})
-		c.Elements[hash] = summary
 		if err := prometheus.Register(summary); err != nil {
-			log.Fatalf(regErrF, metricName, err)
+			return nil, err
 		}
+		c.Elements[hash] = summary
 	}
-	return summary
+	return summary, nil
 }
 
 type Event interface {
@@ -233,10 +233,6 @@ func (b *Exporter) Listen(e <-chan Events) {
 
 			switch ev := event.(type) {
 			case *CounterEvent:
-				counter := b.Counters.Get(
-					b.suffix(metricName, "counter"),
-					prometheusLabels,
-				)
 				// We don't accept negative values for counters. Incrementing the counter with a negative number
 				// will cause the exporter to panic. Instead we will warn and continue to the next event.
 				if event.Value() < 0.0 {
@@ -244,32 +240,51 @@ func (b *Exporter) Listen(e <-chan Events) {
 					continue
 				}
 
-				counter.Add(event.Value())
+				counter, err := b.Counters.Get(
+					b.suffix(metricName, "counter"),
+					prometheusLabels,
+				)
+				if err == nil {
+					counter.Add(event.Value())
 
-				eventStats.WithLabelValues("counter").Inc()
+					eventStats.WithLabelValues("counter").Inc()
+				} else {
+					log.Errorf(regErrF, metricName, err)
+					conflictingEventStats.WithLabelValues("counter").Inc()
+				}
 
 			case *GaugeEvent:
-				gauge := b.Gauges.Get(
+				gauge, err := b.Gauges.Get(
 					b.suffix(metricName, "gauge"),
 					prometheusLabels,
 				)
 
-				if ev.relative {
-					gauge.Add(event.Value())
+				if err == nil {
+					if ev.relative {
+						gauge.Add(event.Value())
+					} else {
+						gauge.Set(event.Value())
+					}
+
+					eventStats.WithLabelValues("gauge").Inc()
 				} else {
-					gauge.Set(event.Value())
+					log.Errorf(regErrF, metricName, err)
+					conflictingEventStats.WithLabelValues("gauge").Inc()
 				}
 
-				eventStats.WithLabelValues("gauge").Inc()
-
 			case *TimerEvent:
-				summary := b.Summaries.Get(
+				summary, err := b.Summaries.Get(
 					b.suffix(metricName, "timer"),
 					prometheusLabels,
 				)
-				summary.Observe(event.Value())
+				if err == nil {
+					summary.Observe(event.Value())
 
-				eventStats.WithLabelValues("timer").Inc()
+					eventStats.WithLabelValues("timer").Inc()
+				} else {
+					log.Errorf(regErrF, metricName, err)
+					conflictingEventStats.WithLabelValues("timer").Inc()
+				}
 
 			default:
 				log.Errorln("Unsupported event type")
