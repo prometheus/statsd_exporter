@@ -32,13 +32,14 @@ func init() {
 }
 
 var (
-	listenAddress       = flag.String("web.listen-address", ":9102", "The address on which to expose the web interface and generated Prometheus metrics.")
-	metricsEndpoint     = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
-	statsdListenAddress = flag.String("statsd.listen-address", ":9125", "The UDP address on which to receive statsd metric lines.")
-	mappingConfig       = flag.String("statsd.mapping-config", "", "Metric mapping configuration file name.")
-	readBuffer          = flag.Int("statsd.read-buffer", 0, "Size (in bytes) of the operating system's transmit read buffer associated with the UDP connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.")
-	addSuffix           = flag.Bool("statsd.add-suffix", true, "Add the metric type (counter/gauge/timer) as suffix to the generated Prometheus metric (NOT recommended, but set by default for backward compatibility).")
-	showVersion         = flag.Bool("version", false, "Print version information.")
+	listenAddress          = flag.String("web.listen-address", ":9102", "The address on which to expose the web interface and generated Prometheus metrics.")
+	metricsEndpoint        = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
+	statsdListenAddress    = flag.String("statsd.listen-address", ":9125", "The UDP address on which to receive statsd metric lines.")
+	statsdTCPListenAddress = flag.String("statsd.tcp-listen-address", ":9125", "The TCP address on which to receive statsd metric lines.")
+	mappingConfig          = flag.String("statsd.mapping-config", "", "Metric mapping configuration file name.")
+	readBuffer             = flag.Int("statsd.read-buffer", 0, "Size (in bytes) of the operating system's transmit read buffer associated with the UDP connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.")
+	addSuffix              = flag.Bool("statsd.add-suffix", true, "Add the metric type (counter/gauge/timer) as suffix to the generated Prometheus metric (NOT recommended, but set by default for backward compatibility).")
+	showVersion            = flag.Bool("version", false, "Print version information.")
 )
 
 func serveHTTP() {
@@ -75,6 +76,32 @@ func udpAddrFromString(addr string) *net.UDPAddr {
 	}
 
 	return &net.UDPAddr{
+		IP:   ip.IP,
+		Port: port,
+		Zone: ip.Zone,
+	}
+}
+
+func tcpAddrFromString(addr string) *net.TCPAddr {
+	host, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		log.Fatal("Bad StatsD listening address", addr)
+	}
+
+	if host == "" {
+		host = "0.0.0.0"
+	}
+	ip, err := net.ResolveIPAddr("ip", host)
+	if err != nil {
+		log.Fatalf("Unable to resolve %s: %s", host, err)
+	}
+
+	port, err := strconv.Atoi(portStr)
+	if err != nil || port < 0 || port > 65535 {
+		log.Fatalf("Bad port %s: %s", portStr, err)
+	}
+
+	return &net.TCPAddr{
 		IP:   ip.IP,
 		Port: port,
 		Zone: ip.Zone,
@@ -134,22 +161,32 @@ func main() {
 
 	events := make(chan Events, 1024)
 	defer close(events)
+	l := &StatsDListener{}
 
-	listenAddr := udpAddrFromString(*statsdListenAddress)
-	conn, err := net.ListenUDP("udp", listenAddr)
+	udpListenAddr := udpAddrFromString(*statsdListenAddress)
+	udpConn, err := net.ListenUDP("udp", udpListenAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	if *readBuffer != 0 {
-		err = conn.SetReadBuffer(*readBuffer)
+		err = udpConn.SetReadBuffer(*readBuffer)
 		if err != nil {
 			log.Fatal("Error setting UDP read buffer:", err)
 		}
 	}
 
-	l := &StatsDListener{conn: conn}
-	go l.Listen(events)
+	go l.HandleConnection(udpConn, events)
+
+	if *statsdTCPListenAddress != "" {
+		// TODO: optional?
+		tcpListenAddr := tcpAddrFromString(*statsdTCPListenAddress)
+		tcpListener, err := net.ListenTCP("tcp", tcpListenAddr)
+		if err != nil {
+			log.Fatal(err)
+		}
+		go l.Listen(tcpListener, events)
+	}
 
 	mapper := &metricMapper{}
 	if *mappingConfig != "" {
