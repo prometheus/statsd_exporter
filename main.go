@@ -23,6 +23,7 @@ import (
 
 	"github.com/howeyc/fsnotify"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
 )
@@ -43,7 +44,8 @@ var (
 )
 
 func serveHTTP() {
-	http.Handle(*metricsEndpoint, prometheus.Handler())
+	//http.Handle(*metricsEndpoint, prometheus.Handler())
+	http.Handle(*metricsEndpoint, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
 			<head><title>StatsD Bridge</title></head>
