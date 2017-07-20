@@ -14,6 +14,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -304,9 +305,7 @@ func NewExporter(mapper *metricMapper, addSuffix bool) *Exporter {
 	}
 }
 
-type StatsDListener struct {
-	conn *net.UDPConn
-}
+type StatsDListener struct{}
 
 func buildEvent(statType, metric string, value float64, relative bool, labels map[string]string) (Event, error) {
 	switch statType {
@@ -336,14 +335,41 @@ func buildEvent(statType, metric string, value float64, relative bool, labels ma
 	}
 }
 
-func (l *StatsDListener) Listen(e chan<- Events) {
-	buf := make([]byte, 65535)
+func (l *StatsDListener) Listen(listener *net.TCPListener, e chan<- Events) {
 	for {
-		n, _, err := l.conn.ReadFromUDP(buf)
+		conn, err := listener.AcceptTCP()
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("Error accepting: ", err.Error())
 		}
-		l.handlePacket(buf[0:n], e)
+		if *readBuffer != 0 {
+			err = conn.SetReadBuffer(*readBuffer)
+			if err != nil {
+				log.Fatal("Error setting TCP read buffer:", err)
+			}
+		}
+
+		go l.HandleConnection(conn, e)
+	}
+}
+
+func (l *StatsDListener) HandleConnection(conn net.Conn, e chan<- Events) {
+	reader := bufio.NewReaderSize(conn, 200)
+	for {
+		line, err := reader.ReadBytes('\n')
+		if err != nil {
+			switch conn.(type) {
+			// If this is a TCP Connection -- errors just mean they went away
+			// we'll log to debug and move on
+			case *net.TCPConn:
+				conn.Close()
+				log.Debug(err)
+				return
+			// Otherwise we consider it fatal (UDP for example)
+			default:
+				log.Fatal(err)
+			}
+		}
+		l.handlePacket(line, e)
 	}
 }
 
