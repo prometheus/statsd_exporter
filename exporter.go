@@ -484,11 +484,13 @@ func (l *StatsDTCPListener) handleConn(c *net.TCPConn, e chan<- Events) {
 		line, isPrefix, err := r.ReadLine()
 		if err != nil {
 			if err != io.EOF {
+				networkStats.WithLabelValues("tcp_error").Inc()
 				log.Errorf("Read %s failed: %v", c.RemoteAddr(), err)
 			}
 			break
 		}
 		if isPrefix {
+			networkStats.WithLabelValues("tcp_line_too_long").Inc()
 			log.Errorf("Read %s failed: line too long", c.RemoteAddr())
 			break
 		}
