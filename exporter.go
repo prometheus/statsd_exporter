@@ -338,16 +338,17 @@ func parseDogStatsDTagsToLabels(component string) map[string]string {
 	return labels
 }
 
-func lineToEvents(line string) (events Events) {
+func lineToEvents(line string) Events {
+	events := Events{}
 	if line == "" {
-		return
+		return events
 	}
 
 	elements := strings.SplitN(line, ":", 2)
 	if len(elements) < 2 || len(elements[0]) == 0 || !utf8.ValidString(line) {
 		networkStats.WithLabelValues("malformed_line").Inc()
 		log.Errorln("Bad line from StatsD:", line)
-		return
+		return events
 	}
 	metric := elements[0]
 	var samples []string
@@ -434,7 +435,7 @@ samples:
 		}
 		networkStats.WithLabelValues("legal").Inc()
 	}
-	return
+	return events
 }
 
 type StatsDUDPListener struct {

@@ -139,7 +139,7 @@ func main() {
 	}
 
 	if !*statsdListenUDP && !*statsdListenTCP {
-		log.Fatalln("At least one of UDP/TCP listeners should be specified.")
+		log.Fatalln("At least one of UDP/TCP listeners must be specified.")
 	}
 
 	if *addSuffix {
