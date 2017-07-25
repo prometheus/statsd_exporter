@@ -14,6 +14,8 @@
 package main
 
 import (
+	"fmt"
+	"net"
 	"testing"
 	"time"
 )
@@ -56,19 +58,53 @@ func TestNegativeCounter(t *testing.T) {
 // It sends the same tags first with a valid value, then with an invalid one.
 // The exporter should not panic, but drop the invalid event
 func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
-	l := StatsDUDPListener{}
-	events := make(chan Events, 2)
-
-	l.handlePacket([]byte("bar:200|c|#tag:value"), events)
-	l.handlePacket([]byte("bar:200|c|#tag:\xc3\x28invalid"), events)
-
 	ex := NewExporter(&metricMapper{}, true)
+	for _, l := range []statsDPacketHandler{&StatsDUDPListener{}, &mockStatsDTCPListener{}} {
+		events := make(chan Events, 2)
 
-	// Close channel to signify we are done with the listener after a short period.
+		l.handlePacket([]byte("bar:200|c|#tag:value\nbar:200|c|#tag:\xc3\x28invalid"), events)
+
+		// Close channel to signify we are done with the listener after a short period.
+		go func() {
+			time.Sleep(time.Millisecond * 100)
+			close(events)
+		}()
+
+		ex.Listen(events)
+	}
+}
+
+type statsDPacketHandler interface {
+	handlePacket(packet []byte, e chan<- Events)
+}
+
+type mockStatsDTCPListener struct {
+	StatsDTCPListener
+}
+
+func (ml *mockStatsDTCPListener) handlePacket(packet []byte, e chan<- Events) {
+	lc, err := net.ListenTCP("tcp", nil)
+	if err != nil {
+		panic(fmt.Sprintf("mockStatsDTCPListener: listen failed: %v", err))
+	}
+
+	defer lc.Close()
+
 	go func() {
-		time.Sleep(time.Millisecond * 100)
-		close(events)
+		cc, err := net.DialTCP("tcp", nil, lc.Addr().(*net.TCPAddr))
+		if err != nil {
+			panic(fmt.Sprintf("mockStatsDTCPListener: dial failed: %v", err))
+		}
+		n, err := cc.Write(packet)
+		if err != nil || n != len(packet) {
+			panic(fmt.Sprintf("mockStatsDTCPListener: write failed: %v,%d", err, n))
+		}
+		cc.Close()
 	}()
 
-	ex.Listen(events)
+	sc, err := lc.AcceptTCP()
+	if err != nil {
+		panic(fmt.Sprintf("mockStatsDTCPListener: accept failed: %v", err))
+	}
+	ml.handleConn(sc, e)
 }

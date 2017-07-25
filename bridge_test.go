@@ -271,24 +271,26 @@ func TestHandlePacket(t *testing.T) {
 		},
 	}
 
-	l := StatsDUDPListener{}
-	events := make(chan Events, 32)
-	for i, scenario := range scenarios {
-		l.handlePacket([]byte(scenario.in), events)
+	for k, l := range []statsDPacketHandler{&StatsDUDPListener{}, &mockStatsDTCPListener{}} {
+		events := make(chan Events, 32)
+		for i, scenario := range scenarios {
+			l.handlePacket([]byte(scenario.in), events)
 
-		// Flatten actual events.
-		actual := Events{}
-		for i := 0; i < len(events); i++ {
-			actual = append(actual, <-events...)
-		}
+			le := len(events)
+			// Flatten actual events.
+			actual := Events{}
+			for i := 0; i < le; i++ {
+				actual = append(actual, <-events...)
+			}
 
-		if len(actual) != len(scenario.out) {
-			t.Fatalf("%d. Expected %d events, got %d in scenario '%s'", i, len(scenario.out), len(actual), scenario.name)
-		}
+			if len(actual) != len(scenario.out) {
+				t.Fatalf("%d.%d. Expected %d events, got %d in scenario '%s'", k, i, len(scenario.out), len(actual), scenario.name)
+			}
 
-		for j, expected := range scenario.out {
-			if !reflect.DeepEqual(&expected, &actual[j]) {
-				t.Fatalf("%d.%d. Expected %#v, got %#v in scenario '%s'", i, j, expected, actual[j], scenario.name)
+			for j, expected := range scenario.out {
+				if !reflect.DeepEqual(&expected, &actual[j]) {
+					t.Fatalf("%d.%d.%d. Expected %#v, got %#v in scenario '%s'", k, i, j, expected, actual[j], scenario.name)
+				}
 			}
 		}
 	}
