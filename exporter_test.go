@@ -95,11 +95,13 @@ func (ml *mockStatsDTCPListener) handlePacket(packet []byte, e chan<- Events) {
 		if err != nil {
 			panic(fmt.Sprintf("mockStatsDTCPListener: dial failed: %v", err))
 		}
+
+		defer cc.Close()
+
 		n, err := cc.Write(packet)
 		if err != nil || n != len(packet) {
 			panic(fmt.Sprintf("mockStatsDTCPListener: write failed: %v,%d", err, n))
 		}
-		cc.Close()
 	}()
 
 	sc, err := lc.AcceptTCP()
