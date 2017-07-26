@@ -125,7 +125,7 @@ func (m *metricMapper) initFromString(fileContents string) error {
 	return nil
 }
 
-func (m *metricMapper) initFromYamlString(fileContents string) error {
+func (m *metricMapper) initFromYAMLString(fileContents string) error {
 
 	var n metricMapper
 
@@ -177,7 +177,7 @@ func (m *metricMapper) initFromFile(fileName string) error {
 	}
 	switch strings.ToLower(filepath.Ext(fileName)) {
 	case ".yaml", ".yml":
-		return m.initFromYamlString(string(mappingStr))
+		return m.initFromYAMLString(string(mappingStr))
 	default:
 		return m.initFromString(string(mappingStr))
 	}
