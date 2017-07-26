@@ -318,7 +318,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 				}
 
 				switch t {
-				case "histogram":
+				case timerTypeHistogram:
 					histogram, err := b.Histograms.Get(
 						b.suffix(metricName, "timer"),
 						prometheusLabels,

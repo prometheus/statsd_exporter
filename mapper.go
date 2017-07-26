@@ -128,13 +128,10 @@ func (m *metricMapper) initFromString(fileContents string) error {
 func (m *metricMapper) initFromYAMLString(fileContents string) error {
 	var n metricMapper
 
-	fmt.Println(fileContents)
-
 	if err := yaml.Unmarshal([]byte(fileContents), &n); err != nil {
 		return err
 	}
 
-	fmt.Printf("%#v\n", n)
 	if n.Defaults.Buckets == nil || len(n.Defaults.Buckets) == 0 {
 		n.Defaults.Buckets = prometheus.DefBuckets
 	}
