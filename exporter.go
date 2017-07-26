@@ -69,7 +69,7 @@ func NewCounterContainer() *CounterContainer {
 	}
 }
 
-func (c *CounterContainer) Get(metricName string, labels prometheus.Labels) prometheus.Counter {
+func (c *CounterContainer) Get(metricName string, labels prometheus.Labels) (prometheus.Counter, error) {
 	hash := hashNameAndLabels(metricName, labels)
 	counter, ok := c.Elements[hash]
 	if !ok {
@@ -78,12 +78,12 @@ func (c *CounterContainer) Get(metricName string, labels prometheus.Labels) prom
 			Help:        defaultHelp,
 			ConstLabels: labels,
 		})
-		c.Elements[hash] = counter
 		if err := prometheus.Register(counter); err != nil {
-			log.Fatalf(regErrF, metricName, err)
+			return nil, err
 		}
+		c.Elements[hash] = counter
 	}
-	return counter
+	return counter, nil
 }
 
 type GaugeContainer struct {
@@ -96,7 +96,7 @@ func NewGaugeContainer() *GaugeContainer {
 	}
 }
 
-func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels) prometheus.Gauge {
+func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels) (prometheus.Gauge, error) {
 	hash := hashNameAndLabels(metricName, labels)
 	gauge, ok := c.Elements[hash]
 	if !ok {
@@ -105,12 +105,12 @@ func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels) promet
 			Help:        defaultHelp,
 			ConstLabels: labels,
 		})
-		c.Elements[hash] = gauge
 		if err := prometheus.Register(gauge); err != nil {
-			log.Fatalf(regErrF, metricName, err)
+			return nil, err
 		}
+		c.Elements[hash] = gauge
 	}
-	return gauge
+	return gauge, nil
 }
 
 type SummaryContainer struct {
@@ -123,7 +123,7 @@ func NewSummaryContainer() *SummaryContainer {
 	}
 }
 
-func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels) prometheus.Summary {
+func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels) (prometheus.Summary, error) {
 	hash := hashNameAndLabels(metricName, labels)
 	summary, ok := c.Elements[hash]
 	if !ok {
@@ -133,12 +133,12 @@ func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels) prom
 				Help:        defaultHelp,
 				ConstLabels: labels,
 			})
-		c.Elements[hash] = summary
 		if err := prometheus.Register(summary); err != nil {
-			log.Fatalf(regErrF, metricName, err)
+			return nil, err
 		}
+		c.Elements[hash] = summary
 	}
-	return summary
+	return summary, nil
 }
 
 type HistogramContainer struct {
@@ -153,7 +153,7 @@ func NewHistogramContainer(mapper *metricMapper) *HistogramContainer {
 	}
 }
 
-func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, mapping *metricMapping) prometheus.Histogram {
+func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, mapping *metricMapping) (prometheus.Histogram, error) {
 	hash := hashNameAndLabels(metricName, labels)
 	histogram, ok := c.Elements[hash]
 	if !ok {
@@ -170,10 +170,10 @@ func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, ma
 			})
 		c.Elements[hash] = histogram
 		if err := prometheus.Register(histogram); err != nil {
-			log.Fatalf(regErrF, metricName, err)
+			return nil, err
 		}
 	}
-	return histogram
+	return histogram, nil
 }
 
 type Event interface {
@@ -269,10 +269,6 @@ func (b *Exporter) Listen(e <-chan Events) {
 
 			switch ev := event.(type) {
 			case *CounterEvent:
-				counter := b.Counters.Get(
-					b.suffix(metricName, "counter"),
-					prometheusLabels,
-				)
 				// We don't accept negative values for counters. Incrementing the counter with a negative number
 				// will cause the exporter to panic. Instead we will warn and continue to the next event.
 				if event.Value() < 0.0 {
@@ -280,23 +276,37 @@ func (b *Exporter) Listen(e <-chan Events) {
 					continue
 				}
 
-				counter.Add(event.Value())
+				counter, err := b.Counters.Get(
+					b.suffix(metricName, "counter"),
+					prometheusLabels,
+				)
+				if err == nil {
+					counter.Add(event.Value())
 
-				eventStats.WithLabelValues("counter").Inc()
+					eventStats.WithLabelValues("counter").Inc()
+				} else {
+					log.Errorf(regErrF, metricName, err)
+					conflictingEventStats.WithLabelValues("counter").Inc()
+				}
 
 			case *GaugeEvent:
-				gauge := b.Gauges.Get(
+				gauge, err := b.Gauges.Get(
 					b.suffix(metricName, "gauge"),
 					prometheusLabels,
 				)
 
-				if ev.relative {
-					gauge.Add(event.Value())
-				} else {
-					gauge.Set(event.Value())
-				}
+				if err == nil {
+					if ev.relative {
+						gauge.Add(event.Value())
+					} else {
+						gauge.Set(event.Value())
+					}
 
-				eventStats.WithLabelValues("gauge").Inc()
+					eventStats.WithLabelValues("gauge").Inc()
+				} else {
+					log.Errorf(regErrF, metricName, err)
+					conflictingEventStats.WithLabelValues("gauge").Inc()
+				}
 
 			case *TimerEvent:
 				timerType := ""
@@ -308,21 +318,31 @@ func (b *Exporter) Listen(e <-chan Events) {
 				}
 
 				if timerType == "histogram" {
-					histogram := b.Histograms.Get(
+					histogram, err := b.Histograms.Get(
 						b.suffix(metricName, "timer"),
 						prometheusLabels,
 						mapping,
 					)
-					histogram.Observe(event.Value())
+					if err == nil {
+						histogram.Observe(event.Value())
+						eventStats.WithLabelValues("timer").Inc()
+					} else {
+						log.Errorf(regErrF, metricName, err)
+						conflictingEventStats.WithLabelValues("timer").Inc()
+					}
 				} else {
-					summary := b.Summaries.Get(
+					summary, err := b.Summaries.Get(
 						b.suffix(metricName, "timer"),
 						prometheusLabels,
 					)
-					summary.Observe(event.Value())
+					if err == nil {
+						summary.Observe(event.Value())
+						eventStats.WithLabelValues("timer").Inc()
+					} else {
+						log.Errorf(regErrF, metricName, err)
+						conflictingEventStats.WithLabelValues("timer").Inc()
+					}
 				}
-
-				eventStats.WithLabelValues("timer").Inc()
 
 			default:
 				log.Errorln("Unsupported event type")
@@ -450,6 +470,7 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 				continue
 			}
 
+			multiplyEvents := 1
 			labels := map[string]string{}
 			if len(components) >= 3 {
 				for _, component := range components[2:] {
@@ -463,9 +484,10 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 				for _, component := range components[2:] {
 					switch component[0] {
 					case '@':
-						if statType != "c" {
+						if statType != "c" && statType != "ms" {
 							log.Errorln("Illegal sampling factor for non-counter metric on line", line)
 							networkStats.WithLabelValues("illegal_sample_factor").Inc()
+							continue
 						}
 						samplingFactor, err = strconv.ParseFloat(component[1:], 64)
 						if err != nil {
@@ -475,7 +497,12 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 						if samplingFactor == 0 {
 							samplingFactor = 1
 						}
-						value /= samplingFactor
+
+						if statType == "c" {
+							value /= samplingFactor
+						} else if statType == "ms" {
+							multiplyEvents = int(1 / samplingFactor)
+						}
 					case '#':
 						labels = parseDogStatsDTagsToLabels(component)
 					default:
@@ -486,13 +513,15 @@ func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
 				}
 			}
 
-			event, err := buildEvent(statType, metric, value, relative, labels)
-			if err != nil {
-				log.Errorf("Error building event on line %s: %s", line, err)
-				networkStats.WithLabelValues("illegal_event").Inc()
-				continue
+			for i := 0; i < multiplyEvents; i++ {
+				event, err := buildEvent(statType, metric, value, relative, labels)
+				if err != nil {
+					log.Errorf("Error building event on line %s: %s", line, err)
+					networkStats.WithLabelValues("illegal_event").Inc()
+					continue
+				}
+				events = append(events, event)
 			}
-			events = append(events, event)
 			networkStats.WithLabelValues("legal").Inc()
 		}
 	}

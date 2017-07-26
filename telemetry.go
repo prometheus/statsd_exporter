@@ -47,6 +47,13 @@ var (
 		Name: "statsd_exporter_loaded_mappings",
 		Help: "The current number of configured metric mappings.",
 	})
+	conflictingEventStats = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_events_conflict_total",
+			Help: "The total number of StatsD events with conflicting names.",
+		},
+		[]string{"type"},
+	)
 )
 
 func init() {
@@ -54,4 +61,5 @@ func init() {
 	prometheus.MustRegister(networkStats)
 	prometheus.MustRegister(configLoads)
 	prometheus.MustRegister(mappingsCount)
+	prometheus.MustRegister(conflictingEventStats)
 }

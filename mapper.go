@@ -70,6 +70,11 @@ func (m *metricMapper) initFromString(fileContents string) error {
 	for i, line := range lines {
 		line = strings.TrimSpace(line)
 
+		// skip comments
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+
 		switch state {
 		case SEARCHING:
 			if line == "" {
