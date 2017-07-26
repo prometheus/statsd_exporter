@@ -309,15 +309,16 @@ func (b *Exporter) Listen(e <-chan Events) {
 				}
 
 			case *TimerEvent:
-				timerType := ""
+				t := timerTypeDefault
 				if mapping != nil {
-					timerType = mapping.TimerType
+					t = mapping.TimerType
 				}
-				if timerType == "" {
-					timerType = b.mapper.Defaults.TimerType
+				if t == timerTypeDefault {
+					t = b.mapper.Defaults.TimerType
 				}
 
-				if timerType == "histogram" {
+				switch t {
+				case "histogram":
 					histogram, err := b.Histograms.Get(
 						b.suffix(metricName, "timer"),
 						prometheusLabels,
@@ -330,7 +331,8 @@ func (b *Exporter) Listen(e <-chan Events) {
 						log.Errorf(regErrF, metricName, err)
 						conflictingEventStats.WithLabelValues("timer").Inc()
 					}
-				} else {
+
+				case timerTypeDefault, timerTypeSummary:
 					summary, err := b.Summaries.Get(
 						b.suffix(metricName, "timer"),
 						prometheusLabels,
@@ -342,6 +344,9 @@ func (b *Exporter) Listen(e <-chan Events) {
 						log.Errorf(regErrF, metricName, err)
 						conflictingEventStats.WithLabelValues("timer").Inc()
 					}
+
+				default:
+					panic(fmt.Sprintf("unknown timer type '%s'", t))
 				}
 
 			default:

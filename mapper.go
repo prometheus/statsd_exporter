@@ -35,7 +35,7 @@ var (
 )
 
 type mapperConfigDefaults struct {
-	TimerType string    `yaml:"timer_type"`
+	TimerType timerType `yaml:"timer_type"`
 	Buckets   []float64 `yaml:"buckets"`
 }
 
@@ -48,9 +48,9 @@ type metricMapper struct {
 type metricMapping struct {
 	Match     string `yaml:"match"`
 	regex     *regexp.Regexp
-	Labels    prometheus.Labels
-	TimerType string    `yaml:"timer_type"`
-	Buckets   []float64 `yaml:"buckets"`
+	Labels    prometheus.Labels `yaml:"labels"`
+	TimerType timerType         `yaml:"timer_type"`
+	Buckets   []float64         `yaml:"buckets"`
 }
 
 type configLoadStates int
@@ -126,13 +126,15 @@ func (m *metricMapper) initFromString(fileContents string) error {
 }
 
 func (m *metricMapper) initFromYAMLString(fileContents string) error {
-
 	var n metricMapper
+
+	fmt.Println(fileContents)
 
 	if err := yaml.Unmarshal([]byte(fileContents), &n); err != nil {
 		return err
 	}
 
+	fmt.Printf("%#v\n", n)
 	if n.Defaults.Buckets == nil || len(n.Defaults.Buckets) == 0 {
 		n.Defaults.Buckets = prometheus.DefBuckets
 	}
