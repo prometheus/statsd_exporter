@@ -143,6 +143,21 @@ func (m *metricMapper) initFromYAMLString(fileContents string) error {
 			return fmt.Errorf("invalid match: %s", currentMapping.Match)
 		}
 
+		// check that label is correct
+		for k, v := range currentMapping.Labels {
+			label := fmt.Sprintf("%s=%q", k, v)
+			if len(labelLineRE.FindStringSubmatch(label)) != 3 {
+				return fmt.Errorf("invalid label: %s: %s", k, v)
+			}
+			if k == "name" && !metricNameRE.MatchString(v) {
+				return fmt.Errorf("metric name '%s' doesn't match regex '%s'", v, metricNameRE)
+			}
+		}
+
+		if _, ok := currentMapping.Labels["name"]; !ok {
+			return fmt.Errorf("Line %d: metric mapping didn't set a metric name", i)
+		}
+
 		// Translate the glob-style metric match line into a proper regex that we
 		// can use to match metrics later on.
 		metricRe := strings.Replace(currentMapping.Match, ".", "\\.", -1)
@@ -156,6 +171,7 @@ func (m *metricMapper) initFromYAMLString(fileContents string) error {
 		if currentMapping.Buckets == nil || len(currentMapping.Buckets) == 0 {
 			currentMapping.Buckets = n.Defaults.Buckets
 		}
+
 	}
 
 	m.mutex.Lock()
