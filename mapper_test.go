@@ -312,6 +312,32 @@ mappings:
 			config:   ``,
 			mappings: map[string]map[string]string{},
 		},
+		// Config with good timer type.
+		{
+			config: `---
+mappings:
+- match: test.*.*
+  timer_type: summary
+  labels:
+    name: "foo"
+  `,
+			mappings: map[string]map[string]string{
+				"test.*.*": map[string]string{
+					"name": "foo",
+				},
+			},
+		},
+		// Config with bad timer type.
+		{
+			config: `---
+mappings:
+- match: test.*.*
+  timer_type: wrong
+  labels:
+    name: "foo"
+    `,
+			configBad: true,
+		},
 	}
 
 	mapper := metricMapper{}
