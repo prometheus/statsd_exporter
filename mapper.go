@@ -145,9 +145,8 @@ func (m *metricMapper) initFromYAMLString(fileContents string) error {
 
 		// Check that label is correct.
 		for k, v := range currentMapping.Labels {
-			label := fmt.Sprintf("%s=%q", k, v)
-			if len(labelLineRE.FindStringSubmatch(label)) != 3 {
-				return fmt.Errorf("invalid label: %s: %s", k, v)
+			if !metricNameRE.MatchString(k) {
+				return fmt.Errorf("invalid label key: %s", k)
 			}
 			if k == "name" && !metricNameRE.MatchString(v) {
 				return fmt.Errorf("metric name '%s' doesn't match regex '%s'", v, metricNameRE)
