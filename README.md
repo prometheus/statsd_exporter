@@ -114,6 +114,76 @@ follows:
     test.web-server.foo.bar
      => test_web__server_foo_bar{}
 
+
+YAML may also be used for the configuration if the passed filename ends in `.yml` or
+`.yaml`.  The above example mapping, in YAML, would be:
+
+```yaml
+mappings:
+- match: test.dispatcher.*.*.*
+  labels:
+    name: "dispatcher_events_total"
+    processor: "$1"
+    action: "$2"
+    outcome: "$3"
+    job: "test_dispatcher"
+- match: *.signup.*.*
+  labels:
+    name: "signup_events_total"
+    provider: "$2"
+    outcome: "$3"
+    job: "${1}_server"
+```
+
+Using the YAML configuration, one may also set the timer type to "histogram". The 
+default is "summary" as in the plain text configuration format.  For example,
+to set the timer type for a single metric:
+
+```yaml
+mappings:
+- match: test.timing.*.*.*
+  timer_type: histogram
+  buckets: [ 0.01, 0.025, 0.05, 0.1 ]
+  labels: 
+    name: "my_timer"
+    provider: "$2"
+    outcome: "$3"
+    job: "${1}_server"
+```
+
+Note, that one may also set the histogram buckets.  If not set, then the default
+[Prometheus client values](https://godoc.org/github.com/prometheus/client_golang/prometheus#pkg-variables) are used: `[.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10]`. `+Inf` is added
+automatically.
+
+`timer_type` is only used when the statsd metric type is a timer. `buckets` is
+only used when the statsd metric type is a timerand the `timer_type` is set to
+"histogram."
+
+One may also set defaults for the timer type and the buckets. These will be used
+by all mappings that do not define these.
+
+```yaml
+defaults:
+  timer_type: histogram
+  buckets: [.005, .01, .025, .05, .1, .25, .5, 1, 2.5 ]
+mappings:
+# This will be a histogram using the buckets set in `defaults`.
+- match: test.timing.*.*.*
+  labels: 
+    name: "my_timer"
+    provider: "$2"
+    outcome: "$3"
+    job: "${1}_server"
+# This will be a summary timer.
+- match: other.timing.*.*.*
+  timer_type: summary
+  labels: 
+    name: "other_timer"
+    provider: "$2"
+    outcome: "$3"
+    job: "${1}_server_other"
+```
+
 ## Using Docker
 
 You can deploy this exporter using the [prom/statsd-exporter](https://registry.hub.docker.com/u/prom/statsd-exporter/) Docker image.
