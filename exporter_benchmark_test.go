@@ -38,7 +38,7 @@ func benchmarkExporter(times int, b *testing.B) {
 		}
 	}
 	for n := 0; n < b.N; n++ {
-		l := StatsDListener{}
+		l := StatsDUDPListener{}
 		// there are more events than input lines, need bigger buffer
 		events := make(chan Events, len(bytesInput)*times*2)
 

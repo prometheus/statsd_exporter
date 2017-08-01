@@ -14,10 +14,12 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
 	"hash/fnv"
+	"io"
 	"net"
 	"regexp"
 	"strconv"
@@ -304,10 +306,6 @@ func NewExporter(mapper *metricMapper, addSuffix bool) *Exporter {
 	}
 }
 
-type StatsDListener struct {
-	conn *net.UDPConn
-}
-
 func buildEvent(statType, metric string, value float64, relative bool, labels map[string]string) (Event, error) {
 	switch statType {
 	case "c":
@@ -336,17 +334,6 @@ func buildEvent(statType, metric string, value float64, relative bool, labels ma
 	}
 }
 
-func (l *StatsDListener) Listen(e chan<- Events) {
-	buf := make([]byte, 65535)
-	for {
-		n, _, err := l.conn.ReadFromUDP(buf)
-		if err != nil {
-			log.Fatal(err)
-		}
-		l.handlePacket(buf[0:n], e)
-	}
-}
-
 func parseDogStatsDTagsToLabels(component string) map[string]string {
 	labels := map[string]string{}
 	networkStats.WithLabelValues("dogstatsd_tags").Inc()
@@ -366,105 +353,162 @@ func parseDogStatsDTagsToLabels(component string) map[string]string {
 	return labels
 }
 
-func (l *StatsDListener) handlePacket(packet []byte, e chan<- Events) {
+func lineToEvents(line string) Events {
+	events := Events{}
+	if line == "" {
+		return events
+	}
+
+	elements := strings.SplitN(line, ":", 2)
+	if len(elements) < 2 || len(elements[0]) == 0 || !utf8.ValidString(line) {
+		networkStats.WithLabelValues("malformed_line").Inc()
+		log.Errorln("Bad line from StatsD:", line)
+		return events
+	}
+	metric := elements[0]
+	var samples []string
+	if strings.Contains(elements[1], "|#") {
+		// using datadog extensions, disable multi-metrics
+		samples = elements[1:]
+	} else {
+		samples = strings.Split(elements[1], ":")
+	}
+samples:
+	for _, sample := range samples {
+		components := strings.Split(sample, "|")
+		samplingFactor := 1.0
+		if len(components) < 2 || len(components) > 4 {
+			networkStats.WithLabelValues("malformed_component").Inc()
+			log.Errorln("Bad component on line:", line)
+			continue
+		}
+		valueStr, statType := components[0], components[1]
+
+		var relative = false
+		if strings.Index(valueStr, "+") == 0 || strings.Index(valueStr, "-") == 0 {
+			relative = true
+		}
+
+		value, err := strconv.ParseFloat(valueStr, 64)
+		if err != nil {
+			log.Errorf("Bad value %s on line: %s", valueStr, line)
+			networkStats.WithLabelValues("malformed_value").Inc()
+			continue
+		}
+
+		multiplyEvents := 1
+		labels := map[string]string{}
+		if len(components) >= 3 {
+			for _, component := range components[2:] {
+				if len(component) == 0 {
+					log.Errorln("Empty component on line: ", line)
+					networkStats.WithLabelValues("malformed_component").Inc()
+					continue samples
+				}
+			}
+
+			for _, component := range components[2:] {
+				switch component[0] {
+				case '@':
+					if statType != "c" && statType != "ms" {
+						log.Errorln("Illegal sampling factor for non-counter metric on line", line)
+						networkStats.WithLabelValues("illegal_sample_factor").Inc()
+						continue
+					}
+					samplingFactor, err = strconv.ParseFloat(component[1:], 64)
+					if err != nil {
+						log.Errorf("Invalid sampling factor %s on line %s", component[1:], line)
+						networkStats.WithLabelValues("invalid_sample_factor").Inc()
+					}
+					if samplingFactor == 0 {
+						samplingFactor = 1
+					}
+
+					if statType == "c" {
+						value /= samplingFactor
+					} else if statType == "ms" {
+						multiplyEvents = int(1 / samplingFactor)
+					}
+				case '#':
+					labels = parseDogStatsDTagsToLabels(component)
+				default:
+					log.Errorf("Invalid sampling factor or tag section %s on line %s", components[2], line)
+					networkStats.WithLabelValues("invalid_sample_factor").Inc()
+					continue
+				}
+			}
+		}
+
+		for i := 0; i < multiplyEvents; i++ {
+			event, err := buildEvent(statType, metric, value, relative, labels)
+			if err != nil {
+				log.Errorf("Error building event on line %s: %s", line, err)
+				networkStats.WithLabelValues("illegal_event").Inc()
+				continue
+			}
+			events = append(events, event)
+		}
+		networkStats.WithLabelValues("legal").Inc()
+	}
+	return events
+}
+
+type StatsDUDPListener struct {
+	conn *net.UDPConn
+}
+
+func (l *StatsDUDPListener) Listen(e chan<- Events) {
+	buf := make([]byte, 65535)
+	for {
+		n, _, err := l.conn.ReadFromUDP(buf)
+		if err != nil {
+			log.Fatal(err)
+		}
+		l.handlePacket(buf[0:n], e)
+	}
+}
+
+func (l *StatsDUDPListener) handlePacket(packet []byte, e chan<- Events) {
 	lines := strings.Split(string(packet), "\n")
 	events := Events{}
 	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-
-		elements := strings.SplitN(line, ":", 2)
-		if len(elements) < 2 || len(elements[0]) == 0 || !utf8.ValidString(line) {
-			networkStats.WithLabelValues("malformed_line").Inc()
-			log.Errorln("Bad line from StatsD:", line)
-			continue
-		}
-		metric := elements[0]
-		var samples []string
-		if strings.Contains(elements[1], "|#") {
-			// using datadog extensions, disable multi-metrics
-			samples = elements[1:]
-		} else {
-			samples = strings.Split(elements[1], ":")
-		}
-	samples:
-		for _, sample := range samples {
-			components := strings.Split(sample, "|")
-			samplingFactor := 1.0
-			if len(components) < 2 || len(components) > 4 {
-				networkStats.WithLabelValues("malformed_component").Inc()
-				log.Errorln("Bad component on line:", line)
-				continue
-			}
-			valueStr, statType := components[0], components[1]
-
-			var relative = false
-			if strings.Index(valueStr, "+") == 0 || strings.Index(valueStr, "-") == 0 {
-				relative = true
-			}
-
-			value, err := strconv.ParseFloat(valueStr, 64)
-			if err != nil {
-				log.Errorf("Bad value %s on line: %s", valueStr, line)
-				networkStats.WithLabelValues("malformed_value").Inc()
-				continue
-			}
-
-			multiplyEvents := 1
-			labels := map[string]string{}
-			if len(components) >= 3 {
-				for _, component := range components[2:] {
-					if len(component) == 0 {
-						log.Errorln("Empty component on line: ", line)
-						networkStats.WithLabelValues("malformed_component").Inc()
-						continue samples
-					}
-				}
-
-				for _, component := range components[2:] {
-					switch component[0] {
-					case '@':
-						if statType != "c" && statType != "ms" {
-							log.Errorln("Illegal sampling factor for non-counter metric on line", line)
-							networkStats.WithLabelValues("illegal_sample_factor").Inc()
-							continue
-						}
-						samplingFactor, err = strconv.ParseFloat(component[1:], 64)
-						if err != nil {
-							log.Errorf("Invalid sampling factor %s on line %s", component[1:], line)
-							networkStats.WithLabelValues("invalid_sample_factor").Inc()
-						}
-						if samplingFactor == 0 {
-							samplingFactor = 1
-						}
-
-						if statType == "c" {
-							value /= samplingFactor
-						} else if statType == "ms" {
-							multiplyEvents = int(1 / samplingFactor)
-						}
-					case '#':
-						labels = parseDogStatsDTagsToLabels(component)
-					default:
-						log.Errorf("Invalid sampling factor or tag section %s on line %s", components[2], line)
-						networkStats.WithLabelValues("invalid_sample_factor").Inc()
-						continue
-					}
-				}
-			}
-
-			for i := 0; i < multiplyEvents; i++ {
-				event, err := buildEvent(statType, metric, value, relative, labels)
-				if err != nil {
-					log.Errorf("Error building event on line %s: %s", line, err)
-					networkStats.WithLabelValues("illegal_event").Inc()
-					continue
-				}
-				events = append(events, event)
-			}
-			networkStats.WithLabelValues("legal").Inc()
-		}
+		events = append(events, lineToEvents(line)...)
 	}
 	e <- events
+}
+
+type StatsDTCPListener struct {
+	conn *net.TCPListener
+}
+
+func (l *StatsDTCPListener) Listen(e chan<- Events) {
+	for {
+		c, err := l.conn.AcceptTCP()
+		if err != nil {
+			log.Fatalf("AcceptTCP failed: %v", err)
+		}
+		go l.handleConn(c, e)
+	}
+}
+
+func (l *StatsDTCPListener) handleConn(c *net.TCPConn, e chan<- Events) {
+	defer c.Close()
+
+	r := bufio.NewReader(c)
+	for {
+		line, isPrefix, err := r.ReadLine()
+		if err != nil {
+			if err != io.EOF {
+				networkStats.WithLabelValues("tcp_error").Inc()
+				log.Errorf("Read %s failed: %v", c.RemoteAddr(), err)
+			}
+			break
+		}
+		if isPrefix {
+			networkStats.WithLabelValues("tcp_line_too_long").Inc()
+			log.Errorf("Read %s failed: line too long", c.RemoteAddr())
+			break
+		}
+		e <- lineToEvents(string(line))
+	}
 }

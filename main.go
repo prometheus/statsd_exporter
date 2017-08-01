@@ -34,7 +34,9 @@ func init() {
 var (
 	listenAddress       = flag.String("web.listen-address", ":9102", "The address on which to expose the web interface and generated Prometheus metrics.")
 	metricsEndpoint     = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
-	statsdListenAddress = flag.String("statsd.listen-address", ":9125", "The UDP address on which to receive statsd metric lines.")
+	statsdListenAddress = flag.String("statsd.listen-address", "", "The UDP address on which to receive statsd metric lines. DEPRECATED, use statsd.listen-udp instead.")
+	statsdListenUDP     = flag.String("statsd.listen-udp", ":9125", "The UDP address on which to receive statsd metric lines. \"\" disables it.")
+	statsdListenTCP     = flag.String("statsd.listen-tcp", ":9125", "The TCP address on which to receive statsd metric lines. \"\" disables it.")
 	mappingConfig       = flag.String("statsd.mapping-config", "", "Metric mapping configuration file name.")
 	readBuffer          = flag.Int("statsd.read-buffer", 0, "Size (in bytes) of the operating system's transmit read buffer associated with the UDP connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.")
 	addSuffix           = flag.Bool("statsd.add-suffix", true, "Add the metric type (counter/gauge/timer) as suffix to the generated Prometheus metric (NOT recommended, but set by default for backward compatibility).")
@@ -55,7 +57,7 @@ func serveHTTP() {
 	log.Fatal(http.ListenAndServe(*listenAddress, nil))
 }
 
-func udpAddrFromString(addr string) *net.UDPAddr {
+func ipPortFromString(addr string) (*net.IPAddr, int) {
 	host, portStr, err := net.SplitHostPort(addr)
 	if err != nil {
 		log.Fatal("Bad StatsD listening address", addr)
@@ -74,7 +76,21 @@ func udpAddrFromString(addr string) *net.UDPAddr {
 		log.Fatalf("Bad port %s: %s", portStr, err)
 	}
 
+	return ip, port
+}
+
+func udpAddrFromString(addr string) *net.UDPAddr {
+	ip, port := ipPortFromString(addr)
 	return &net.UDPAddr{
+		IP:   ip.IP,
+		Port: port,
+		Zone: ip.Zone,
+	}
+}
+
+func tcpAddrFromString(addr string) *net.TCPAddr {
+	ip, port := ipPortFromString(addr)
+	return &net.TCPAddr{
 		IP:   ip.IP,
 		Port: port,
 		Zone: ip.Zone,
@@ -122,12 +138,22 @@ func main() {
 		os.Exit(0)
 	}
 
+	if *statsdListenAddress != "" {
+		log.Warnln("Warning: statsd.listen-address is DEPRECATED, please use statsd.listen-udp instead.")
+		*statsdListenUDP = *statsdListenAddress
+	}
+
+	if *statsdListenUDP == "" && *statsdListenTCP == "" {
+		log.Fatalln("At least one of UDP/TCP listeners must be specified.")
+	}
+
 	if *addSuffix {
 		log.Warnln("Warning: Using -statsd.add-suffix is discouraged. We recommend explicitly naming metrics appropriately in the mapping configuration.")
 	}
+
 	log.Infoln("Starting StatsD -> Prometheus Exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
-	log.Infoln("Accepting StatsD Traffic on", *statsdListenAddress)
+	log.Infof("Accepting StatsD Traffic: UDP %v, TCP %v", *statsdListenUDP, *statsdListenTCP)
 	log.Infoln("Accepting Prometheus Requests on", *listenAddress)
 
 	go serveHTTP()
@@ -135,21 +161,35 @@ func main() {
 	events := make(chan Events, 1024)
 	defer close(events)
 
-	listenAddr := udpAddrFromString(*statsdListenAddress)
-	conn, err := net.ListenUDP("udp", listenAddr)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if *readBuffer != 0 {
-		err = conn.SetReadBuffer(*readBuffer)
+	if *statsdListenUDP != "" {
+		udpListenAddr := udpAddrFromString(*statsdListenUDP)
+		uconn, err := net.ListenUDP("udp", udpListenAddr)
 		if err != nil {
-			log.Fatal("Error setting UDP read buffer:", err)
+			log.Fatal(err)
 		}
+
+		if *readBuffer != 0 {
+			err = uconn.SetReadBuffer(*readBuffer)
+			if err != nil {
+				log.Fatal("Error setting UDP read buffer:", err)
+			}
+		}
+
+		ul := &StatsDUDPListener{conn: uconn}
+		go ul.Listen(events)
 	}
 
-	l := &StatsDListener{conn: conn}
-	go l.Listen(events)
+	if *statsdListenTCP != "" {
+		tcpListenAddr := tcpAddrFromString(*statsdListenTCP)
+		tconn, err := net.ListenTCP("tcp", tcpListenAddr)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer tconn.Close()
+
+		tl := &StatsDTCPListener{conn: tconn}
+		go tl.Listen(events)
+	}
 
 	mapper := &metricMapper{}
 	if *mappingConfig != "" {
