@@ -81,7 +81,7 @@ func (m *metricMapper) initFromString(fileContents string) error {
 				continue
 			}
 			if !metricLineRE.MatchString(line) {
-				return fmt.Errorf("Line %d: expected metric match line, got: %s", i, line)
+				return fmt.Errorf("line %d: expected metric match line, got: %s", i, line)
 			}
 
 			// Translate the glob-style metric match line into a proper regex that we
@@ -143,7 +143,7 @@ func (m *metricMapper) initFromYAMLString(fileContents string) error {
 			return fmt.Errorf("invalid match: %s", currentMapping.Match)
 		}
 
-		// check that label is correct
+		// Check that label is correct.
 		for k, v := range currentMapping.Labels {
 			label := fmt.Sprintf("%s=%q", k, v)
 			if len(labelLineRE.FindStringSubmatch(label)) != 3 {
@@ -155,7 +155,7 @@ func (m *metricMapper) initFromYAMLString(fileContents string) error {
 		}
 
 		if _, ok := currentMapping.Labels["name"]; !ok {
-			return fmt.Errorf("Line %d: metric mapping didn't set a metric name", i)
+			return fmt.Errorf("line %d: metric mapping didn't set a metric name", i)
 		}
 
 		// Translate the glob-style metric match line into a proper regex that we
