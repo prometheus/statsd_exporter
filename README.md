@@ -11,17 +11,17 @@
 ### With StatsD
 
 To pipe metrics from an existing StatsD environment into Prometheus, configure
-StatsD's repeater backend to repeat all received packets to a `statsd_exporter`
+StatsD's repeater backend to repeat all received metrics to a `statsd_exporter`
 process. This exporter translates StatsD metrics to Prometheus metrics via
 configured mapping rules.
 
-    +----------+                     +-------------------+                        +--------------+
-    |  StatsD  |---(UDP repeater)--->|  statsd_exporter  |<---(scrape /metrics)---|  Prometheus  |
-    +----------+                     +-------------------+                        +--------------+
+    +----------+                         +-------------------+                        +--------------+
+    |  StatsD  |---(UDP/TCP repeater)--->|  statsd_exporter  |<---(scrape /metrics)---|  Prometheus  |
+    +----------+                         +-------------------+                        +--------------+
 
 ### Without StatsD
 
-Since the StatsD exporter uses the same UDP protocol as StatsD itself, you can
+Since the StatsD exporter uses the same line protocol as StatsD itself, you can
 also configure your applications to send StatsD metrics directly to the exporter.
 In that case, you don't need to run a StatsD server anymore.
 
@@ -44,10 +44,28 @@ without values (`#some_tag`) are not supported.
     $ go build
     $ ./statsd_exporter --help
     Usage of ./statsd_exporter:
-      -statsd.listen-address=":9125": The UDP address on which to receive statsd metric lines.
-      -statsd.mapping-config="": Metric mapping configuration file name.
-      -web.listen-address=":9102": The address on which to expose the web interface and generated Prometheus metrics.
-      -web.telemetry-path="/metrics": Path under which to expose metrics.
+      -log.format value
+            If set use a syslog logger or JSON logging. Example: logger:syslog?appname=bob&local=7 or logger:stdout?json=true. Defaults to stderr.
+      -log.level value
+            Only log messages with the given severity or above. Valid levels: [debug, info, warn, error, fatal].
+      -statsd.add-suffix
+            Add the metric type (counter/gauge/timer) as suffix to the generated Prometheus metric (NOT recommended, but set by default for backward compatibility). (default true)
+      -statsd.listen-address string
+            The UDP address on which to receive statsd metric lines. DEPRECATED, use statsd.listen-udp instead.
+      -statsd.listen-tcp string
+            The TCP address on which to receive statsd metric lines. "" disables it. (default ":9125")
+      -statsd.listen-udp string
+            The UDP address on which to receive statsd metric lines. "" disables it. (default ":9125")
+      -statsd.mapping-config string
+            Metric mapping configuration file name.
+      -statsd.read-buffer int
+            Size (in bytes) of the operating system's transmit read buffer associated with the UDP connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.
+      -version
+            Print version information.
+      -web.listen-address string
+            The address on which to expose the web interface and generated Prometheus metrics. (default ":9102")
+      -web.telemetry-path string
+            Path under which to expose metrics. (default "/metrics")
 
 ## Tests
 
@@ -123,7 +141,7 @@ For example:
 ```bash
 docker pull prom/statsd-exporter
 
-docker run -d -p 9102:9102 -p 9125:9125/udp \
+docker run -d -p 9102:9102 -p 9125:9125 -p 9125:9125/udp \
         -v $PWD/statsd_mapping.conf:/tmp/statsd_mapping.conf \
         prom/statsd-exporter -statsd.mapping-config=/tmp/statsd_mapping.conf
 ```
