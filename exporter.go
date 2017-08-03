@@ -71,13 +71,19 @@ func NewCounterContainer() *CounterContainer {
 	}
 }
 
-func (c *CounterContainer) Get(metricName string, labels prometheus.Labels) (prometheus.Counter, error) {
+func (c *CounterContainer) Get(metricName string, labels prometheus.Labels, mapping *metricMapping) (prometheus.Counter, error) {
+	var help string
+	if mapping.HelpText == "" {
+		help = defaultHelp
+	} else {
+		help = mapping.HelpText
+	}
 	hash := hashNameAndLabels(metricName, labels)
 	counter, ok := c.Elements[hash]
 	if !ok {
 		counter = prometheus.NewCounter(prometheus.CounterOpts{
 			Name:        metricName,
-			Help:        defaultHelp,
+			Help:        help,
 			ConstLabels: labels,
 		})
 		if err := prometheus.Register(counter); err != nil {
@@ -98,13 +104,19 @@ func NewGaugeContainer() *GaugeContainer {
 	}
 }
 
-func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels) (prometheus.Gauge, error) {
+func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels, mapping *metricMapping) (prometheus.Gauge, error) {
+	var help string
+	if mapping.HelpText == "" {
+		help = defaultHelp
+	} else {
+		help = mapping.HelpText
+	}
 	hash := hashNameAndLabels(metricName, labels)
 	gauge, ok := c.Elements[hash]
 	if !ok {
 		gauge = prometheus.NewGauge(prometheus.GaugeOpts{
 			Name:        metricName,
-			Help:        defaultHelp,
+			Help:        help,
 			ConstLabels: labels,
 		})
 		if err := prometheus.Register(gauge); err != nil {
@@ -125,14 +137,20 @@ func NewSummaryContainer() *SummaryContainer {
 	}
 }
 
-func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels) (prometheus.Summary, error) {
+func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, mapping *metricMapping) (prometheus.Summary, error) {
+	var help string
+	if mapping.HelpText == "" {
+		help = defaultHelp
+	} else {
+		help = mapping.HelpText
+	}
 	hash := hashNameAndLabels(metricName, labels)
 	summary, ok := c.Elements[hash]
 	if !ok {
 		summary = prometheus.NewSummary(
 			prometheus.SummaryOpts{
 				Name:        metricName,
-				Help:        defaultHelp,
+				Help:        help,
 				ConstLabels: labels,
 			})
 		if err := prometheus.Register(summary); err != nil {
@@ -156,6 +174,12 @@ func NewHistogramContainer(mapper *metricMapper) *HistogramContainer {
 }
 
 func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, mapping *metricMapping) (prometheus.Histogram, error) {
+	var help string
+	if mapping.HelpText == "" {
+		help = defaultHelp
+	} else {
+		help = mapping.HelpText
+	}
 	hash := hashNameAndLabels(metricName, labels)
 	histogram, ok := c.Elements[hash]
 	if !ok {
@@ -166,7 +190,7 @@ func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, ma
 		histogram = prometheus.NewHistogram(
 			prometheus.HistogramOpts{
 				Name:        metricName,
-				Help:        defaultHelp,
+				Help:        help,
 				ConstLabels: labels,
 				Buckets:     buckets,
 			})
@@ -248,6 +272,9 @@ func (b *Exporter) Listen(e <-chan Events) {
 			prometheusLabels := event.Labels()
 
 			mapping, labels, present := b.mapper.getMapping(event.MetricName())
+			if mapping == nil {
+				mapping = &metricMapping{} // TODO - This satisfies an exporter_test, that test probably wants to be re-written
+			}
 			if present {
 				metricName = labels["name"]
 				for label, value := range labels {
@@ -273,6 +300,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 				counter, err := b.Counters.Get(
 					metricName,
 					prometheusLabels,
+					mapping,
 				)
 				if err == nil {
 					counter.Add(event.Value())
@@ -287,6 +315,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 				gauge, err := b.Gauges.Get(
 					metricName,
 					prometheusLabels,
+					mapping,
 				)
 
 				if err == nil {
@@ -330,6 +359,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 					summary, err := b.Summaries.Get(
 						metricName,
 						prometheusLabels,
+						mapping,
 					)
 					if err == nil {
 						summary.Observe(event.Value())
