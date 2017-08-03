@@ -51,6 +51,7 @@ type metricMapping struct {
 	Labels    prometheus.Labels `yaml:"labels"`
 	TimerType timerType         `yaml:"timer_type"`
 	Buckets   []float64         `yaml:"buckets"`
+	HelpText  string            `yaml:"help"`
 }
 
 type configLoadStates int

@@ -153,6 +153,17 @@ mappings:
     job: "${1}_server"
 ```
 
+If the default metric help text is insufficient for your needs you may use the YAML
+configuration to specify a custom help text for each mapping:
+```yaml
+mappings:
+- match: http.request.*
+  help: "Total number of http requests"
+  labels:
+    name: "http_requests_total"
+    code: "$1"
+```
+
 Using the YAML configuration, one may also set the timer type to "histogram". The 
 default is "summary" as in the plain text configuration format.  For example,
 to set the timer type for a single metric:
