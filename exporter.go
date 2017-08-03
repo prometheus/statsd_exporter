@@ -143,6 +143,41 @@ func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels) (pro
 	return summary, nil
 }
 
+type HistogramContainer struct {
+	Elements map[uint64]prometheus.Histogram
+	mapper   *metricMapper
+}
+
+func NewHistogramContainer(mapper *metricMapper) *HistogramContainer {
+	return &HistogramContainer{
+		Elements: make(map[uint64]prometheus.Histogram),
+		mapper:   mapper,
+	}
+}
+
+func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, mapping *metricMapping) (prometheus.Histogram, error) {
+	hash := hashNameAndLabels(metricName, labels)
+	histogram, ok := c.Elements[hash]
+	if !ok {
+		buckets := c.mapper.Defaults.Buckets
+		if mapping != nil && mapping.Buckets != nil && len(mapping.Buckets) > 0 {
+			buckets = mapping.Buckets
+		}
+		histogram = prometheus.NewHistogram(
+			prometheus.HistogramOpts{
+				Name:        metricName,
+				Help:        defaultHelp,
+				ConstLabels: labels,
+				Buckets:     buckets,
+			})
+		c.Elements[hash] = histogram
+		if err := prometheus.Register(histogram); err != nil {
+			return nil, err
+		}
+	}
+	return histogram, nil
+}
+
 type Event interface {
 	MetricName() string
 	Value() float64
@@ -183,11 +218,12 @@ func (c *TimerEvent) Labels() map[string]string { return c.labels }
 type Events []Event
 
 type Exporter struct {
-	Counters  *CounterContainer
-	Gauges    *GaugeContainer
-	Summaries *SummaryContainer
-	mapper    *metricMapper
-	addSuffix bool
+	Counters   *CounterContainer
+	Gauges     *GaugeContainer
+	Summaries  *SummaryContainer
+	Histograms *HistogramContainer
+	mapper     *metricMapper
+	addSuffix  bool
 }
 
 func escapeMetricName(metricName string) string {
@@ -220,7 +256,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 			metricName := ""
 			prometheusLabels := event.Labels()
 
-			labels, present := b.mapper.getMapping(event.MetricName())
+			mapping, labels, present := b.mapper.getMapping(event.MetricName())
 			if present {
 				metricName = labels["name"]
 				for label, value := range labels {
@@ -275,17 +311,44 @@ func (b *Exporter) Listen(e <-chan Events) {
 				}
 
 			case *TimerEvent:
-				summary, err := b.Summaries.Get(
-					b.suffix(metricName, "timer"),
-					prometheusLabels,
-				)
-				if err == nil {
-					summary.Observe(event.Value())
+				t := timerTypeDefault
+				if mapping != nil {
+					t = mapping.TimerType
+				}
+				if t == timerTypeDefault {
+					t = b.mapper.Defaults.TimerType
+				}
 
-					eventStats.WithLabelValues("timer").Inc()
-				} else {
-					log.Errorf(regErrF, metricName, err)
-					conflictingEventStats.WithLabelValues("timer").Inc()
+				switch t {
+				case timerTypeHistogram:
+					histogram, err := b.Histograms.Get(
+						b.suffix(metricName, "timer"),
+						prometheusLabels,
+						mapping,
+					)
+					if err == nil {
+						histogram.Observe(event.Value())
+						eventStats.WithLabelValues("timer").Inc()
+					} else {
+						log.Errorf(regErrF, metricName, err)
+						conflictingEventStats.WithLabelValues("timer").Inc()
+					}
+
+				case timerTypeDefault, timerTypeSummary:
+					summary, err := b.Summaries.Get(
+						b.suffix(metricName, "timer"),
+						prometheusLabels,
+					)
+					if err == nil {
+						summary.Observe(event.Value())
+						eventStats.WithLabelValues("timer").Inc()
+					} else {
+						log.Errorf(regErrF, metricName, err)
+						conflictingEventStats.WithLabelValues("timer").Inc()
+					}
+
+				default:
+					panic(fmt.Sprintf("unknown timer type '%s'", t))
 				}
 
 			default:
@@ -298,11 +361,12 @@ func (b *Exporter) Listen(e <-chan Events) {
 
 func NewExporter(mapper *metricMapper, addSuffix bool) *Exporter {
 	return &Exporter{
-		addSuffix: addSuffix,
-		Counters:  NewCounterContainer(),
-		Gauges:    NewGaugeContainer(),
-		Summaries: NewSummaryContainer(),
-		mapper:    mapper,
+		addSuffix:  addSuffix,
+		Counters:   NewCounterContainer(),
+		Gauges:     NewGaugeContainer(),
+		Summaries:  NewSummaryContainer(),
+		Histograms: NewHistogramContainer(mapper),
+		mapper:     mapper,
 	}
 }
 
