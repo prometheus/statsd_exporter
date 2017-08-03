@@ -219,6 +219,15 @@ mappings:
     second: "$2"
     third: "$3"
     job: "$1-$2-$3"
+- match: (.*)\.(.*)-(.*)\.(.*)
+  match_type: regex
+  labels:
+    name: "proxy_requests_total"
+    job: "$1"
+    protocol: "$2"
+    endpoint: "$3"
+    result: "$4"
+
   `,
 			mappings: map[string]map[string]string{
 				"test.dispatcher.FooProcessor.send.succeeded": map[string]string{
@@ -243,6 +252,13 @@ mappings:
 					"job":    "foo-bar-",
 				},
 				"foo.bar.baz": map[string]string{},
+				"proxy-1.http-goober.success": map[string]string{
+					"name":     "proxy_requests_total",
+					"job":      "proxy-1",
+					"protocol": "http",
+					"endpoint": "goober",
+					"result":   "success",
+				},
 			},
 		},
 		// Config with bad regex reference.
@@ -333,6 +349,17 @@ mappings:
 mappings:
 - match: test.*.*
   timer_type: wrong
+  labels:
+    name: "foo"
+    `,
+			configBad: true,
+		},
+		//Config with uncompilable regex.
+		{
+			config: `---
+mappings:
+- match: *\.foo
+  match_type: regex
   labels:
     name: "foo"
     `,
