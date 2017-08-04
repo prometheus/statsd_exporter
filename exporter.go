@@ -273,7 +273,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 
 			mapping, labels, present := b.mapper.getMapping(event.MetricName())
 			if mapping == nil {
-				mapping = &metricMapping{} // TODO - This satisfies an exporter_test, that test probably wants to be re-written
+				mapping = &metricMapping{}
 			}
 			if present {
 				metricName = labels["name"]
