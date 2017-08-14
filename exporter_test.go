@@ -15,6 +15,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
 	"net"
 	"testing"
 	"time"
@@ -71,6 +72,44 @@ func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
 		}()
 
 		ex.Listen(events)
+	}
+}
+
+type MockHistogram struct {
+	prometheus.Metric
+	prometheus.Collector
+	value float64
+}
+
+func (h *MockHistogram) Observe(n float64) {
+	h.value = n
+
+}
+
+func TestHistogramUnits(t *testing.T) {
+	events := make(chan Events, 1)
+	c := Events{
+		&TimerEvent{
+			metricName: "foo",
+			value:      300,
+		},
+	}
+	events <- c
+	ex := NewExporter(&metricMapper{}, true)
+	ex.mapper.Defaults.TimerType = timerTypeHistogram
+
+	// Close channel to signify we are done with the listener after a short period.
+	go func() {
+		time.Sleep(time.Millisecond * 100)
+		close(events)
+	}()
+	mock := &MockHistogram{}
+	ex.Histograms.Elements[7787632782521330630] = mock
+	ex.Listen(events)
+	if mock.value == 300 {
+		t.Fatalf("Histogram observations not scaled into Seconds")
+	} else if mock.value != .300 {
+		t.Fatalf("Received unexpected value for histogram observation %f != .300", mock.value)
 	}
 }
 
