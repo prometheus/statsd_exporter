@@ -275,6 +275,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 				// will cause the exporter to panic. Instead we will warn and continue to the next event.
 				if event.Value() < 0.0 {
 					log.Debugf("Counter %q is: '%f' (counter must be non-negative value)", metricName, event.Value())
+					eventStats.WithLabelValues("illegal_negative_counter").Inc()
 					continue
 				}
 
