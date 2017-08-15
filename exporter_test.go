@@ -15,10 +15,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
 	"net"
 	"testing"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // TestNegativeCounter validates when we send a negative
@@ -83,14 +84,14 @@ type MockHistogram struct {
 
 func (h *MockHistogram) Observe(n float64) {
 	h.value = n
-
 }
 
 func TestHistogramUnits(t *testing.T) {
 	events := make(chan Events, 1)
+	name := "foo"
 	c := Events{
 		&TimerEvent{
-			metricName: "foo",
+			metricName: name,
 			value:      300,
 		},
 	}
@@ -104,7 +105,8 @@ func TestHistogramUnits(t *testing.T) {
 		close(events)
 	}()
 	mock := &MockHistogram{}
-	ex.Histograms.Elements[7787632782521330630] = mock
+	key := hashNameAndLabels(name+"_timer", nil)
+	ex.Histograms.Elements[key] = mock
 	ex.Listen(events)
 	if mock.value == 300 {
 		t.Fatalf("Histogram observations not scaled into Seconds")
