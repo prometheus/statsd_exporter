@@ -42,7 +42,7 @@ func TestNegativeCounter(t *testing.T) {
 		},
 	}
 	events <- c
-	ex := NewExporter(&metricMapper{}, true)
+	ex := NewExporter(&metricMapper{}, true, false)
 
 	// Close channel to signify we are done with the listener after a short period.
 	go func() {
@@ -57,7 +57,6 @@ func TestNegativeCounter(t *testing.T) {
 // metrics from being recorded when set true and that they are recorded when set
 // false.
 func TestDropUnmapped(t *testing.T) {
-	dropUnmapped = func() *bool { b := true; return &b }()
 	events := make(chan Events, 1)
 	c := Events{
 		&CounterEvent{
@@ -66,7 +65,7 @@ func TestDropUnmapped(t *testing.T) {
 		},
 	}
 	events <- c
-	ex := NewExporter(&metricMapper{}, true)
+	ex := NewExporter(&metricMapper{}, true, true)
 
 	// Close channel to signify we are done with the listener after a short period.
 	go func() {
@@ -78,7 +77,7 @@ func TestDropUnmapped(t *testing.T) {
 	if len(ex.Counters.Elements) != 0 {
 		t.Fatalf("Unmapped metric recorded inspite of dropUnmapped being set true")
 	}
-	dropUnmapped = func() *bool { b := false; return &b }()
+	ex = NewExporter(&metricMapper{}, true, false)
 	events = make(chan Events, 1)
 	events <- c
 	// Close channel to signify we are done with the listener after a short period.
@@ -97,7 +96,7 @@ func TestDropUnmapped(t *testing.T) {
 // It sends the same tags first with a valid value, then with an invalid one.
 // The exporter should not panic, but drop the invalid event
 func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
-	ex := NewExporter(&metricMapper{}, true)
+	ex := NewExporter(&metricMapper{}, true, false)
 	for _, l := range []statsDPacketHandler{&StatsDUDPListener{}, &mockStatsDTCPListener{}} {
 		events := make(chan Events, 2)
 
