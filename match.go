@@ -35,7 +35,7 @@ func (t *matchType) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	case matchTypeGlob, matchTypeDefault:
 		*t = matchTypeGlob
 	default:
-		return fmt.Errorf("invalid match type '%s'", v)
+		return fmt.Errorf("invalid match type %q", v)
 	}
 	return nil
 }
