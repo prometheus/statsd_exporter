@@ -2,9 +2,11 @@ sudo: false
 
 language: go
 go:
-- 1.6.2
-- 1.5.4
-- tip
+- 1.8.x
+- 1.9.x
+- master
+
+go_import_path: github.com/prometheus/statsd_exporter
 
 script:
 - make
