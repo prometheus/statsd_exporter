@@ -218,12 +218,13 @@ func (c *TimerEvent) Labels() map[string]string { return c.labels }
 type Events []Event
 
 type Exporter struct {
-	Counters   *CounterContainer
-	Gauges     *GaugeContainer
-	Summaries  *SummaryContainer
-	Histograms *HistogramContainer
-	mapper     *metricMapper
-	addSuffix  bool
+	Counters     *CounterContainer
+	Gauges       *GaugeContainer
+	Summaries    *SummaryContainer
+	Histograms   *HistogramContainer
+	mapper       *metricMapper
+	addSuffix    bool
+	dropUnmapped bool
 }
 
 func escapeMetricName(metricName string) string {
@@ -266,6 +267,9 @@ func (b *Exporter) Listen(e <-chan Events) {
 				}
 			} else {
 				eventsUnmapped.Inc()
+				if b.dropUnmapped == true {
+					continue
+				}
 				metricName = escapeMetricName(event.MetricName())
 			}
 
@@ -360,14 +364,15 @@ func (b *Exporter) Listen(e <-chan Events) {
 	}
 }
 
-func NewExporter(mapper *metricMapper, addSuffix bool) *Exporter {
+func NewExporter(mapper *metricMapper, addSuffix bool, dropUnmapped bool) *Exporter {
 	return &Exporter{
-		addSuffix:  addSuffix,
-		Counters:   NewCounterContainer(),
-		Gauges:     NewGaugeContainer(),
-		Summaries:  NewSummaryContainer(),
-		Histograms: NewHistogramContainer(mapper),
-		mapper:     mapper,
+		addSuffix:    addSuffix,
+		dropUnmapped: dropUnmapped,
+		Counters:     NewCounterContainer(),
+		Gauges:       NewGaugeContainer(),
+		Summaries:    NewSummaryContainer(),
+		Histograms:   NewHistogramContainer(mapper),
+		mapper:       mapper,
 	}
 }
 
