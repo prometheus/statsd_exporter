@@ -48,8 +48,6 @@ without values (`#some_tag`) are not supported.
             If set use a syslog logger or JSON logging. Example: logger:syslog?appname=bob&local=7 or logger:stdout?json=true. Defaults to stderr.
       -log.level value
             Only log messages with the given severity or above. Valid levels: [debug, info, warn, error, fatal].
-      -statsd.add-suffix
-            Add the metric type (counter/gauge/timer) as suffix to the generated Prometheus metric (NOT recommended, but set by default for backward compatibility). (default true)
       -statsd.listen-address string
             The UDP address on which to receive statsd metric lines. DEPRECATED, use statsd.listen-udp instead.
       -statsd.listen-tcp string
@@ -98,13 +96,7 @@ In general, the different metric types are translated as follows:
                    -> Prometheus counter (suffix `_total`)  <-- indicates total time spent
                    -> Prometheus counter (suffix `_count`)  <-- indicates total number of timer events
 
-If `-statsd.add-suffix` is set, the exporter appends the metric type (`_gauge`,
-`_counter`, `_timer`) to the resulting metrics. This is enabled by default for
-backward compatibility but discouraged to use. Instead, it is better to
-explicitly define the full metric name in your mapping and run the exporter
-with `-statsd.add-suffix=false`.
-
-An example mapping configuration with `-statsd.add-suffix=false`:
+An example mapping configuration:
 
     # comments are allowed
     test.dispatcher.*.*.*

@@ -44,7 +44,7 @@ func TestNegativeCounter(t *testing.T) {
 		},
 	}
 	events <- c
-	ex := NewExporter(&metricMapper{}, true)
+	ex := NewExporter(&metricMapper{})
 
 	// Close channel to signify we are done with the listener after a short period.
 	go func() {
@@ -60,7 +60,7 @@ func TestNegativeCounter(t *testing.T) {
 // It sends the same tags first with a valid value, then with an invalid one.
 // The exporter should not panic, but drop the invalid event
 func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
-	ex := NewExporter(&metricMapper{}, true)
+	ex := NewExporter(&metricMapper{})
 	for _, l := range []statsDPacketHandler{&StatsDUDPListener{}, &mockStatsDTCPListener{}} {
 		events := make(chan Events, 2)
 
@@ -96,7 +96,7 @@ func TestHistogramUnits(t *testing.T) {
 		},
 	}
 	events <- c
-	ex := NewExporter(&metricMapper{}, true)
+	ex := NewExporter(&metricMapper{})
 	ex.mapper.Defaults.TimerType = timerTypeHistogram
 
 	// Close channel to signify we are done with the listener after a short period.
@@ -105,7 +105,7 @@ func TestHistogramUnits(t *testing.T) {
 		close(events)
 	}()
 	mock := &MockHistogram{}
-	key := hashNameAndLabels(name+"_timer", nil)
+	key := hashNameAndLabels(name, nil)
 	ex.Histograms.Elements[key] = mock
 	ex.Listen(events)
 	if mock.value == 300 {
