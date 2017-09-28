@@ -287,16 +287,6 @@ mappings:
   `,
 			configBad: true,
 		},
-		// Config with bad metric name.
-		{
-			config: `---
-mappings:
-- match: test.*.*
-  labels:
-    name: "0foo"
-  `,
-			configBad: true,
-		},
 		// Config with no metric name.
 		{
 			config: `---
