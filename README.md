@@ -98,36 +98,6 @@ In general, the different metric types are translated as follows:
 
 An example mapping configuration:
 
-    # comments are allowed
-    test.dispatcher.*.*.*
-    name="dispatcher_events_total"
-    processor="$1"
-    action="$2"
-    outcome="$3"
-    job="test_dispatcher"
-
-    *.signup.*.*
-    name="signup_events_total"
-    provider="$2"
-    outcome="$3"
-    job="${1}_server"
-
-This would transform these example StatsD metrics into Prometheus metrics as
-follows:
-
-    test.dispatcher.FooProcessor.send.success
-     => dispatcher_events_total{processor="FooProcessor", action="send", outcome="success", job="test_dispatcher"}
-
-    foo_product.signup.facebook.failure
-     => signup_events_total{provider="facebook", outcome="failure", job="foo_product_server"}
-
-    test.web-server.foo.bar
-     => test_web__server_foo_bar{}
-
-
-YAML may also be used for the configuration if the passed filename ends in `.yml` or
-`.yaml`.  The above example mapping, in YAML, would be:
-
 ```yaml
 mappings:
 - match: test.dispatcher.*.*.*
@@ -145,7 +115,20 @@ mappings:
     job: "${1}_server"
 ```
 
-Using the YAML configuration, one may also set the timer type to "histogram". The 
+This would transform these example StatsD metrics into Prometheus metrics as
+follows:
+
+    test.dispatcher.FooProcessor.send.success
+     => dispatcher_events_total{processor="FooProcessor", action="send", outcome="success", job="test_dispatcher"}
+
+    foo_product.signup.facebook.failure
+     => signup_events_total{provider="facebook", outcome="failure", job="foo_product_server"}
+
+    test.web-server.foo.bar
+     => test_web__server_foo_bar{}
+
+
+In the configuration, one may also set the timer type to "histogram". The 
 default is "summary" as in the plain text configuration format.  For example,
 to set the timer type for a single metric:
 
