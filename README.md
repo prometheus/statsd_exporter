@@ -161,6 +161,24 @@ mappings:
     job: "${1}_server"
 ```
 
+Another capability when using YAML configuration is the ability to define matches
+using raw regular expressions as opposed to the default globbing style of match.
+This may allow for pulling structured data from otherwise poorly named statsd
+metrics AND allow for more precise targetting of match rules. When no `match_type`
+paramter is specified the default value of `glob` will be assumed:
+
+```yaml
+mappings:
+- match: (.*)\.(.*)--(.*)\.status\.(.*)\.count
+  match_type: regex
+  labels:
+    name: "request_total"
+    hostname: "$1"
+    exec: "$2"
+    protocol: "$3"
+    code: "$4"
+```
+
 Note, that one may also set the histogram buckets.  If not set, then the default
 [Prometheus client values](https://godoc.org/github.com/prometheus/client_golang/prometheus#pkg-variables) are used: `[.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10]`. `+Inf` is added
 automatically.
@@ -169,13 +187,14 @@ automatically.
 only used when the statsd metric type is a timerand the `timer_type` is set to
 "histogram."
 
-One may also set defaults for the timer type and the buckets. These will be used
+One may also set defaults for the timer type, buckets and match_type. These will be used
 by all mappings that do not define these.
 
 ```yaml
 defaults:
   timer_type: histogram
   buckets: [.005, .01, .025, .05, .1, .25, .5, 1, 2.5 ]
+  match_type: glob
 mappings:
 # This will be a histogram using the buckets set in `defaults`.
 - match: test.timing.*.*.*

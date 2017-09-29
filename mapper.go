@@ -37,6 +37,7 @@ var (
 type mapperConfigDefaults struct {
 	TimerType timerType `yaml:"timer_type"`
 	Buckets   []float64 `yaml:"buckets"`
+	MatchType matchType `yaml:"match_type"`
 }
 
 type metricMapper struct {
@@ -51,6 +52,7 @@ type metricMapping struct {
 	Labels    prometheus.Labels `yaml:"labels"`
 	TimerType timerType         `yaml:"timer_type"`
 	Buckets   []float64         `yaml:"buckets"`
+	MatchType matchType         `yaml:"match_type"`
 }
 
 type configLoadStates int
@@ -136,14 +138,14 @@ func (m *metricMapper) initFromYAMLString(fileContents string) error {
 		n.Defaults.Buckets = prometheus.DefBuckets
 	}
 
+	if n.Defaults.MatchType == matchTypeDefault {
+		n.Defaults.MatchType = matchTypeGlob
+	}
+
 	for i := range n.Mappings {
 		currentMapping := &n.Mappings[i]
 
-		if !metricLineRE.MatchString(currentMapping.Match) {
-			return fmt.Errorf("invalid match: %s", currentMapping.Match)
-		}
-
-		// Check that label is correct.
+		// check that label is correct
 		for k, v := range currentMapping.Labels {
 			if !metricNameRE.MatchString(k) {
 				return fmt.Errorf("invalid label key: %s", k)
@@ -156,12 +158,22 @@ func (m *metricMapper) initFromYAMLString(fileContents string) error {
 		if _, ok := currentMapping.Labels["name"]; !ok {
 			return fmt.Errorf("line %d: metric mapping didn't set a metric name", i)
 		}
+		if currentMapping.MatchType == "" {
+			currentMapping.MatchType = n.Defaults.MatchType
+		}
 
-		// Translate the glob-style metric match line into a proper regex that we
-		// can use to match metrics later on.
-		metricRe := strings.Replace(currentMapping.Match, ".", "\\.", -1)
-		metricRe = strings.Replace(metricRe, "*", "([^.]+)", -1)
-		currentMapping.regex = regexp.MustCompile("^" + metricRe + "$")
+		if currentMapping.MatchType == matchTypeGlob {
+			if !metricLineRE.MatchString(currentMapping.Match) {
+				return fmt.Errorf("invalid match: %s", currentMapping.Match)
+			}
+			// Translate the glob-style metric match line into a proper regex that we
+			// can use to match metrics later on.
+			metricRe := strings.Replace(currentMapping.Match, ".", "\\.", -1)
+			metricRe = strings.Replace(metricRe, "*", "([^.]+)", -1)
+			currentMapping.regex = regexp.MustCompile("^" + metricRe + "$")
+		} else {
+			currentMapping.regex = regexp.MustCompile(currentMapping.Match)
+		}
 
 		if currentMapping.TimerType == "" {
 			currentMapping.TimerType = n.Defaults.TimerType
