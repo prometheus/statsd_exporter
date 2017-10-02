@@ -71,13 +71,7 @@ func NewCounterContainer() *CounterContainer {
 	}
 }
 
-func (c *CounterContainer) Get(metricName string, labels prometheus.Labels, mapping *metricMapping) (prometheus.Counter, error) {
-	var help string
-	if mapping.HelpText == "" {
-		help = defaultHelp
-	} else {
-		help = mapping.HelpText
-	}
+func (c *CounterContainer) Get(metricName string, labels prometheus.Labels, help string) (prometheus.Counter, error) {
 	hash := hashNameAndLabels(metricName, labels)
 	counter, ok := c.Elements[hash]
 	if !ok {
@@ -104,13 +98,7 @@ func NewGaugeContainer() *GaugeContainer {
 	}
 }
 
-func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels, mapping *metricMapping) (prometheus.Gauge, error) {
-	var help string
-	if mapping.HelpText == "" {
-		help = defaultHelp
-	} else {
-		help = mapping.HelpText
-	}
+func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels, help string) (prometheus.Gauge, error) {
 	hash := hashNameAndLabels(metricName, labels)
 	gauge, ok := c.Elements[hash]
 	if !ok {
@@ -137,13 +125,7 @@ func NewSummaryContainer() *SummaryContainer {
 	}
 }
 
-func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, mapping *metricMapping) (prometheus.Summary, error) {
-	var help string
-	if mapping.HelpText == "" {
-		help = defaultHelp
-	} else {
-		help = mapping.HelpText
-	}
+func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, help string) (prometheus.Summary, error) {
 	hash := hashNameAndLabels(metricName, labels)
 	summary, ok := c.Elements[hash]
 	if !ok {
@@ -173,13 +155,7 @@ func NewHistogramContainer(mapper *metricMapper) *HistogramContainer {
 	}
 }
 
-func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, mapping *metricMapping) (prometheus.Histogram, error) {
-	var help string
-	if mapping.HelpText == "" {
-		help = defaultHelp
-	} else {
-		help = mapping.HelpText
-	}
+func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, help string, mapping *metricMapping) (prometheus.Histogram, error) {
 	hash := hashNameAndLabels(metricName, labels)
 	histogram, ok := c.Elements[hash]
 	if !ok {
@@ -268,12 +244,18 @@ func (b *Exporter) Listen(e <-chan Events) {
 			return
 		}
 		for _, event := range events {
+			var help string
 			metricName := ""
 			prometheusLabels := event.Labels()
 
 			mapping, labels, present := b.mapper.getMapping(event.MetricName())
 			if mapping == nil {
 				mapping = &metricMapping{}
+			}
+			if mapping.HelpText == "" {
+				help = defaultHelp
+			} else {
+				help = mapping.HelpText
 			}
 			if present {
 				metricName = labels["name"]
@@ -300,7 +282,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 				counter, err := b.Counters.Get(
 					metricName,
 					prometheusLabels,
-					mapping,
+					help,
 				)
 				if err == nil {
 					counter.Add(event.Value())
@@ -315,7 +297,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 				gauge, err := b.Gauges.Get(
 					metricName,
 					prometheusLabels,
-					mapping,
+					help,
 				)
 
 				if err == nil {
@@ -345,6 +327,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 					histogram, err := b.Histograms.Get(
 						metricName,
 						prometheusLabels,
+						help,
 						mapping,
 					)
 					if err == nil {
@@ -359,7 +342,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 					summary, err := b.Summaries.Get(
 						metricName,
 						prometheusLabels,
-						mapping,
+						help,
 					)
 					if err == nil {
 						summary.Observe(event.Value())
