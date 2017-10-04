@@ -55,13 +55,6 @@ type metricMapping struct {
 	HelpText  string            `yaml:"help"`
 }
 
-type configLoadStates int
-
-const (
-	SEARCHING configLoadStates = iota
-	METRIC_DEFINITION
-)
-
 func (m *metricMapper) initFromYAMLString(fileContents string) error {
 	var n metricMapper
 
