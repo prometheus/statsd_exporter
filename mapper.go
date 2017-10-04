@@ -52,6 +52,7 @@ type metricMapping struct {
 	TimerType timerType         `yaml:"timer_type"`
 	Buckets   []float64         `yaml:"buckets"`
 	MatchType matchType         `yaml:"match_type"`
+	HelpText  string            `yaml:"help"`
 }
 
 func (m *metricMapper) initFromYAMLString(fileContents string) error {
