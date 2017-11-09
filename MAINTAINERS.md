@@ -1,1 +1,1 @@
-* Julius Volz <julius.volz@gmail.com>
+* Matthias Rampke <mr@soundcloud.com>
