@@ -124,7 +124,9 @@ type mockStatsDTCPListener struct {
 }
 
 func (ml *mockStatsDTCPListener) handlePacket(packet []byte, e chan<- Events) {
-	lc, err := net.ListenTCP("tcp", nil)
+	// Forcing IPv4 because the TravisCI build environment does not have IPv6
+	// addresses.
+	lc, err := net.ListenTCP("tcp4", nil)
 	if err != nil {
 		panic(fmt.Sprintf("mockStatsDTCPListener: listen failed: %v", err))
 	}
