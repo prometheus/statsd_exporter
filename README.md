@@ -107,7 +107,7 @@ mappings:
     action: "$2"
     outcome: "$3"
     job: "test_dispatcher"
-- match: *.signup.*.*
+- match: "*.signup.*.*"
   labels:
     name: "signup_events_total"
     provider: "$2"
