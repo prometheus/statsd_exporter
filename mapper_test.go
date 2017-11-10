@@ -43,6 +43,21 @@ mappings:
     action: "$2"
     result: "$3"
     job: "test_dispatcher"
+- match: request_time.*.*.*.*.*.*.*.*.*.*.*.*
+  labels:
+    name: "tyk_http_request"
+    method_and_path: "${1}"
+    response_code: "${2}"
+    apikey: "${3}"
+    apiversion: "${4}"
+    apiname: "${5}"
+    apiid: "${6}"
+    ipv4_t1: "${7}"
+    ipv4_t2: "${8}"
+    ipv4_t3: "${9}"
+    ipv4_t4: "${10}"
+    orgid: "${11}"
+    oauthid: "${12}"
 - match: "*.*"
   labels:
     name: "catchall"
@@ -74,6 +89,21 @@ mappings:
 					"action":    "send",
 					"result":    "succeeded",
 					"job":       "test_dispatcher",
+				},
+				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": map[string]string{
+					"name":            "tyk_http_request",
+					"method_and_path": "get/threads/1/posts",
+					"response_code":   "200",
+					"apikey":          "00000000",
+					"apiversion":      "nonversioned",
+					"apiname":         "discussions",
+					"apiid":           "a11bbcdf0ac64ec243658dc64b7100fb",
+					"ipv4_t1":         "172",
+					"ipv4_t2":         "20",
+					"ipv4_t3":         "0",
+					"ipv4_t4":         "1",
+					"orgid":           "12ba97b7eaa1a50001000001",
+					"oauthid":         "",
 				},
 				"foo.bar": map[string]string{
 					"name":   "catchall",

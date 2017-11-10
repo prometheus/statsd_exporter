@@ -97,7 +97,7 @@ func (m *metricMapper) initFromYAMLString(fileContents string) error {
 			// Translate the glob-style metric match line into a proper regex that we
 			// can use to match metrics later on.
 			metricRe := strings.Replace(currentMapping.Match, ".", "\\.", -1)
-			metricRe = strings.Replace(metricRe, "*", "([^.]+)", -1)
+			metricRe = strings.Replace(metricRe, "*", "([^.]*)", -1)
 			currentMapping.regex = regexp.MustCompile("^" + metricRe + "$")
 		} else {
 			currentMapping.regex = regexp.MustCompile(currentMapping.Match)
