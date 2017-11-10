@@ -29,12 +29,60 @@ var (
 		Name: "statsd_exporter_events_unmapped_total",
 		Help: "The total number of StatsD events no mapping was found for.",
 	})
-	networkStats = prometheus.NewCounterVec(
+	udpPackets = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "statsd_exporter_packets_total",
-			Help: "The total number of StatsD packets seen.",
+			Name: "statsd_exporter_udp_packets_total",
+			Help: "The total number of StatsD packets received over UDP.",
 		},
-		[]string{"type"},
+	)
+	tcpConnections = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_tcp_connections_total",
+			Help: "The total number of TCP connections handled.",
+		},
+	)
+	tcpErrors = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_tcp_connection_errors_total",
+			Help: "The number of errors encountered reading from TCP.",
+		},
+	)
+	tcpLineTooLong = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_tcp_too_long_lines_total",
+			Help: "The number of lines discarded due to being too long.",
+		},
+	)
+	linesReceived = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_lines_total",
+			Help: "The total number of StatsD lines received.",
+		},
+	)
+	samplesReceived = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_samples_total",
+			Help: "The total number of StatsD samples received.",
+		},
+	)
+	sampleErrors = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_sample_errors_total",
+			Help: "The total number of errors parsing StatsD samples.",
+		},
+		[]string{"reason"},
+	)
+	tagsReceived = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_tags_total",
+			Help: "The total number of DogStatsD tags processed.",
+		},
+	)
+	tagErrors = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_tag_errors_total",
+			Help: "The number of errors parsign DogStatsD tags.",
+		},
 	)
 	configLoads = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -58,7 +106,15 @@ var (
 
 func init() {
 	prometheus.MustRegister(eventStats)
-	prometheus.MustRegister(networkStats)
+	prometheus.MustRegister(udpPackets)
+	prometheus.MustRegister(tcpConnections)
+	prometheus.MustRegister(tcpErrors)
+	prometheus.MustRegister(tcpLineTooLong)
+	prometheus.MustRegister(linesReceived)
+	prometheus.MustRegister(samplesReceived)
+	prometheus.MustRegister(sampleErrors)
+	prometheus.MustRegister(tagsReceived)
+	prometheus.MustRegister(tagErrors)
 	prometheus.MustRegister(configLoads)
 	prometheus.MustRegister(mappingsCount)
 	prometheus.MustRegister(conflictingEventStats)
