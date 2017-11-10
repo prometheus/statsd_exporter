@@ -189,6 +189,20 @@ mappings:
 			config:   ``,
 			mappings: map[string]map[string]string{},
 		},
+		// Config without a trailing newline.
+		{
+			config: `mappings:
+- match: test.*
+  labels:
+    name: "name"
+    label: "${1}_foo"`,
+			mappings: map[string]map[string]string{
+				"test.a": map[string]string{
+					"name":  "name",
+					"label": "a_foo",
+				},
+			},
+		},
 		// Config with good timer type.
 		{
 			config: `---
