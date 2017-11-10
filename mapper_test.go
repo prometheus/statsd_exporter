@@ -189,6 +189,45 @@ mappings:
 			config:   ``,
 			mappings: map[string]map[string]string{},
 		},
+		// Config without a trailing newline.
+		{
+			config: `mappings:
+- match: test.*
+  labels:
+    name: "name"
+    label: "${1}_foo"`,
+			mappings: map[string]map[string]string{
+				"test.a": map[string]string{
+					"name":  "name",
+					"label": "a_foo",
+				},
+			},
+		},
+		// Config with an improperly escaped *.
+		{
+			config: `
+mappings:
+- match: *.test.*
+  labels:
+    name: "name"
+    label: "${1}_foo"`,
+			configBad: true,
+		},
+		// Config with a properly escaped *.
+		{
+			config: `
+mappings:
+- match: "*.test.*"
+  labels:
+    name: "name"
+    label: "${2}_foo"`,
+			mappings: map[string]map[string]string{
+				"foo.test.a": map[string]string{
+					"name":  "name",
+					"label": "a_foo",
+				},
+			},
+		},
 		// Config with good timer type.
 		{
 			config: `---
@@ -219,12 +258,47 @@ mappings:
 		{
 			config: `---
 mappings:
-- match: *\.foo
+- match: "*\.foo"
   match_type: regex
   labels:
     name: "foo"
     `,
 			configBad: true,
+		},
+		// Example from the README.
+		{
+			config: `
+mappings:
+- match: test.dispatcher.*.*.*
+  labels:
+    name: "dispatcher_events_total"
+    processor: "$1"
+    action: "$2"
+    outcome: "$3"
+    job: "test_dispatcher"
+- match: "*.signup.*.*"
+  labels:
+    name: "signup_events_total"
+    provider: "$2"
+    outcome: "$3"
+    job: "${1}_server"
+`,
+			mappings: map[string]map[string]string{
+				"test.dispatcher.FooProcessor.send.success": map[string]string{
+					"name":      "dispatcher_events_total",
+					"processor": "FooProcessor",
+					"action":    "send",
+					"outcome":   "success",
+					"job":       "test_dispatcher",
+				},
+				"foo_product.signup.facebook.failure": map[string]string{
+					"name":     "signup_events_total",
+					"provider": "facebook",
+					"outcome":  "failure",
+					"job":      "foo_product_server",
+				},
+				"test.web-server.foo.bar": map[string]string{},
+			},
 		},
 	}
 

@@ -83,8 +83,8 @@ starting at 1. Multiple matching definitions are separated by one or more empty
 lines. The first mapping rule that matches a StatsD metric wins.
 
 Metrics that don't match any mapping in the configuration file are translated
-into Prometheus metrics without any labels and with certain characters escaped
-(`_` -> `__`; `-` -> `__`; `.` -> `_`).
+into Prometheus metrics without any labels and with any non-alphanumeric
+characters, including periods, translated into underscores.
 
 In general, the different metric types are translated as follows:
 
@@ -107,7 +107,7 @@ mappings:
     action: "$2"
     outcome: "$3"
     job: "test_dispatcher"
-- match: *.signup.*.*
+- match: "*.signup.*.*"
   labels:
     name: "signup_events_total"
     provider: "$2"
@@ -125,7 +125,7 @@ follows:
      => signup_events_total{provider="facebook", outcome="failure", job="foo_product_server"}
 
     test.web-server.foo.bar
-     => test_web__server_foo_bar{}
+     => test_web_server_foo_bar{}
 
 
 If the default metric help text is insufficient for your needs you may use the YAML

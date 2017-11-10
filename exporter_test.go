@@ -153,3 +153,21 @@ func (ml *mockStatsDTCPListener) handlePacket(packet []byte, e chan<- Events) {
 	}
 	ml.handleConn(sc, e)
 }
+
+func TestEscapeMetricName(t *testing.T) {
+	scenarios := map[string]string{
+		"clean":                   "clean",
+		"0starts_with_digit":      "_0starts_with_digit",
+		"with_underscore":         "with_underscore",
+		"with.dot":                "with_dot",
+		"with😱emoji":              "with_emoji",
+		"with.*.multiple":         "with___multiple",
+		"test.web-server.foo.bar": "test_web_server_foo_bar",
+	}
+
+	for in, want := range scenarios {
+		if got := escapeMetricName(in); want != got {
+			t.Errorf("expected `%s` to be escaped to `%s`, got `%s`", in, want, got)
+		}
+	}
+}
