@@ -203,6 +203,31 @@ mappings:
 				},
 			},
 		},
+		// Config with an improperly escaped *.
+		{
+			config: `
+mappings:
+- match: *.test.*
+  labels:
+    name: "name"
+    label: "${1}_foo"`,
+			configBad: true,
+		},
+		// Config with a properly escaped *.
+		{
+			config: `
+mappings:
+- match: "*.test.*"
+  labels:
+    name: "name"
+    label: "${2}_foo"`,
+			mappings: map[string]map[string]string{
+				"foo.test.a": map[string]string{
+					"name":  "name",
+					"label": "a_foo",
+				},
+			},
+		},
 		// Config with good timer type.
 		{
 			config: `---
@@ -233,7 +258,7 @@ mappings:
 		{
 			config: `---
 mappings:
-- match: *\.foo
+- match: "*\.foo"
   match_type: regex
   labels:
     name: "foo"
