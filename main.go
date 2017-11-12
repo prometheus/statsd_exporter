@@ -34,7 +34,8 @@ func init() {
 
 var (
 	listenAddress       = flag.String("web.listen-address", ":9102", "The address on which to expose the web interface and generated Prometheus metrics.")
-	metricsEndpoint     = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
+	metricsEndpoint     = flag.String("web.telemetry-path", "/statsd", "Path under which to expose metrics.")
+	intMetricsEndpoint   = flag.String("web.int-telemetry-path", "/metrics", "Path under which to expose metrics.")
 	statsdListenAddress = flag.String("statsd.listen-address", "", "The UDP address on which to receive statsd metric lines. DEPRECATED, use statsd.listen-udp instead.")
 	statsdListenUDP     = flag.String("statsd.listen-udp", ":9125", "The UDP address on which to receive statsd metric lines. \"\" disables it.")
 	statsdListenTCP     = flag.String("statsd.listen-tcp", ":9125", "The TCP address on which to receive statsd metric lines. \"\" disables it.")
@@ -44,7 +45,7 @@ var (
 )
 
 func serveHTTP() {
-	//http.Handle(*metricsEndpoint, prometheus.Handler())
+	http.Handle(*intMetricsEndpoint, prometheus.Handler())
 	http.Handle(*metricsEndpoint, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
