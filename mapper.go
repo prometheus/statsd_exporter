@@ -47,6 +47,7 @@ type metricMapper struct {
 
 type metricMapping struct {
 	Match     string `yaml:"match"`
+	Name      string `yaml:"name"`
 	regex     *regexp.Regexp
 	Labels    prometheus.Labels `yaml:"labels"`
 	TimerType timerType         `yaml:"timer_type"`
@@ -74,18 +75,20 @@ func (m *metricMapper) initFromYAMLString(fileContents string) error {
 		currentMapping := &n.Mappings[i]
 
 		// check that label is correct
-		for k, v := range currentMapping.Labels {
+		for k := range currentMapping.Labels {
 			if !metricNameRE.MatchString(k) {
 				return fmt.Errorf("invalid label key: %s", k)
 			}
-			if k == "name" && !metricNameRE.MatchString(v) {
-				return fmt.Errorf("metric name '%s' doesn't match regex '%s'", v, metricNameRE)
-			}
 		}
 
-		if _, ok := currentMapping.Labels["name"]; !ok {
+		if currentMapping.Name == "" {
 			return fmt.Errorf("line %d: metric mapping didn't set a metric name", i)
 		}
+
+		if !metricNameRE.MatchString(currentMapping.Name) {
+			return fmt.Errorf("metric name '%s' doesn't match regex '%s'", currentMapping.Name, metricNameRE)
+		}
+
 		if currentMapping.MatchType == "" {
 			currentMapping.MatchType = n.Defaults.MatchType
 		}

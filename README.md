@@ -101,15 +101,15 @@ An example mapping configuration:
 ```yaml
 mappings:
 - match: test.dispatcher.*.*.*
+  name: "dispatcher_events_total"
   labels:
-    name: "dispatcher_events_total"
     processor: "$1"
     action: "$2"
     outcome: "$3"
     job: "test_dispatcher"
-- match: "*.signup.*.*"
+- match: *.signup.*.*
+  name: "signup_events_total"
   labels:
-    name: "signup_events_total"
     provider: "$2"
     outcome: "$3"
     job: "${1}_server"
@@ -127,6 +127,7 @@ follows:
     test.web-server.foo.bar
      => test_web_server_foo_bar{}
 
+Each mapping in the configuration file must define a `name` for the metric.
 
 If the default metric help text is insufficient for your needs you may use the YAML
 configuration to specify a custom help text for each mapping:
@@ -134,8 +135,8 @@ configuration to specify a custom help text for each mapping:
 mappings:
 - match: http.request.*
   help: "Total number of http requests"
+  name: "http_requests_total"
   labels:
-    name: "http_requests_total"
     code: "$1"
 ```
 
@@ -148,8 +149,8 @@ mappings:
 - match: test.timing.*.*.*
   timer_type: histogram
   buckets: [ 0.01, 0.025, 0.05, 0.1 ]
-  labels: 
-    name: "my_timer"
+  name: "my_timer"
+  labels:
     provider: "$2"
     outcome: "$3"
     job: "${1}_server"
@@ -165,8 +166,8 @@ paramter is specified the default value of `glob` will be assumed:
 mappings:
 - match: (.*)\.(.*)--(.*)\.status\.(.*)\.count
   match_type: regex
+  name: "request_total"
   labels:
-    name: "request_total"
     hostname: "$1"
     exec: "$2"
     protocol: "$3"
@@ -192,16 +193,16 @@ defaults:
 mappings:
 # This will be a histogram using the buckets set in `defaults`.
 - match: test.timing.*.*.*
+  name: "my_timer"
   labels: 
-    name: "my_timer"
     provider: "$2"
     outcome: "$3"
     job: "${1}_server"
 # This will be a summary timer.
 - match: other.timing.*.*.*
   timer_type: summary
+  name: "other_timer"
   labels: 
-    name: "other_timer"
     provider: "$2"
     outcome: "$3"
     job: "${1}_server_other"
