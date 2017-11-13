@@ -258,11 +258,9 @@ func (b *Exporter) Listen(e <-chan Events) {
 				help = mapping.HelpText
 			}
 			if present {
-				metricName = labels["name"]
+				metricName = mapping.Name
 				for label, value := range labels {
-					if label != "name" {
-						prometheusLabels[label] = value
-					}
+					prometheusLabels[label] = value
 				}
 			} else {
 				eventsUnmapped.Inc()

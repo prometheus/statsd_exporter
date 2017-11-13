@@ -17,11 +17,17 @@ import (
 	"testing"
 )
 
+type mappings map[string]struct {
+	name       string
+	labels     map[string]string
+	notPresent bool
+}
+
 func TestMetricMapperYAML(t *testing.T) {
 	scenarios := []struct {
 		config    string
 		configBad bool
-		mappings  map[string]map[string]string
+		mappings  mappings
 	}{
 		// Empty config.
 		{},
@@ -30,22 +36,22 @@ func TestMetricMapperYAML(t *testing.T) {
 			config: `---
 mappings:
 - match: test.dispatcher.*.*.*
+  name: "dispatch_events"
   labels: 
-    name: "dispatch_events"
     processor: "$1"
     action: "$2"
     result: "$3"
     job: "test_dispatcher"
 - match: test.my-dispatch-host01.name.dispatcher.*.*.*
+  name: "host_dispatch_events"
   labels:
-    name: "host_dispatch_events"
     processor: "$1"
     action: "$2"
     result: "$3"
     job: "test_dispatcher"
 - match: request_time.*.*.*.*.*.*.*.*.*.*.*.*
+  name: "tyk_http_request"
   labels:
-    name: "tyk_http_request"
     method_and_path: "${1}"
     response_code: "${2}"
     apikey: "${3}"
@@ -59,66 +65,76 @@ mappings:
     orgid: "${11}"
     oauthid: "${12}"
 - match: "*.*"
+  name: "catchall"
   labels:
-    name: "catchall"
     first: "$1"
     second: "$2"
     third: "$3"
     job: "$1-$2-$3"
 - match: (.*)\.(.*)-(.*)\.(.*)
   match_type: regex
+  name: "proxy_requests_total"
   labels:
-    name: "proxy_requests_total"
     job: "$1"
     protocol: "$2"
     endpoint: "$3"
     result: "$4"
 
   `,
-			mappings: map[string]map[string]string{
-				"test.dispatcher.FooProcessor.send.succeeded": map[string]string{
-					"name":      "dispatch_events",
-					"processor": "FooProcessor",
-					"action":    "send",
-					"result":    "succeeded",
-					"job":       "test_dispatcher",
+			mappings: mappings{
+				"test.dispatcher.FooProcessor.send.succeeded": {
+					name: "dispatch_events",
+					labels: map[string]string{
+						"processor": "FooProcessor",
+						"action":    "send",
+						"result":    "succeeded",
+						"job":       "test_dispatcher",
+					},
 				},
-				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": map[string]string{
-					"name":      "host_dispatch_events",
-					"processor": "FooProcessor",
-					"action":    "send",
-					"result":    "succeeded",
-					"job":       "test_dispatcher",
+				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {
+					name: "host_dispatch_events",
+					labels: map[string]string{
+						"processor": "FooProcessor",
+						"action":    "send",
+						"result":    "succeeded",
+						"job":       "test_dispatcher",
+					},
 				},
-				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": map[string]string{
-					"name":            "tyk_http_request",
-					"method_and_path": "get/threads/1/posts",
-					"response_code":   "200",
-					"apikey":          "00000000",
-					"apiversion":      "nonversioned",
-					"apiname":         "discussions",
-					"apiid":           "a11bbcdf0ac64ec243658dc64b7100fb",
-					"ipv4_t1":         "172",
-					"ipv4_t2":         "20",
-					"ipv4_t3":         "0",
-					"ipv4_t4":         "1",
-					"orgid":           "12ba97b7eaa1a50001000001",
-					"oauthid":         "",
+				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {
+					name: "tyk_http_request",
+					labels: map[string]string{
+						"method_and_path": "get/threads/1/posts",
+						"response_code":   "200",
+						"apikey":          "00000000",
+						"apiversion":      "nonversioned",
+						"apiname":         "discussions",
+						"apiid":           "a11bbcdf0ac64ec243658dc64b7100fb",
+						"ipv4_t1":         "172",
+						"ipv4_t2":         "20",
+						"ipv4_t3":         "0",
+						"ipv4_t4":         "1",
+						"orgid":           "12ba97b7eaa1a50001000001",
+						"oauthid":         "",
+					},
 				},
-				"foo.bar": map[string]string{
-					"name":   "catchall",
-					"first":  "foo",
-					"second": "bar",
-					"third":  "",
-					"job":    "foo-bar-",
+				"foo.bar": {
+					name: "catchall",
+					labels: map[string]string{
+						"first":  "foo",
+						"second": "bar",
+						"third":  "",
+						"job":    "foo-bar-",
+					},
 				},
-				"foo.bar.baz": map[string]string{},
-				"proxy-1.http-goober.success": map[string]string{
-					"name":     "proxy_requests_total",
-					"job":      "proxy-1",
-					"protocol": "http",
-					"endpoint": "goober",
-					"result":   "success",
+				"foo.bar.baz": {},
+				"proxy-1.http-goober.success": {
+					name: "proxy_requests_total",
+					labels: map[string]string{
+						"job":      "proxy-1",
+						"protocol": "http",
+						"endpoint": "goober",
+						"result":   "success",
+					},
 				},
 			},
 		},
@@ -127,14 +143,16 @@ mappings:
 			config: `---
 mappings:
 - match: test.*
+  name: "name"
   labels:
-    name: "name"
     label: "$1_foo"
   `,
-			mappings: map[string]map[string]string{
-				"test.a": map[string]string{
-					"name":  "name",
-					"label": "",
+			mappings: mappings{
+				"test.a": {
+					name: "name",
+					labels: map[string]string{
+						"label": "",
+					},
 				},
 			},
 		},
@@ -143,14 +161,16 @@ mappings:
 			config: `
 mappings:
 - match: test.*
+  name: "name"
   labels:
-    name: "name"
     label: "${1}_foo"
   `,
-			mappings: map[string]map[string]string{
-				"test.a": map[string]string{
-					"name":  "name",
-					"label": "a_foo",
+			mappings: mappings{
+				"test.a": {
+					name: "name",
+					labels: map[string]string{
+						"label": "a_foo",
+					},
 				},
 			},
 		},
@@ -159,8 +179,8 @@ mappings:
 			config: `---
 mappings:
 - match: bad--metric-line.*.*
-  labels:
-    name: "foo"
+  name: "foo"
+  labels: {}
   `,
 			configBad: true,
 		},
@@ -169,8 +189,8 @@ mappings:
 			config: `---
 mappings:
 - match: test.*.*
-  labels:
-    name: "0foo"
+  name: "0foo"
+  labels: {}
   `,
 			configBad: true,
 		},
@@ -187,19 +207,21 @@ mappings:
 		// Config with no mappings.
 		{
 			config:   ``,
-			mappings: map[string]map[string]string{},
+			mappings: mappings{},
 		},
 		// Config without a trailing newline.
 		{
 			config: `mappings:
 - match: test.*
+  name: "name"
   labels:
-    name: "name"
     label: "${1}_foo"`,
-			mappings: map[string]map[string]string{
-				"test.a": map[string]string{
-					"name":  "name",
-					"label": "a_foo",
+			mappings: mappings{
+				"test.a": {
+					name: "name",
+					labels: map[string]string{
+						"label": "a_foo",
+					},
 				},
 			},
 		},
@@ -208,8 +230,8 @@ mappings:
 			config: `
 mappings:
 - match: *.test.*
+  name: "name"
   labels:
-    name: "name"
     label: "${1}_foo"`,
 			configBad: true,
 		},
@@ -218,13 +240,15 @@ mappings:
 			config: `
 mappings:
 - match: "*.test.*"
+  name: "name"
   labels:
-    name: "name"
     label: "${2}_foo"`,
-			mappings: map[string]map[string]string{
-				"foo.test.a": map[string]string{
-					"name":  "name",
-					"label": "a_foo",
+			mappings: mappings{
+				"foo.test.a": {
+					name: "name",
+					labels: map[string]string{
+						"label": "a_foo",
+					},
 				},
 			},
 		},
@@ -234,12 +258,13 @@ mappings:
 mappings:
 - match: test.*.*
   timer_type: summary
-  labels:
-    name: "foo"
+  name: "foo"
+  labels: {}
   `,
-			mappings: map[string]map[string]string{
-				"test.*.*": map[string]string{
-					"name": "foo",
+			mappings: mappings{
+				"test.*.*": {
+					name:   "foo",
+					labels: map[string]string{},
 				},
 			},
 		},
@@ -249,8 +274,8 @@ mappings:
 mappings:
 - match: test.*.*
   timer_type: wrong
-  labels:
-    name: "foo"
+  name: "foo"
+  labels: {}
     `,
 			configBad: true,
 		},
@@ -260,8 +285,36 @@ mappings:
 mappings:
 - match: "*\.foo"
   match_type: regex
+  name: "foo"
+  labels: {}
+    `,
+			configBad: true,
+		},
+		//Config with non-matched metric.
+		{
+			config: `---
+mappings:
+- match: foo.*.*
+  timer_type: summary
+  name: "foo"
+  labels: {}
+  `,
+			mappings: mappings{
+				"test.1.2": {
+					name:       "test_1_2",
+					labels:     map[string]string{},
+					notPresent: true,
+				},
+			},
+		},
+		//Config with no name.
+		{
+			config: `---
+mappings:
+- match: *\.foo
+  match_type: regex
   labels:
-    name: "foo"
+    bar: "foo"
     `,
 			configBad: true,
 		},
@@ -270,34 +323,41 @@ mappings:
 			config: `
 mappings:
 - match: test.dispatcher.*.*.*
+  name: "dispatcher_events_total"
   labels:
-    name: "dispatcher_events_total"
     processor: "$1"
     action: "$2"
     outcome: "$3"
     job: "test_dispatcher"
 - match: "*.signup.*.*"
+  name: "signup_events_total"
   labels:
-    name: "signup_events_total"
     provider: "$2"
     outcome: "$3"
     job: "${1}_server"
 `,
-			mappings: map[string]map[string]string{
-				"test.dispatcher.FooProcessor.send.success": map[string]string{
-					"name":      "dispatcher_events_total",
-					"processor": "FooProcessor",
-					"action":    "send",
-					"outcome":   "success",
-					"job":       "test_dispatcher",
+			mappings: mappings{
+				"test.dispatcher.FooProcessor.send.success": {
+					name: "dispatcher_events_total",
+					labels: map[string]string{
+						"processor": "FooProcessor",
+						"action":    "send",
+						"outcome":   "success",
+						"job":       "test_dispatcher",
+					},
 				},
-				"foo_product.signup.facebook.failure": map[string]string{
-					"name":     "signup_events_total",
-					"provider": "facebook",
-					"outcome":  "failure",
-					"job":      "foo_product_server",
+				"foo_product.signup.facebook.failure": {
+					name: "signup_events_total",
+					labels: map[string]string{
+						"provider": "facebook",
+						"outcome":  "failure",
+						"job":      "foo_product_server",
+					},
 				},
-				"test.web-server.foo.bar": map[string]string{},
+				"test.web-server.foo.bar": {
+					name:   "test_web_server_foo_bar",
+					labels: map[string]string{},
+				},
 			},
 		},
 	}
@@ -313,18 +373,22 @@ mappings:
 		}
 
 		for metric, mapping := range scenario.mappings {
-			_, labels, present := mapper.getMapping(metric)
-			if len(labels) == 0 && present {
+			m, labels, present := mapper.getMapping(metric)
+			if present && m.Name != mapping.name {
+				t.Fatalf("%d.%q: Expected name %v, got %v", i, metric, m.Name, mapping.name)
+			}
+			if mapping.notPresent && present {
 				t.Fatalf("%d.%q: Expected metric to not be present", i, metric)
 			}
-			if len(labels) != len(mapping) {
-				t.Fatalf("%d.%q: Expected %d labels, got %d", i, metric, len(mapping), len(labels))
+			if len(labels) != len(mapping.labels) {
+				t.Fatalf("%d.%q: Expected %d labels, got %d", i, metric, len(mapping.labels), len(labels))
 			}
 			for label, value := range labels {
-				if mapping[label] != value {
+				if mapping.labels[label] != value {
 					t.Fatalf("%d.%q: Expected labels %v, got %v", i, metric, mapping, labels)
 				}
 			}
+
 		}
 	}
 }
