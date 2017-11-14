@@ -1,3 +1,20 @@
+## v 0.5.0 / 2017-11-14
+
+NOTE: This release breaks backward compatibility. `statsd_exporter` now uses
+a YAML configuration file. You must convert your mappings configuration to
+the new format when you upgrade.
+
+* [CHANGE] Use YAML for configuration file
+* [BUGFIX] Fix matching empty statsd metric components #105
+* [CHANGE] Reduce log levels #92
+* [CHANGE] Removed `-statsd.add-suffix` option flag #99
+* [IMPROVEMENT] Allow help text to be customized #87
+* [IMPROVEMENT] Add support for regex mappers #85
+* [BUGFIX] Fixes for crashes with conflicting metric values #72
+* [IMPROVEMENT] Add TCP listener support #71
+* [IMPROVEMENT] Allow histograms for timer metrics #66
+* [IMPROVEMENT] Added support for sampling factor on timing events #28
+
 ## v0.4.0 / 2017-05-12
 
 * [IMPROVEMENT] Improve mapping configuration parser #61
