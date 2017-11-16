@@ -1,4 +1,4 @@
-## v 0.5.0 / 2017-11-14
+## v0.5.0 / 2017-11-16
 
 NOTE: This release breaks backward compatibility. `statsd_exporter` now uses
 a YAML configuration file. You must convert your mappings configuration to
