@@ -46,20 +46,20 @@ There is a [tool](https://github.com/bakins/statsd-exporter-convert) available t
 
 * [CHANGE] Replace the overloaded "packets" metric (#106)
 * [CHANGE] Removed `-statsd.add-suffix` option flag #99. Users should remove
-this flag wgen upgrading.  Metrics will no longer automatically include the
-suffixes "_timer"  or "counter". You may need to adjust any graphs that used
-metrics with these suffixes.
+  this flag when upgrading.  Metrics will no longer automatically include the
+  suffixes `_timer`  or `counter`. You may need to adjust any graphs that used
+  metrics with these suffixes.
 * [CHANGE] Reduce log levels #92. Many log events have been changed from error
-to debug log level.
+  to debug log level.
 * [CHANGE] Use YAML for configuration file #66. See note above about file format
-conversion.
+  conversion.
 * [IMPROVEMENT] Allow help text to be customized #87
 * [IMPROVEMENT] Add support for regex mappers #85
 * [IMPROVEMENT] Add TCP listener support #71
 * [IMPROVEMENT] Allow histograms for timer metrics #66
 * [IMPROVEMENT] Added support for sampling factor on timing events #28
 * [BUGFIX] Conflicting label sets no longer crash the exporter and will be
-ignored. Restart to clear the remembered label set. #72
+  ignored. Restart to clear the remembered label set. #72
 
 ## v0.4.0 / 2017-05-12
 
