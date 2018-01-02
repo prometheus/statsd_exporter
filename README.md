@@ -204,6 +204,27 @@ mappings:
     job: "${1}_server_other"
 ```
 
+You may also drop metrics by specifying a "drop" action on a match. For example:
+
+```yaml
+mappings:
+# This metric would match as normal.
+- match: test.timing.*.*.*
+  name: "my_timer"
+  labels: 
+    provider: "$2"
+    outcome: "$3"
+    job: "${1}_server"
+# Any metric not matched will be dropped because "." matches all metrics.
+- match: .
+  match_type: regex
+  action: drop
+  name: "dropped"
+```
+
+You can drop any metric using the normal match syntax.
+The default action is "map" which does the normal metrics mapping.
+
 ## Using Docker
 
 You can deploy this exporter using the [prom/statsd-exporter](https://registry.hub.docker.com/u/prom/statsd-exporter/) Docker image.

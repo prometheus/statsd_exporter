@@ -360,6 +360,39 @@ mappings:
 				},
 			},
 		},
+		// Config that drops all.
+		{
+			config: `mappings:
+- match: .
+  match_type: regex
+  name: "drop"
+  action: drop`,
+			mappings: mappings{
+				"test.a": {},
+				"abc":    {},
+			},
+		},
+		// Config that has a catch-all to drop all.
+		{
+			config: `mappings:
+- match: web.*
+  name: "web"
+  labels:
+    site: "$1"
+- match: .
+  match_type: regex
+  name: "drop"
+  action: drop`,
+			mappings: mappings{
+				"test.a": {},
+				"web.localhost": {
+					name: "web",
+					labels: map[string]string{
+						"site": "localhost",
+					},
+				},
+			},
+		},
 	}
 
 	mapper := metricMapper{}
@@ -374,7 +407,7 @@ mappings:
 
 		for metric, mapping := range scenario.mappings {
 			m, labels, present := mapper.getMapping(metric)
-			if present && m.Name != mapping.name {
+			if present && mapping.name != "" && m.Name != mapping.name {
 				t.Fatalf("%d.%q: Expected name %v, got %v", i, metric, m.Name, mapping.name)
 			}
 			if mapping.notPresent && present {
@@ -389,6 +422,76 @@ mappings:
 				}
 			}
 
+		}
+	}
+}
+
+func TestAction(t *testing.T) {
+	scenarios := []struct {
+		config         string
+		configBad      bool
+		expectedAction actionType
+	}{
+		{
+			// no action set
+			config: `---
+mappings:
+- match: test.*.*
+  name: "foo"
+`,
+			configBad:      false,
+			expectedAction: actionTypeMap,
+		},
+		{
+			// map action set
+			config: `---
+mappings:
+- match: test.*.*
+  name: "foo"
+  action: map
+`,
+			configBad:      false,
+			expectedAction: actionTypeMap,
+		},
+		{
+			// drop action set
+			config: `---
+mappings:
+- match: test.*.*
+  name: "foo"
+  action: drop
+`,
+			configBad:      false,
+			expectedAction: actionTypeDrop,
+		},
+		{
+			// invalid action set
+			config: `---
+mappings:
+- match: test.*.*
+  name: "foo"
+  action: xyz
+`,
+			configBad:      true,
+			expectedAction: actionTypeDrop,
+		},
+	}
+
+	for i, scenario := range scenarios {
+		mapper := metricMapper{}
+		err := mapper.initFromYAMLString(scenario.config)
+		if err != nil && !scenario.configBad {
+			t.Fatalf("%d. Config load error: %s %s", i, scenario.config, err)
+		}
+		if err == nil && scenario.configBad {
+			t.Fatalf("%d. Expected bad config, but loaded ok: %s", i, scenario.config)
+		}
+
+		if !scenario.configBad {
+			a := mapper.Mappings[0].Action
+			if scenario.expectedAction != a {
+				t.Fatalf("%d: Expected action %v, got %v", i, scenario.expectedAction, a)
+			}
 		}
 	}
 }

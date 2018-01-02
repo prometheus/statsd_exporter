@@ -54,6 +54,7 @@ type metricMapping struct {
 	Buckets   []float64         `yaml:"buckets"`
 	MatchType matchType         `yaml:"match_type"`
 	HelpText  string            `yaml:"help"`
+	Action    actionType        `yaml:"action"`
 }
 
 func (m *metricMapper) initFromYAMLString(fileContents string) error {
@@ -91,6 +92,10 @@ func (m *metricMapper) initFromYAMLString(fileContents string) error {
 
 		if currentMapping.MatchType == "" {
 			currentMapping.MatchType = n.Defaults.MatchType
+		}
+
+		if currentMapping.Action == "" {
+			currentMapping.Action = actionTypeMap
 		}
 
 		if currentMapping.MatchType == matchTypeGlob {
