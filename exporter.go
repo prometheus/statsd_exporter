@@ -252,6 +252,11 @@ func (b *Exporter) Listen(e <-chan Events) {
 			if mapping == nil {
 				mapping = &metricMapping{}
 			}
+
+			if mapping.Action == actionTypeDrop {
+				continue
+			}
+
 			if mapping.HelpText == "" {
 				help = defaultHelp
 			} else {
