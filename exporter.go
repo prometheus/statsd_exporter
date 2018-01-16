@@ -263,7 +263,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 				help = mapping.HelpText
 			}
 			if present {
-				metricName = mapping.Name
+				metricName = escapeMetricName(mapping.Name)
 				for label, value := range labels {
 					prometheusLabels[label] = value
 				}

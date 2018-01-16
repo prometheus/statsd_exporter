@@ -184,6 +184,33 @@ mappings:
   `,
 			configBad: true,
 		},
+		// Config with dynamic metric name.
+		{
+			config: `---
+mappings:
+- match: test1.*.*
+  name: "$1"
+  labels: {}
+- match: test2.*.*
+  name: "${1}_$2"
+  labels: {}
+- match: test3\.(\w+)\.(\w+)
+  match_type: regex
+  name: "${2}_$1"
+  labels: {}
+  `,
+			mappings: mappings{
+				"test1.total_requests.count": {
+					name: "total_requests",
+				},
+				"test2.total_requests.count": {
+					name: "total_requests_count",
+				},
+				"test3.total_requests.count": {
+					name: "count_total_requests",
+				},
+			},
+		},
 		// Config with bad metric name.
 		{
 			config: `---
