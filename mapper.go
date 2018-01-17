@@ -25,12 +25,12 @@ import (
 )
 
 var (
-	identifierRE   = `[a-zA-Z_][a-zA-Z0-9_]+`
-	statsdMetricRE = `[a-zA-Z_](-?[a-zA-Z0-9_])+`
+	statsdMetricRE    = `[a-zA-Z_](-?[a-zA-Z0-9_])+`
+	templateReplaceRE = `(\$\{?\d+\}?)`
 
 	metricLineRE = regexp.MustCompile(`^(\*\.|` + statsdMetricRE + `\.)+(\*|` + statsdMetricRE + `)$`)
-	labelLineRE  = regexp.MustCompile(`^(` + identifierRE + `)\s*=\s*"(.*)"$`)
-	metricNameRE = regexp.MustCompile(`^` + identifierRE + `$`)
+	metricNameRE = regexp.MustCompile(`^([a-zA-Z_]|` + templateReplaceRE + `)([a-zA-Z0-9_]|` + templateReplaceRE + `)*$`)
+	labelNameRE  = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]+$`)
 )
 
 type mapperConfigDefaults struct {
@@ -77,7 +77,7 @@ func (m *metricMapper) initFromYAMLString(fileContents string) error {
 
 		// check that label is correct
 		for k := range currentMapping.Labels {
-			if !metricNameRE.MatchString(k) {
+			if !labelNameRE.MatchString(k) {
 				return fmt.Errorf("invalid label key: %s", k)
 			}
 		}
@@ -150,11 +150,19 @@ func (m *metricMapper) getMapping(statsdMetric string) (*metricMapping, promethe
 			continue
 		}
 
+		mapping.Name = string(mapping.regex.ExpandString(
+			[]byte{},
+			mapping.Name,
+			statsdMetric,
+			matches,
+		))
+
 		labels := prometheus.Labels{}
 		for label, valueExpr := range mapping.Labels {
 			value := mapping.regex.ExpandString([]byte{}, valueExpr, statsdMetric, matches)
 			labels[label] = string(value)
 		}
+
 		return &mapping, labels, true
 	}
 

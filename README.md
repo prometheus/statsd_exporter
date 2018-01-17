@@ -123,7 +123,32 @@ follows:
     test.web-server.foo.bar
      => test_web_server_foo_bar{}
 
-Each mapping in the configuration file must define a `name` for the metric.
+Each mapping in the configuration file must define a `name` for the metric. The
+metric's name can contain `$n`-style references to be replaced by the n-th
+wildcard match in the matching line. That allows for dynamic rewrites, such as:
+
+```yaml
+mappings:
+- match: test.*.*.counter
+  name: "${2}_counter"
+  labels:
+    provider: "$1"
+```
+
+The metric name can also contain references to regex matches. The mapping above
+could be written as:
+
+```
+mappings:
+- match: test\.(\w+)\.(\w+)\.counter
+  match_type: regex
+  name: "${2}_counter"
+  labels:
+    provider: "$1"
+```
+
+Please note that metrics with the same name must also have the same set of
+labels names.
 
 If the default metric help text is insufficient for your needs you may use the YAML
 configuration to specify a custom help text for each mapping:
