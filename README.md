@@ -148,7 +148,7 @@ mappings:
 ```
 
 Please note that metrics with the same name must also have the same set of
-labels names.
+label names.
 
 If the default metric help text is insufficient for your needs you may use the YAML
 configuration to specify a custom help text for each mapping:
