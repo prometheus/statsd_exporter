@@ -135,6 +135,18 @@ mappings:
     provider: "$1"
 ```
 
+The metric name can also contain references to regex matches. The mapping above
+could be written as:
+
+```
+mappings:
+- match: test\.(\w+)\.(\w+)\.counter
+  match_type: regex
+  name: "${2}_counter"
+  labels:
+    provider: "$1"
+```
+
 If the default metric help text is insufficient for your needs you may use the YAML
 configuration to specify a custom help text for each mapping:
 ```yaml
