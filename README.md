@@ -130,7 +130,7 @@ wildcard match in the matching line. That allows for dynamic rewrites, such as:
 ```yaml
 mappings:
 - match: test.*.*.counter
-  name: "${2}_counter"
+  name: "${2}_total"
   labels:
     provider: "$1"
 ```
@@ -142,7 +142,7 @@ could be written as:
 mappings:
 - match: test\.(\w+)\.(\w+)\.counter
   match_type: regex
-  name: "${2}_counter"
+  name: "${2}_total"
   labels:
     provider: "$1"
 ```
@@ -152,6 +152,7 @@ label names.
 
 If the default metric help text is insufficient for your needs you may use the YAML
 configuration to specify a custom help text for each mapping:
+
 ```yaml
 mappings:
 - match: http.request.*
@@ -161,7 +162,7 @@ mappings:
     code: "$1"
 ```
 
-In the configuration, one may also set the timer type to "histogram". The 
+In the configuration, one may also set the timer type to "histogram". The
 default is "summary" as in the plain text configuration format.  For example,
 to set the timer type for a single metric:
 
@@ -215,7 +216,7 @@ mappings:
 # This will be a histogram using the buckets set in `defaults`.
 - match: test.timing.*.*.*
   name: "my_timer"
-  labels: 
+  labels:
     provider: "$2"
     outcome: "$3"
     job: "${1}_server"
@@ -223,7 +224,7 @@ mappings:
 - match: other.timing.*.*.*
   timer_type: summary
   name: "other_timer"
-  labels: 
+  labels:
     provider: "$2"
     outcome: "$3"
     job: "${1}_server_other"
@@ -236,7 +237,7 @@ mappings:
 # This metric would match as normal.
 - match: test.timing.*.*.*
   name: "my_timer"
-  labels: 
+  labels:
     provider: "$2"
     outcome: "$3"
     job: "${1}_server"
