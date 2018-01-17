@@ -1,6 +1,7 @@
 ## Unreleased / ????-??-??
 
 * [IMPROVEMENT] Add a drop action (#115)
+* [IMPROVEMENT] Allow templating metric names (#117)
 
 ## v0.5.0 / 2017-11-16
 
