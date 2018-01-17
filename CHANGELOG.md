@@ -1,4 +1,4 @@
-## Unreleased / ????-??-??
+## v0.6.0 / 2018-01-17
 
 * [IMPROVEMENT] Add a drop action (#115)
 * [IMPROVEMENT] Allow templating metric names (#117)
