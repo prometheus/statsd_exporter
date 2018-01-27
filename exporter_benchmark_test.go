@@ -87,6 +87,7 @@ func (gen metricGenerator) Generate(out chan Events) {
 			out <- Events{e}
 		}
 	}
+	close(out)
 }
 
 var cases = []metricGenerator{
@@ -140,9 +141,9 @@ func BenchmarkGather(b *testing.B) {
 		exporter := NewExporter(mapper)
 
 		// And feed it some metrics
-		events := make(chan Events, 0)
-		go exporter.Listen(events)
-		c.Generate(events)
+		events := make(chan Events, 1000)
+		go c.Generate(events)
+		exporter.Listen(events)
 
 		b.Run(fmt.Sprintf("m %d l %d", c.metrics, c.labels), func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
