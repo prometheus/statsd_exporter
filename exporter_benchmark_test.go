@@ -15,6 +15,7 @@ package main
 
 import (
 	"fmt"
+	"runtime"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -91,19 +92,10 @@ func (gen metricGenerator) Generate(out chan Events) {
 }
 
 var cases = []metricGenerator{
-	metricGenerator{10, 10},
-	metricGenerator{100, 1},
-	metricGenerator{1, 100},
-	metricGenerator{100, 100},
-	metricGenerator{1000, 10},
+	metricGenerator{100000, 1},
 	metricGenerator{10000, 10},
-	metricGenerator{100000, 10},
-	metricGenerator{1000000, 1},
-	metricGenerator{10, 100},
-	metricGenerator{10, 1000},
 	metricGenerator{10, 10000},
-	metricGenerator{10, 100000},
-	metricGenerator{1, 1000000},
+	metricGenerator{1, 100000},
 }
 
 func BenchmarkGenerator(b *testing.B) {
@@ -158,6 +150,7 @@ func BenchmarkGatherGauge(b *testing.B) {
 
 		// And feed it some metrics
 		c.observeGauge(exporter)
+		runtime.GC()
 		b.Run(fmt.Sprintf("m %d l %d", c.metrics, c.labels), func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				_, _ = prometheus.DefaultGatherer.Gather()
@@ -199,6 +192,7 @@ func BenchmarkGatherCounter(b *testing.B) {
 
 		// And feed it some metrics
 		c.observeCounter(exporter)
+		runtime.GC()
 		b.Run(fmt.Sprintf("m %d l %d", c.metrics, c.labels), func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				_, _ = prometheus.DefaultGatherer.Gather()
@@ -240,6 +234,7 @@ func BenchmarkGatherSummary(b *testing.B) {
 
 		// And feed it some metrics
 		c.observeSummary(exporter)
+		runtime.GC()
 		b.Run(fmt.Sprintf("m %d l %d", c.metrics, c.labels), func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				_, _ = prometheus.DefaultGatherer.Gather()
@@ -281,6 +276,7 @@ func BenchmarkGatherHistogram(b *testing.B) {
 
 		// And feed it some metrics
 		c.observeHistogram(exporter)
+		runtime.GC()
 		b.Run(fmt.Sprintf("m %d l %d", c.metrics, c.labels), func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				_, _ = prometheus.DefaultGatherer.Gather()
