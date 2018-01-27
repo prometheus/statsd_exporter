@@ -206,3 +206,85 @@ func BenchmarkGatherCounter(b *testing.B) {
 		})
 	}
 }
+
+func (gen metricGenerator) observeSummary(exporter *Exporter) {
+	metricNames := make([]string, 0, gen.metrics)
+	for m := 0; m < gen.metrics; m++ {
+		metricNames = append(metricNames, fmt.Sprintf("metric%d", m))
+	}
+	labels := make([]map[string]string, 0, gen.labels)
+	for l := 0; l < gen.labels; l++ {
+		labels = append(labels, map[string]string{"the_label": fmt.Sprintf("label%d", l)})
+	}
+
+	for _, mn := range metricNames {
+		for _, lv := range labels {
+			counter, _ := exporter.Summaries.Get(mn, lv, "help")
+			counter.Observe(float64(1.0))
+		}
+	}
+}
+
+func BenchmarkGatherSummary(b *testing.B) {
+	mapper := &metricMapper{}
+	mapper.initFromYAMLString("")
+
+	for _, c := range cases {
+		// reset the global Prometheus registry
+		registry := prometheus.NewRegistry()
+		prometheus.DefaultRegisterer = registry
+		prometheus.DefaultGatherer = registry
+
+		// Make a fresh exporter
+		exporter := NewExporter(mapper)
+
+		// And feed it some metrics
+		c.observeSummary(exporter)
+		b.Run(fmt.Sprintf("m %d l %d", c.metrics, c.labels), func(b *testing.B) {
+			for n := 0; n < b.N; n++ {
+				_, _ = prometheus.DefaultGatherer.Gather()
+			}
+		})
+	}
+}
+
+func (gen metricGenerator) observeHistogram(exporter *Exporter) {
+	metricNames := make([]string, 0, gen.metrics)
+	for m := 0; m < gen.metrics; m++ {
+		metricNames = append(metricNames, fmt.Sprintf("metric%d", m))
+	}
+	labels := make([]map[string]string, 0, gen.labels)
+	for l := 0; l < gen.labels; l++ {
+		labels = append(labels, map[string]string{"the_label": fmt.Sprintf("label%d", l)})
+	}
+
+	for _, mn := range metricNames {
+		for _, lv := range labels {
+			counter, _ := exporter.Histograms.Get(mn, lv, "help", nil)
+			counter.Observe(float64(1.0))
+		}
+	}
+}
+
+func BenchmarkGatherHistogram(b *testing.B) {
+	mapper := &metricMapper{}
+	mapper.initFromYAMLString("")
+
+	for _, c := range cases {
+		// reset the global Prometheus registry
+		registry := prometheus.NewRegistry()
+		prometheus.DefaultRegisterer = registry
+		prometheus.DefaultGatherer = registry
+
+		// Make a fresh exporter
+		exporter := NewExporter(mapper)
+
+		// And feed it some metrics
+		c.observeHistogram(exporter)
+		b.Run(fmt.Sprintf("m %d l %d", c.metrics, c.labels), func(b *testing.B) {
+			for n := 0; n < b.N; n++ {
+				_, _ = prometheus.DefaultGatherer.Gather()
+			}
+		})
+	}
+}
