@@ -110,17 +110,22 @@ var cases = []metricGenerator{
 	metricGenerator{1, 1000000},
 }
 
-func BenchmarkGenerator(b *testing.B) {
-	events := make(chan Events, 1000)
-	go func() {
-		for {
-			<-events
-		}
-	}()
+var dummy Events
 
+func BenchmarkGenerator(b *testing.B) {
 	for _, c := range cases {
 		b.Run(fmt.Sprintf("m %d l %d", c.metrics, c.labels), func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
+				b.StopTimer()
+
+				events := make(chan Events, 1000)
+				go func() {
+					for e := range events {
+						dummy = e
+					}
+				}()
+
+				b.StartTimer()
 				c.Generate(events)
 			}
 		})
