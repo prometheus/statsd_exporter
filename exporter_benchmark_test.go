@@ -16,6 +16,8 @@ package main
 import (
 	"fmt"
 	"testing"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 func benchmarkExporter(times int, b *testing.B) {
@@ -58,4 +60,95 @@ func BenchmarkExporter5(b *testing.B) {
 }
 func BenchmarkExporter50(b *testing.B) {
 	benchmarkExporter(50, b)
+}
+
+type metricGenerator struct {
+	metrics int
+	labels  int
+}
+
+func (gen metricGenerator) Generate(out chan Events) {
+	labels := []map[string]string{}
+	for l := 0; l < gen.labels; l++ {
+		labels = append(labels, map[string]string{
+			"the_label": fmt.Sprintf("%s", l),
+		})
+	}
+
+	for m := 0; m < gen.metrics; m++ {
+		name := fmt.Sprintf("metric%s", m)
+		for _, l := range labels {
+			e := &GaugeEvent{
+				metricName: name,
+				value:      float64(m),
+				relative:   false,
+				labels:     l,
+			}
+			out <- Events{e}
+		}
+	}
+}
+
+func BenchmarkGenerator(b *testing.B) {
+	cases := []metricGenerator{
+		metricGenerator{1, 0},
+		metricGenerator{1, 1},
+		metricGenerator{10, 0},
+		metricGenerator{1, 10},
+		metricGenerator{10, 10},
+		metricGenerator{100, 0},
+		metricGenerator{1, 100},
+		metricGenerator{100, 100},
+	}
+
+	events := make(chan Events, 1000)
+	go func() {
+		for {
+			<-events
+		}
+	}()
+
+	for _, c := range cases {
+		b.Run(fmt.Sprintf("m %d l %d", c.metrics, c.labels), func(b *testing.B) {
+			for n := 0; n < b.N; n++ {
+				c.Generate(events)
+			}
+		})
+	}
+}
+
+func BenchmarkGather(b *testing.B) {
+	cases := []metricGenerator{
+		metricGenerator{1, 0},
+		metricGenerator{1, 1},
+		metricGenerator{10, 0},
+		metricGenerator{1, 10},
+		metricGenerator{10, 10},
+		metricGenerator{100, 0},
+		metricGenerator{1, 100},
+		metricGenerator{100, 100},
+	}
+	mapper := &metricMapper{}
+	mapper.initFromYAMLString("")
+
+	for _, c := range cases {
+		// reset the global Prometheus registry
+		registry := prometheus.NewRegistry()
+		prometheus.DefaultRegisterer = registry
+		prometheus.DefaultGatherer = registry
+
+		// Make a fresh exporter
+		exporter := NewExporter(mapper)
+
+		// And feed it some metrics
+		events := make(chan Events, 0)
+		go exporter.Listen(events)
+		c.Generate(events)
+
+		b.Run(fmt.Sprintf("m %d l %d", c.metrics, c.labels), func(b *testing.B) {
+			for n := 0; n < b.N; n++ {
+				_, _ = prometheus.DefaultGatherer.Gather()
+			}
+		})
+	}
 }
