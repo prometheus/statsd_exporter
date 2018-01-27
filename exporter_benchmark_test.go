@@ -101,10 +101,12 @@ var cases = []metricGenerator{
 	metricGenerator{1000, 10},
 	metricGenerator{10000, 10},
 	metricGenerator{100000, 10},
+	metricGenerator{1000000, 1},
 	metricGenerator{10, 100},
 	metricGenerator{10, 1000},
 	metricGenerator{10, 10000},
 	metricGenerator{10, 100000},
+	metricGenerator{1, 1000000},
 }
 
 func BenchmarkGenerator(b *testing.B) {
