@@ -91,10 +91,6 @@ func (gen metricGenerator) Generate(out chan Events) {
 }
 
 var cases = []metricGenerator{
-	metricGenerator{1, 0},
-	metricGenerator{1, 1},
-	metricGenerator{10, 0},
-	metricGenerator{1, 10},
 	metricGenerator{10, 10},
 	metricGenerator{100, 0},
 	metricGenerator{1, 100},
@@ -110,8 +106,6 @@ var cases = []metricGenerator{
 	metricGenerator{1, 1000000},
 }
 
-var dummy Events
-
 func BenchmarkGenerator(b *testing.B) {
 	for _, c := range cases {
 		b.Run(fmt.Sprintf("m %d l %d", c.metrics, c.labels), func(b *testing.B) {
@@ -120,8 +114,7 @@ func BenchmarkGenerator(b *testing.B) {
 
 				events := make(chan Events, 1000)
 				go func() {
-					for e := range events {
-						dummy = e
+					for range events {
 					}
 				}()
 
