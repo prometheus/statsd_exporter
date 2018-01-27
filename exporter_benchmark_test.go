@@ -127,6 +127,13 @@ func BenchmarkGather(b *testing.B) {
 		metricGenerator{100, 0},
 		metricGenerator{1, 100},
 		metricGenerator{100, 100},
+		metricGenerator{1000, 10},
+		metricGenerator{10000, 10},
+		metricGenerator{100000, 10},
+		metricGenerator{10, 100},
+		metricGenerator{10, 1000},
+		metricGenerator{10, 10000},
+		metricGenerator{10, 100000},
 	}
 	mapper := &metricMapper{}
 	mapper.initFromYAMLString("")
