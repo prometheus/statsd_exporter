@@ -106,7 +106,7 @@ func NewSummaryContainer() *SummaryContainer {
 	}
 }
 
-func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, help string) (prometheus.Summary, error) {
+func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, help string) (prometheus.Observer, error) {
 	summary, ok := c.Elements[metricName]
 	if !ok {
 		summary = prometheus.NewSummaryVec(
@@ -134,7 +134,7 @@ func NewHistogramContainer(mapper *metricMapper) *HistogramContainer {
 	}
 }
 
-func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, help string, mapping *metricMapping) (prometheus.Histogram, error) {
+func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, help string, mapping *metricMapping) (prometheus.Observer, error) {
 	histogram, ok := c.Elements[metricName]
 	if !ok {
 		buckets := c.mapper.Defaults.Buckets
