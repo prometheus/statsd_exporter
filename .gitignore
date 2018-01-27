@@ -4,3 +4,4 @@ dependencies-stamp
 /.deps
 /.release
 /.tarballs
+/output/
