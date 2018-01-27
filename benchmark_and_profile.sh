@@ -13,7 +13,7 @@ cd "output/${workdir}"
 
 ./statsd_exporter.test -test.bench . -test.benchmem | tee benchmark.out
 
-for benchmark in $(awk '$1 ~ /BenchmarkGather/ { sub("-4$", "", $1); print $1 }' benchmark.out)
+for benchmark in $(awk '$1 ~ /BenchmarkGather/ { sub("-[0-9]+$", "", $1); print $1 }' benchmark.out)
 do
   fname="$(echo "${benchmark}" | tr / _)"
   ./statsd_exporter.test -test.bench "${benchmark}" -test.cpuprofile "${fname}.cpu.pb.gz" -test.memprofile "${fname}.mem.pb.gz"
