@@ -92,7 +92,7 @@ func (gen metricGenerator) Generate(out chan Events) {
 
 var cases = []metricGenerator{
 	metricGenerator{10, 10},
-	metricGenerator{100, 0},
+	metricGenerator{100, 1},
 	metricGenerator{1, 100},
 	metricGenerator{100, 100},
 	metricGenerator{1000, 10},
@@ -125,7 +125,25 @@ func BenchmarkGenerator(b *testing.B) {
 	}
 }
 
-func BenchmarkGather(b *testing.B) {
+func (gen metricGenerator) observeGauge(exporter *Exporter) {
+	metricNames := make([]string, 0, gen.metrics)
+	for m := 0; m < gen.metrics; m++ {
+		metricNames = append(metricNames, fmt.Sprintf("metric%d", m))
+	}
+	labels := make([]map[string]string, 0, gen.labels)
+	for l := 0; l < gen.labels; l++ {
+		labels = append(labels, map[string]string{"the_label": fmt.Sprintf("label%d", l)})
+	}
+
+	for _, mn := range metricNames {
+		for _, lv := range labels {
+			gauge, _ := exporter.Gauges.Get(mn, lv, "help")
+			gauge.Set(float64(1.0))
+		}
+	}
+}
+
+func BenchmarkGatherGauge(b *testing.B) {
 	mapper := &metricMapper{}
 	mapper.initFromYAMLString("")
 
@@ -139,10 +157,7 @@ func BenchmarkGather(b *testing.B) {
 		exporter := NewExporter(mapper)
 
 		// And feed it some metrics
-		events := make(chan Events, 1000)
-		go c.Generate(events)
-		exporter.Listen(events)
-
+		c.observeGauge(exporter)
 		b.Run(fmt.Sprintf("m %d l %d", c.metrics, c.labels), func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				_, _ = prometheus.DefaultGatherer.Gather()
