@@ -71,12 +71,12 @@ func (gen metricGenerator) Generate(out chan Events) {
 	labels := []map[string]string{}
 	for l := 0; l < gen.labels; l++ {
 		labels = append(labels, map[string]string{
-			"the_label": fmt.Sprintf("%s", l),
+			"the_label": fmt.Sprintf("%d", l),
 		})
 	}
 
 	for m := 0; m < gen.metrics; m++ {
-		name := fmt.Sprintf("metric%s", m)
+		name := fmt.Sprintf("metric%d", m)
 		for _, l := range labels {
 			e := &GaugeEvent{
 				metricName: name,
