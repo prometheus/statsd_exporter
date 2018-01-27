@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
 )
 
 // TestNegativeCounter validates when we send a negative
@@ -76,24 +77,6 @@ func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
 	}
 }
 
-type MockHistogramVec struct {
-	prometheus.Metric
-	prometheus.Collector
-	prometheus.ObserverVec
-	value float64
-}
-
-func (h *MockHistogramVec) Observe(n float64) {
-	h.value = n
-}
-
-func (h *MockHistogramVec) GetMetricWith(_ prometheus.Labels)   { return h }
-func (h *MockHistogramVec) GetMetricWithLabelValues(_ []string) { return h }
-func (h *MockHistogramVec) With(_ prometheus.Labels)            { return h }
-func (h *MockHistogramVec) With(_ []string)                     { return h }
-func (h *MockHistogramVec) CurryWith(_ prometheus.Labels)       { return h, error }
-func (h *MockHistogramVec) MustCurryWith(_ prometheus.Labels)   { return h }
-
 func TestHistogramUnits(t *testing.T) {
 	events := make(chan Events, 1)
 	name := "foo"
@@ -112,13 +95,25 @@ func TestHistogramUnits(t *testing.T) {
 		time.Sleep(time.Millisecond * 100)
 		close(events)
 	}()
-	mock := &MockHistogramVec{}
-	ex.Histograms.Elements[name] = mock
 	ex.Listen(events)
-	if mock.value == 300 {
+
+	// TODO(mr): Once there is a sanctioned way to get back metric state, stop
+	// digging into the protobufs.
+	metric := &dto.Metric{}
+	hist, err := ex.Histograms.Get(name, prometheus.Labels{}, "", &metricMapping{})
+	if err != nil {
+		t.Fatalf("failed to get histogram from exporter: %v", err)
+	}
+
+	err = hist.Write(metric)
+	if err != nil {
+		t.Fatalf("failed to get histogram from client_golang: %v", err)
+	}
+
+	if *metric.Histogram.SampleSum == float64(300) {
 		t.Fatalf("Histogram observations not scaled into Seconds")
-	} else if mock.value != .300 {
-		t.Fatalf("Received unexpected value for histogram observation %f != .300", mock.value)
+	} else if *metric.Histogram.SampleSum != float64(.300) {
+		t.Fatalf("Received unexpected value for histogram observation %f != .300", *metric.Histogram.SampleSum)
 	}
 }
 
