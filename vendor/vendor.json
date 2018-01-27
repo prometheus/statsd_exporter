@@ -47,10 +47,10 @@
 			"versionExact": "v1.0.0"
 		},
 		{
-			"checksumSHA1": "KkB+77Ziom7N6RzSbyUwYGrmDeU=",
+			"checksumSHA1": "+5YXakGoZBEMrHp6h64TC5GSFfg=",
 			"path": "github.com/prometheus/client_golang/prometheus",
-			"revision": "c5b7fccd204277076155f10851dad72b76a49317",
-			"revisionTime": "2016-08-17T15:48:24Z",
+			"revision": "00e08dd66dbea933650a515c3ceb71a54337d187",
+			"revisionTime": "2017-09-05T09:18:01Z",
 			"version": "v0.8.0",
 			"versionExact": "v0.8.0"
 		},
