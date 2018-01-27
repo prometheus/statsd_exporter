@@ -97,12 +97,12 @@ func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels, help s
 }
 
 type SummaryContainer struct {
-	Elements map[string]*prometheus.SummaryVec
+	Elements map[string]prometheus.ObserverVec
 }
 
 func NewSummaryContainer() *SummaryContainer {
 	return &SummaryContainer{
-		Elements: make(map[string]*prometheus.SummaryVec),
+		Elements: make(map[string]prometheus.ObserverVec),
 	}
 }
 
@@ -123,13 +123,13 @@ func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, help
 }
 
 type HistogramContainer struct {
-	Elements map[string]*prometheus.HistogramVec
+	Elements map[string]prometheus.ObserverVec
 	mapper   *metricMapper
 }
 
 func NewHistogramContainer(mapper *metricMapper) *HistogramContainer {
 	return &HistogramContainer{
-		Elements: make(map[string]*prometheus.HistogramVec),
+		Elements: make(map[string]prometheus.ObserverVec),
 		mapper:   mapper,
 	}
 }
