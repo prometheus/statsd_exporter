@@ -68,53 +68,11 @@ type metricGenerator struct {
 	labels  int
 }
 
-func (gen metricGenerator) Generate(out chan Events) {
-	labels := []map[string]string{}
-	for l := 0; l < gen.labels; l++ {
-		labels = append(labels, map[string]string{
-			"the_label": fmt.Sprintf("%d", l),
-		})
-	}
-
-	for m := 0; m < gen.metrics; m++ {
-		name := fmt.Sprintf("metric%d", m)
-		for _, l := range labels {
-			e := &GaugeEvent{
-				metricName: name,
-				value:      float64(m),
-				relative:   false,
-				labels:     l,
-			}
-			out <- Events{e}
-		}
-	}
-	close(out)
-}
-
 var cases = []metricGenerator{
 	metricGenerator{100000, 1},
 	metricGenerator{10000, 10},
 	metricGenerator{10, 10000},
 	metricGenerator{1, 100000},
-}
-
-func BenchmarkGenerator(b *testing.B) {
-	for _, c := range cases {
-		b.Run(fmt.Sprintf("m %d l %d", c.metrics, c.labels), func(b *testing.B) {
-			for n := 0; n < b.N; n++ {
-				b.StopTimer()
-
-				events := make(chan Events, 1000)
-				go func() {
-					for range events {
-					}
-				}()
-
-				b.StartTimer()
-				c.Generate(events)
-			}
-		})
-	}
 }
 
 func (gen metricGenerator) observeGauge(exporter *Exporter) {
