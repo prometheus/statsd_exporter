@@ -76,15 +76,23 @@ func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
 	}
 }
 
-type MockHistogram struct {
+type MockHistogramVec struct {
 	prometheus.Metric
 	prometheus.Collector
+	prometheus.ObserverVec
 	value float64
 }
 
-func (h *MockHistogram) Observe(n float64) {
+func (h *MockHistogramVec) Observe(n float64) {
 	h.value = n
 }
+
+func (h *MockHistogramVec) GetMetricWith(_ prometheus.Labels)   { return h }
+func (h *MockHistogramVec) GetMetricWithLabelValues(_ []string) { return h }
+func (h *MockHistogramVec) With(_ prometheus.Labels)            { return h }
+func (h *MockHistogramVec) With(_ []string)                     { return h }
+func (h *MockHistogramVec) CurryWith(_ prometheus.Labels)       { return h, error }
+func (h *MockHistogramVec) MustCurryWith(_ prometheus.Labels)   { return h }
 
 func TestHistogramUnits(t *testing.T) {
 	events := make(chan Events, 1)
@@ -104,9 +112,8 @@ func TestHistogramUnits(t *testing.T) {
 		time.Sleep(time.Millisecond * 100)
 		close(events)
 	}()
-	mock := &MockHistogram{}
-	key := hashNameAndLabels(name, nil)
-	ex.Histograms.Elements[key] = mock
+	mock := &MockHistogramVec{}
+	ex.Histograms.Elements[name] = mock
 	ex.Listen(events)
 	if mock.value == 300 {
 		t.Fatalf("Histogram observations not scaled into Seconds")
