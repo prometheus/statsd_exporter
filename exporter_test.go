@@ -115,6 +115,59 @@ func TestHistogramUnits(t *testing.T) {
 	}
 }
 
+type MockCounter struct {
+	prometheus.Metric
+	prometheus.Collector
+	add bool
+	set bool
+}
+
+func (c *MockCounter) Inc() {
+	c.add = true
+
+}
+func (c *MockCounter) Add(n float64) {
+	c.add = true
+
+}
+func (c *MockCounter) Set(n float64) {
+	c.set = true
+}
+
+func TestCounter(t *testing.T) {
+	events := make(chan Events, 2)
+	c1 := Events{
+		&CounterEvent{
+			metricName: "foo",
+			value:      2,
+		},
+	}
+	c2 := Events{
+		&CounterEvent{
+			metricName: "foo",
+			value:      2,
+		},
+	}
+	events <- c1
+	events <- c2
+	ex := NewExporter(&metricMapper{})
+
+	key := hashNameAndLabels("foo", nil)
+	mock := &MockCounter{}
+	ex.Counters.Elements[key] = mock
+	// Close channel to signify we are done with the listener after a short period.
+	go func() {
+		time.Sleep(time.Millisecond * 100)
+		close(events)
+	}()
+	ex.Listen(events)
+	if mock.add {
+		t.Fatalf("Counters should not be added")
+	} else if !mock.set {
+		t.Fatalf("Counters should set the correct value")
+	}
+}
+
 type statsDPacketHandler interface {
 	handlePacket(packet []byte, e chan<- Events)
 }

@@ -288,7 +288,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 					help,
 				)
 				if err == nil {
-					counter.Add(event.Value())
+					counter.Set(event.Value())
 
 					eventStats.WithLabelValues("counter").Inc()
 				} else {
