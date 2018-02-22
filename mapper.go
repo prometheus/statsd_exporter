@@ -106,9 +106,17 @@ func (m *metricMapper) initFromYAMLString(fileContents string) error {
 			// can use to match metrics later on.
 			metricRe := strings.Replace(currentMapping.Match, ".", "\\.", -1)
 			metricRe = strings.Replace(metricRe, "*", "([^.]*)", -1)
-			currentMapping.regex = regexp.MustCompile("^" + metricRe + "$")
+			if regex, err := regexp.Compile("^" + metricRe + "$"); err != nil {
+				return fmt.Errorf("invalid match %s. cannot compile regex in mapping: %v", currentMapping.Match, err)
+			} else {
+				currentMapping.regex = regex
+			}
 		} else {
-			currentMapping.regex = regexp.MustCompile(currentMapping.Match)
+			if regex, err := regexp.Compile(currentMapping.Match); err != nil {
+				return fmt.Errorf("invalid regex %s in mapping: %v", currentMapping.Match, err)
+			} else {
+				currentMapping.regex = regex
+			}
 		}
 
 		if currentMapping.TimerType == "" {
