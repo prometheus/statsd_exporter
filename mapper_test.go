@@ -310,7 +310,7 @@ mappings:
 		{
 			config: `---
 mappings:
-- match: "*\.foo"
+- match: "*\\.foo"
   match_type: regex
   name: "foo"
   labels: {}
