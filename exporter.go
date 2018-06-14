@@ -182,6 +182,7 @@ type Event interface {
 	MetricName() string
 	Value() float64
 	Labels() map[string]string
+	MetricType() metricType
 }
 
 type CounterEvent struct {
@@ -193,6 +194,7 @@ type CounterEvent struct {
 func (c *CounterEvent) MetricName() string        { return c.metricName }
 func (c *CounterEvent) Value() float64            { return c.value }
 func (c *CounterEvent) Labels() map[string]string { return c.labels }
+func (c *CounterEvent) MetricType() metricType    { return metricTypeCounter }
 
 type GaugeEvent struct {
 	metricName string
@@ -204,6 +206,7 @@ type GaugeEvent struct {
 func (g *GaugeEvent) MetricName() string        { return g.metricName }
 func (g *GaugeEvent) Value() float64            { return g.value }
 func (c *GaugeEvent) Labels() map[string]string { return c.labels }
+func (c *GaugeEvent) MetricType() metricType    { return metricTypeGauge }
 
 type TimerEvent struct {
 	metricName string
@@ -214,6 +217,7 @@ type TimerEvent struct {
 func (t *TimerEvent) MetricName() string        { return t.metricName }
 func (t *TimerEvent) Value() float64            { return t.value }
 func (c *TimerEvent) Labels() map[string]string { return c.labels }
+func (c *TimerEvent) MetricType() metricType    { return metricTypeTimer }
 
 type Events []Event
 
@@ -248,7 +252,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 			metricName := ""
 			prometheusLabels := event.Labels()
 
-			mapping, labels, present := b.mapper.getMapping(event.MetricName())
+			mapping, labels, present := b.mapper.getMapping(event.MetricName(), event.MetricType())
 			if mapping == nil {
 				mapping = &metricMapping{}
 			}
