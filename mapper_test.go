@@ -306,6 +306,27 @@ mappings:
     `,
 			configBad: true,
 		},
+		// Config with good metric type.
+		{
+			config: `---
+mappings:
+- match: test.*.*
+  match_metric_type: counter
+  name: "foo"
+  labels: {}
+    `,
+		},
+		// Config with bad metric type matcher.
+		{
+			config: `---
+mappings:
+- match: test.*.*
+  match_metric_type: wrong
+  name: "foo"
+  labels: {}
+    `,
+			configBad: true,
+		},
 		//Config with uncompilable regex.
 		{
 			config: `---
