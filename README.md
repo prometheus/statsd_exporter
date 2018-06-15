@@ -251,6 +251,21 @@ mappings:
 You can drop any metric using the normal match syntax.
 The default action is "map" which does the normal metrics mapping.
 
+StatsD allows emitting of different metric types under the same metric name,
+but the Prometheus client library can't merge those. For this use-case the
+mapping definition allows you to specify which metric type to match:
+
+```
+mappings:
+- match: test.foo.*
+  name: "test_foo"
+  match_metric_type: counter
+  labels:
+    provider: "$1"
+```
+
+Possible values for `match_metric_type` are `gauge`, `counter` and `timer`.
+
 ## Using Docker
 
 You can deploy this exporter using the [prom/statsd-exporter](https://registry.hub.docker.com/u/prom/statsd-exporter/) Docker image.
