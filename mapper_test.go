@@ -453,8 +453,9 @@ mappings:
 			t.Fatalf("%d. Expected bad config, but loaded ok: %s", i, scenario.config)
 		}
 
+		var dummyMetricType metricType = ""
 		for metric, mapping := range scenario.mappings {
-			m, labels, present := mapper.getMapping(metric)
+			m, labels, present := mapper.getMapping(metric, dummyMetricType)
 			if present && mapping.name != "" && m.Name != mapping.name {
 				t.Fatalf("%d.%q: Expected name %v, got %v", i, metric, m.Name, mapping.name)
 			}
