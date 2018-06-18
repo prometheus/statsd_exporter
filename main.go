@@ -122,7 +122,7 @@ func watchConfig(fileName string, mapper *metricMapper) {
 			// Re-add the file watcher since it can get lost on some changes. E.g.
 			// saving a file with vim results in a RENAME-MODIFY-DELETE event
 			// sequence, after which the newly written file is no longer watched.
-			err = watcher.WatchFlags(fileName, fsnotify.FSN_MODIFY)
+			_ = watcher.WatchFlags(fileName, fsnotify.FSN_MODIFY)
 		case err := <-watcher.Error:
 			log.Errorln("Error watching config:", err)
 		}
