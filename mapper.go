@@ -45,16 +45,19 @@ type metricMapper struct {
 	mutex    sync.Mutex
 }
 
+type matchMetricType string
+
 type metricMapping struct {
-	Match     string `yaml:"match"`
-	Name      string `yaml:"name"`
-	regex     *regexp.Regexp
-	Labels    prometheus.Labels `yaml:"labels"`
-	TimerType timerType         `yaml:"timer_type"`
-	Buckets   []float64         `yaml:"buckets"`
-	MatchType matchType         `yaml:"match_type"`
-	HelpText  string            `yaml:"help"`
-	Action    actionType        `yaml:"action"`
+	Match           string `yaml:"match"`
+	Name            string `yaml:"name"`
+	regex           *regexp.Regexp
+	Labels          prometheus.Labels `yaml:"labels"`
+	TimerType       timerType         `yaml:"timer_type"`
+	Buckets         []float64         `yaml:"buckets"`
+	MatchType       matchType         `yaml:"match_type"`
+	HelpText        string            `yaml:"help"`
+	Action          actionType        `yaml:"action"`
+	MatchMetricType metricType        `yaml:"match_metric_type"`
 }
 
 func (m *metricMapper) initFromYAMLString(fileContents string) error {
@@ -148,7 +151,7 @@ func (m *metricMapper) initFromFile(fileName string) error {
 	return m.initFromYAMLString(string(mappingStr))
 }
 
-func (m *metricMapper) getMapping(statsdMetric string) (*metricMapping, prometheus.Labels, bool) {
+func (m *metricMapper) getMapping(statsdMetric string, statsdMetricType metricType) (*metricMapping, prometheus.Labels, bool) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
@@ -164,6 +167,10 @@ func (m *metricMapper) getMapping(statsdMetric string) (*metricMapping, promethe
 			statsdMetric,
 			matches,
 		))
+
+		if mt := mapping.MatchMetricType; mt != "" && mt != statsdMetricType {
+			continue
+		}
 
 		labels := prometheus.Labels{}
 		for label, valueExpr := range mapping.Labels {

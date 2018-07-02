@@ -306,6 +306,27 @@ mappings:
     `,
 			configBad: true,
 		},
+		// Config with good metric type.
+		{
+			config: `---
+mappings:
+- match: test.*.*
+  match_metric_type: counter
+  name: "foo"
+  labels: {}
+    `,
+		},
+		// Config with bad metric type matcher.
+		{
+			config: `---
+mappings:
+- match: test.*.*
+  match_metric_type: wrong
+  name: "foo"
+  labels: {}
+    `,
+			configBad: true,
+		},
 		//Config with uncompilable regex.
 		{
 			config: `---
@@ -432,8 +453,9 @@ mappings:
 			t.Fatalf("%d. Expected bad config, but loaded ok: %s", i, scenario.config)
 		}
 
+		var dummyMetricType metricType = ""
 		for metric, mapping := range scenario.mappings {
-			m, labels, present := mapper.getMapping(metric)
+			m, labels, present := mapper.getMapping(metric, dummyMetricType)
 			if present && mapping.name != "" && m.Name != mapping.name {
 				t.Fatalf("%d.%q: Expected name %v, got %v", i, metric, m.Name, mapping.name)
 			}
