@@ -15,10 +15,7 @@ package main
 
 import (
 	"bufio"
-	"bytes"
-	"encoding/binary"
 	"fmt"
-	"hash/fnv"
 	"io"
 	"net"
 	"regexp"
@@ -28,7 +25,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
-	"github.com/prometheus/common/model"
 )
 
 const (
@@ -40,142 +36,123 @@ const (
 
 var (
 	illegalCharsRE = regexp.MustCompile(`[^a-zA-Z0-9_]`)
-
-	hash   = fnv.New64a()
-	strBuf bytes.Buffer // Used for hashing.
-	intBuf = make([]byte, 8)
 )
 
-// hashNameAndLabels returns a hash value of the provided name string and all
-// the label names and values in the provided labels map.
-//
-// Not safe for concurrent use! (Uses a shared buffer and hasher to save on
-// allocations.)
-func hashNameAndLabels(name string, labels prometheus.Labels) uint64 {
-	hash.Reset()
-	strBuf.Reset()
-	strBuf.WriteString(name)
-	hash.Write(strBuf.Bytes())
-	binary.BigEndian.PutUint64(intBuf, model.LabelsToSignature(labels))
-	hash.Write(intBuf)
-	return hash.Sum64()
+type CounterContainer struct {
+	Elements map[string]*prometheus.CounterVec
 }
 
-type CounterContainer struct {
-	Elements map[uint64]prometheus.Counter
+func labelNames(labels prometheus.Labels) []string {
+	names := make([]string, 0, len(labels))
+	for k := range labels {
+		names = append(names, k)
+	}
+	return names
 }
 
 func NewCounterContainer() *CounterContainer {
 	return &CounterContainer{
-		Elements: make(map[uint64]prometheus.Counter),
+		Elements: make(map[string]*prometheus.CounterVec),
 	}
 }
 
 func (c *CounterContainer) Get(metricName string, labels prometheus.Labels, help string) (prometheus.Counter, error) {
-	hash := hashNameAndLabels(metricName, labels)
-	counter, ok := c.Elements[hash]
+	counter, ok := c.Elements[metricName]
 	if !ok {
-		counter = prometheus.NewCounter(prometheus.CounterOpts{
-			Name:        metricName,
-			Help:        help,
-			ConstLabels: labels,
-		})
+		counter = prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: metricName,
+			Help: help,
+		}, labelNames(labels))
 		if err := prometheus.Register(counter); err != nil {
 			return nil, err
 		}
-		c.Elements[hash] = counter
+		c.Elements[metricName] = counter
 	}
-	return counter, nil
+	return counter.With(labels), nil
 }
 
 type GaugeContainer struct {
-	Elements map[uint64]prometheus.Gauge
+	Elements map[string]*prometheus.GaugeVec
 }
 
 func NewGaugeContainer() *GaugeContainer {
 	return &GaugeContainer{
-		Elements: make(map[uint64]prometheus.Gauge),
+		Elements: make(map[string]*prometheus.GaugeVec),
 	}
 }
 
 func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels, help string) (prometheus.Gauge, error) {
-	hash := hashNameAndLabels(metricName, labels)
-	gauge, ok := c.Elements[hash]
+	gauge, ok := c.Elements[metricName]
 	if !ok {
-		gauge = prometheus.NewGauge(prometheus.GaugeOpts{
-			Name:        metricName,
-			Help:        help,
-			ConstLabels: labels,
-		})
+		gauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: metricName,
+			Help: help,
+		}, labelNames(labels))
 		if err := prometheus.Register(gauge); err != nil {
 			return nil, err
 		}
-		c.Elements[hash] = gauge
+		c.Elements[metricName] = gauge
 	}
-	return gauge, nil
+	return gauge.With(labels), nil
 }
 
 type SummaryContainer struct {
-	Elements map[uint64]prometheus.Summary
+	Elements map[string]prometheus.ObserverVec
 }
 
 func NewSummaryContainer() *SummaryContainer {
 	return &SummaryContainer{
-		Elements: make(map[uint64]prometheus.Summary),
+		Elements: make(map[string]prometheus.ObserverVec),
 	}
 }
 
-func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, help string) (prometheus.Summary, error) {
-	hash := hashNameAndLabels(metricName, labels)
-	summary, ok := c.Elements[hash]
+func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, help string) (prometheus.Observer, error) {
+	summary, ok := c.Elements[metricName]
 	if !ok {
-		summary = prometheus.NewSummary(
+		summary = prometheus.NewSummaryVec(
 			prometheus.SummaryOpts{
-				Name:        metricName,
-				Help:        help,
-				ConstLabels: labels,
-			})
+				Name: metricName,
+				Help: help,
+			}, labelNames(labels))
 		if err := prometheus.Register(summary); err != nil {
 			return nil, err
 		}
-		c.Elements[hash] = summary
+		c.Elements[metricName] = summary
 	}
-	return summary, nil
+	return summary.With(labels), nil
 }
 
 type HistogramContainer struct {
-	Elements map[uint64]prometheus.Histogram
+	Elements map[string]prometheus.ObserverVec
 	mapper   *metricMapper
 }
 
 func NewHistogramContainer(mapper *metricMapper) *HistogramContainer {
 	return &HistogramContainer{
-		Elements: make(map[uint64]prometheus.Histogram),
+		Elements: make(map[string]prometheus.ObserverVec),
 		mapper:   mapper,
 	}
 }
 
-func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, help string, mapping *metricMapping) (prometheus.Histogram, error) {
-	hash := hashNameAndLabels(metricName, labels)
-	histogram, ok := c.Elements[hash]
+func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, help string, mapping *metricMapping) (prometheus.Observer, error) {
+	histogram, ok := c.Elements[metricName]
 	if !ok {
 		buckets := c.mapper.Defaults.Buckets
 		if mapping != nil && mapping.Buckets != nil && len(mapping.Buckets) > 0 {
 			buckets = mapping.Buckets
 		}
-		histogram = prometheus.NewHistogram(
+		histogram = prometheus.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:        metricName,
-				Help:        help,
-				ConstLabels: labels,
-				Buckets:     buckets,
-			})
-		c.Elements[hash] = histogram
+				Name:    metricName,
+				Help:    help,
+				Buckets: buckets,
+			}, labelNames(labels))
+		c.Elements[metricName] = histogram
 		if err := prometheus.Register(histogram); err != nil {
 			return nil, err
 		}
 	}
-	return histogram, nil
+	return histogram.With(labels), nil
 }
 
 type Event interface {

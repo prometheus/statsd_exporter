@@ -76,15 +76,29 @@ func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
 	}
 }
 
-type MockHistogram struct {
+type MockHistogramVec struct {
 	prometheus.Metric
 	prometheus.Collector
 	value float64
 }
 
-func (h *MockHistogram) Observe(n float64) {
+func (h *MockHistogramVec) Observe(n float64) {
 	h.value = n
 }
+
+func (h *MockHistogramVec) GetMetricWith(_ prometheus.Labels) (prometheus.Observer, error) {
+	return h, nil
+}
+func (h *MockHistogramVec) GetMetricWithLabelValues(_ ...string) (prometheus.Observer, error) {
+	return h, nil
+}
+func (h *MockHistogramVec) With(_ prometheus.Labels) prometheus.Observer               { return h }
+func (h *MockHistogramVec) WithLabelValues(_ ...string) prometheus.Observer            { return h }
+func (h *MockHistogramVec) CurryWith(_ prometheus.Labels) (prometheus.Observer, error) { return h, nil }
+func (h *MockHistogramVec) MustCurryWith(_ prometheus.Labels) prometheus.Observer      { return h }
+
+func (h *MockHistogramVec) Describe(_ chan<- *prometheus.Desc) {}
+func (h *MockHistogramVec) Collect(_ chan<- prometheus.Metric) {}
 
 func TestHistogramUnits(t *testing.T) {
 	events := make(chan Events, 1)
@@ -104,9 +118,8 @@ func TestHistogramUnits(t *testing.T) {
 		time.Sleep(time.Millisecond * 100)
 		close(events)
 	}()
-	mock := &MockHistogram{}
-	key := hashNameAndLabels(name, nil)
-	ex.Histograms.Elements[key] = mock
+	mock := &MockHistogramVec{}
+	ex.Histograms.Elements[name] = mock
 	ex.Listen(events)
 	if mock.value == 300 {
 		t.Fatalf("Histogram observations not scaled into Seconds")
