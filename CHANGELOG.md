@@ -1,3 +1,8 @@
+## Unreleased
+
+* [IMPROVEMENT] Allow matching on specific metric types (#136)
+* [BUGFIX] Fix panic if an invalid regular expression is supplied (#126)
+
 ## v0.6.0 / 2018-01-17
 
 * [IMPROVEMENT] Add a drop action (#115)
