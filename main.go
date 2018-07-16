@@ -23,6 +23,7 @@ import (
 
 	"github.com/howeyc/fsnotify"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
 )
@@ -32,24 +33,27 @@ func init() {
 }
 
 var (
-	listenAddress       = flag.String("web.listen-address", ":9102", "The address on which to expose the web interface and generated Prometheus metrics.")
-	metricsEndpoint     = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
-	statsdListenAddress = flag.String("statsd.listen-address", "", "The UDP address on which to receive statsd metric lines. DEPRECATED, use statsd.listen-udp instead.")
-	statsdListenUDP     = flag.String("statsd.listen-udp", ":9125", "The UDP address on which to receive statsd metric lines. \"\" disables it.")
-	statsdListenTCP     = flag.String("statsd.listen-tcp", ":9125", "The TCP address on which to receive statsd metric lines. \"\" disables it.")
-	mappingConfig       = flag.String("statsd.mapping-config", "", "Metric mapping configuration file name.")
-	readBuffer          = flag.Int("statsd.read-buffer", 0, "Size (in bytes) of the operating system's transmit read buffer associated with the UDP connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.")
-	showVersion         = flag.Bool("version", false, "Print version information.")
+	listenAddress           = flag.String("web.listen-address", ":9102", "The address on which to expose the web interface and generated Prometheus metrics.")
+	metricsEndpoint         = flag.String("web.telemetry-path", "/statsd", "Path under which to expose the collected statsd metrics.")
+	exporterMetricsEndpoint = flag.String("web.exporter-telemetry-path", "/metrics", "Path under which to expose metrics related to the exporter (not the statsd metrics).")
+	statsdListenAddress     = flag.String("statsd.listen-address", "", "The UDP address on which to receive statsd metric lines. DEPRECATED, use statsd.listen-udp instead.")
+	statsdListenUDP         = flag.String("statsd.listen-udp", ":9125", "The UDP address on which to receive statsd metric lines. \"\" disables it.")
+	statsdListenTCP         = flag.String("statsd.listen-tcp", ":9125", "The TCP address on which to receive statsd metric lines. \"\" disables it.")
+	mappingConfig           = flag.String("statsd.mapping-config", "", "Metric mapping configuration file name.")
+	readBuffer              = flag.Int("statsd.read-buffer", 0, "Size (in bytes) of the operating system's transmit read buffer associated with the UDP connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.")
+	showVersion             = flag.Bool("version", false, "Print version information.")
 )
 
 func serveHTTP() {
-	http.Handle(*metricsEndpoint, prometheus.Handler())
+	http.Handle(*exporterMetricsEndpoint, prometheus.Handler())
+	http.Handle(*metricsEndpoint, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
 			<head><title>StatsD Exporter</title></head>
 			<body>
 			<h1>StatsD Exporter</h1>
 			<p><a href="` + *metricsEndpoint + `">Metrics</a></p>
+			<p><a href="` + *exporterMetricsEndpoint + `">Exporter Metrics</a></p>
 			</body>
 			</html>`))
 	})

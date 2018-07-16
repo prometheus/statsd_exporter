@@ -80,7 +80,12 @@ func (c *CounterContainer) Get(metricName string, labels prometheus.Labels, help
 			Help:        help,
 			ConstLabels: labels,
 		})
-		if err := prometheus.Register(counter); err != nil {
+		metric := &Metric{
+			Name: metricName,
+			Help: defaultHelp,
+			M:    counter,
+		}
+		if err := registry.Register(hash, metric); err != nil {
 			return nil, err
 		}
 		c.Elements[hash] = counter
@@ -107,7 +112,12 @@ func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels, help s
 			Help:        help,
 			ConstLabels: labels,
 		})
-		if err := prometheus.Register(gauge); err != nil {
+		metric := &Metric{
+			Name: metricName,
+			Help: defaultHelp,
+			M:    gauge,
+		}
+		if err := registry.Register(hash, metric); err != nil {
 			return nil, err
 		}
 		c.Elements[hash] = gauge
@@ -135,7 +145,12 @@ func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, help
 				Help:        help,
 				ConstLabels: labels,
 			})
-		if err := prometheus.Register(summary); err != nil {
+		metric := &Metric{
+			Name: metricName,
+			Help: defaultHelp,
+			M:    summary,
+		}
+		if err := registry.Register(hash, metric); err != nil {
 			return nil, err
 		}
 		c.Elements[hash] = summary
