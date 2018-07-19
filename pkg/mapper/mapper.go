@@ -14,13 +14,17 @@
 package mapper
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/log"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -28,24 +32,39 @@ var (
 	statsdMetricRE    = `[a-zA-Z_](-?[a-zA-Z0-9_])+`
 	templateReplaceRE = `(\$\{?\d+\}?)`
 
-	metricLineRE = regexp.MustCompile(`^(\*\.|` + statsdMetricRE + `\.)+(\*|` + statsdMetricRE + `)$`)
-	metricNameRE = regexp.MustCompile(`^([a-zA-Z_]|` + templateReplaceRE + `)([a-zA-Z0-9_]|` + templateReplaceRE + `)*$`)
-	labelNameRE  = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]+$`)
+	metricLineRE          = regexp.MustCompile(`^(\*\.|` + statsdMetricRE + `\.)+(\*|` + statsdMetricRE + `)$`)
+	metricNameRE          = regexp.MustCompile(`^([a-zA-Z_]|` + templateReplaceRE + `)([a-zA-Z0-9_]|` + templateReplaceRE + `)*$`)
+	labelNameRE           = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]+$`)
+	labelValueExpansionRE = regexp.MustCompile(`\${?(\d+)}?`)
 )
 
 type mapperConfigDefaults struct {
-	TimerType TimerType         `yaml:"timer_type"`
-	Buckets   []float64         `yaml:"buckets"`
-	Quantiles []metricObjective `yaml:"quantiles"`
-	MatchType MatchType         `yaml:"match_type"`
+	TimerType   TimerType         `yaml:"timer_type"`
+	Buckets     []float64         `yaml:"buckets"`
+	Quantiles   []metricObjective `yaml:"quantiles"`
+	MatchType   MatchType         `yaml:"match_type"`
+	DumpFSM     string            `yaml:"dump_fsm"`
+	FSMFallback MatchType         `yaml:"fsm_fallback"`
+}
+
+type mappingState struct {
+	transitions map[string]*mappingState
+	// result is nil unless there's a metric ends with this state
+	result *MetricMapping
 }
 
 type MetricMapper struct {
 	Defaults mapperConfigDefaults `yaml:"defaults"`
 	Mappings []MetricMapping      `yaml:"mappings"`
+	FSM      *mappingState
 	mutex    sync.Mutex
 
 	MappingsCount prometheus.Gauge
+}
+
+type labelFormatter struct {
+	captureIdx int
+	fmtString  string
 }
 
 type matchMetricType string
@@ -55,6 +74,7 @@ type MetricMapping struct {
 	Name            string `yaml:"name"`
 	regex           *regexp.Regexp
 	Labels          prometheus.Labels `yaml:"labels"`
+	LabelsFormatter map[string]labelFormatter
 	TimerType       TimerType         `yaml:"timer_type"`
 	Buckets         []float64         `yaml:"buckets"`
 	Quantiles       []metricObjective `yaml:"quantiles"`
@@ -94,7 +114,14 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 		n.Defaults.MatchType = MatchTypeGlob
 	}
 
+	maxPossibleTransitions := len(n.Mappings)
+
+	n.FSM = &mappingState{}
+	n.FSM.transitions = make(map[string]*mappingState, maxPossibleTransitions)
+
 	for i := range n.Mappings {
+		maxPossibleTransitions--
+
 		currentMapping := &n.Mappings[i]
 
 		// check that label is correct
@@ -120,7 +147,57 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 			currentMapping.Action = ActionTypeMap
 		}
 
-		if currentMapping.MatchType == MatchTypeGlob {
+		if currentMapping.MatchType == MatchTypeFSM {
+			// first split by "."
+			matchFields := strings.Split(currentMapping.Match, ".")
+			// fill into our FSM
+			root := n.FSM
+			captureCount := 0
+			for i, field := range matchFields {
+				state, prs := root.transitions[field]
+				if !prs {
+					state = &mappingState{}
+					(*state).transitions = make(map[string]*mappingState, maxPossibleTransitions)
+					root.transitions[field] = state
+					// if this is last field, set result to currentMapping instance
+					if i == len(matchFields)-1 {
+						root.transitions[field].result = currentMapping
+					}
+				}
+				if field == "*" {
+					captureCount++
+				}
+
+				// goto next state
+				root = state
+			}
+			currentLabelFormatter := make(map[string]labelFormatter, captureCount)
+			for label, valueExpr := range currentMapping.Labels {
+				matches := labelValueExpansionRE.FindAllStringSubmatch(valueExpr, -1)
+				if len(matches) == 0 {
+					// if no regex expansion found, keep it as it is
+					currentLabelFormatter[label] = labelFormatter{captureIdx: -1, fmtString: valueExpr}
+					continue
+				} else if len(matches) > 1 {
+					return fmt.Errorf("multiple captures is not supported in FSM matching type")
+				}
+				var valueFormatter string
+				idx, err := strconv.Atoi(matches[0][1])
+				if err != nil {
+					return fmt.Errorf("invalid label value expression: %s", valueExpr)
+				}
+				if idx > captureCount || idx < 1 {
+					// index larger than captured count, replace all expansion with empty string
+					valueFormatter = labelValueExpansionRE.ReplaceAllString(valueExpr, "")
+					idx = 0
+				} else {
+					valueFormatter = labelValueExpansionRE.ReplaceAllString(valueExpr, "%s")
+				}
+				currentLabelFormatter[label] = labelFormatter{captureIdx: idx - 1, fmtString: valueFormatter}
+			}
+			currentMapping.LabelsFormatter = currentLabelFormatter
+		}
+		if currentMapping.MatchType == MatchTypeGlob || n.Defaults.FSMFallback == MatchTypeGlob {
 			if !metricLineRE.MatchString(currentMapping.Match) {
 				return fmt.Errorf("invalid match: %s", currentMapping.Match)
 			}
@@ -133,7 +210,7 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 			} else {
 				currentMapping.regex = regex
 			}
-		} else {
+		} else if currentMapping.MatchType == MatchTypeRegex || n.Defaults.FSMFallback == MatchTypeRegex {
 			if regex, err := regexp.Compile(currentMapping.Match); err != nil {
 				return fmt.Errorf("invalid regex %s in mapping: %v", currentMapping.Match, err)
 			} else {
@@ -154,18 +231,53 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 		}
 
 	}
+	if len(n.Defaults.DumpFSM) > 0 {
+		m.dumpFSM(n.Defaults.DumpFSM, n.FSM)
+	}
 
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
 	m.Defaults = n.Defaults
 	m.Mappings = n.Mappings
+	if len(n.FSM.transitions) > 0 {
+		m.FSM = n.FSM
+	}
 
 	if m.MappingsCount != nil {
 		m.MappingsCount.Set(float64(len(n.Mappings)))
 	}
 
 	return nil
+}
+
+func (m *MetricMapper) dumpFSM(fileName string, root *mappingState) {
+	log.Infoln("Start dumping FSM to", fileName)
+	idx := 0
+	states := make(map[int]*mappingState)
+	states[idx] = root
+
+	f, _ := os.Create(fileName)
+	w := bufio.NewWriter(f)
+	w.WriteString("digraph g {\n")
+	w.WriteString("rankdir=LR\n")                                                    // make it vertical
+	w.WriteString("node [ label=\"\",style=filled,fillcolor=white,shape=circle ]\n") // remove label of node
+
+	for idx < len(states) {
+		for field, transition := range states[idx].transitions {
+			states[len(states)] = transition
+			w.WriteString(fmt.Sprintf("%d -> %d  [label = \"%s\"];\n", idx, len(states)-1, field))
+			if transition.transitions == nil || len(transition.transitions) == 0 {
+				w.WriteString(fmt.Sprintf("%d [color=\"#82B366\",fillcolor=\"#D5E8D4\"];\n", len(states)-1))
+			}
+
+		}
+		idx++
+	}
+	w.WriteString(fmt.Sprintf("0 [color=\"#D6B656\",fillcolor=\"#FFF2CC\"];\n"))
+	w.WriteString("}")
+	w.Flush()
+	log.Infoln("Finish dumping FSM")
 }
 
 func (m *MetricMapper) InitFromFile(fileName string) error {
@@ -177,6 +289,51 @@ func (m *MetricMapper) InitFromFile(fileName string) error {
 }
 
 func (m *MetricMapper) GetMapping(statsdMetric string, statsdMetricType MetricType) (*MetricMapping, prometheus.Labels, bool) {
+	if root := m.FSM; root != nil {
+		matchFields := strings.Split(statsdMetric, ".")
+		captures := make(map[int]string, len(matchFields))
+		captureIdx := 0
+		filedsCount := len(matchFields)
+		for i, field := range matchFields {
+			if root.transitions == nil {
+				break
+			}
+			state, prs := root.transitions[field]
+			if !prs {
+				state, prs = root.transitions["*"]
+				if !prs {
+					break
+				}
+				captures[captureIdx] = field
+				captureIdx++
+			}
+			if state.result != nil && i == filedsCount-1 {
+				// format valueExpr
+				mapping := *state.result
+				labels := prometheus.Labels{}
+				for label := range mapping.Labels {
+					formatter := mapping.LabelsFormatter[label]
+					idx := formatter.captureIdx
+					var value string
+					if idx == -1 {
+						value = formatter.fmtString
+					} else {
+						value = fmt.Sprintf(formatter.fmtString, captures[idx])
+					}
+					labels[label] = string(value)
+				}
+				return state.result, labels, true
+			}
+			root = state
+		}
+
+		// if fsm_fallback is not defined, return immediately
+		if len(m.Defaults.FSMFallback) == 0 {
+			log.Infof("%s not matched by fsm\n", statsdMetric)
+			return nil, nil, false
+		}
+	}
+
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
