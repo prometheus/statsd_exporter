@@ -117,23 +117,34 @@ func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels, help s
 
 type SummaryContainer struct {
 	Elements map[uint64]prometheus.Summary
+	mapper   *metricMapper
 }
 
-func NewSummaryContainer() *SummaryContainer {
+func NewSummaryContainer(mapper *metricMapper) *SummaryContainer {
 	return &SummaryContainer{
 		Elements: make(map[uint64]prometheus.Summary),
+		mapper:   mapper,
 	}
 }
 
-func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, help string) (prometheus.Summary, error) {
+func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, help string, mapping *metricMapping) (prometheus.Summary, error) {
 	hash := hashNameAndLabels(metricName, labels)
 	summary, ok := c.Elements[hash]
 	if !ok {
+		quantiles := c.mapper.Defaults.Quantiles
+		if mapping != nil && mapping.Quantiles != nil && len(mapping.Quantiles) > 0 {
+			quantiles = mapping.Quantiles
+		}
+		objectives := make(map[float64]float64)
+		for _, q := range quantiles {
+			objectives[q.Quantile] = q.Error
+		}
 		summary = prometheus.NewSummary(
 			prometheus.SummaryOpts{
 				Name:        metricName,
 				Help:        help,
 				ConstLabels: labels,
+				Objectives:  objectives,
 			})
 		if err := prometheus.Register(summary); err != nil {
 			return nil, err
@@ -350,6 +361,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 						metricName,
 						prometheusLabels,
 						help,
+						mapping,
 					)
 					if err == nil {
 						summary.Observe(event.Value())
@@ -375,7 +387,7 @@ func NewExporter(mapper *metricMapper) *Exporter {
 	return &Exporter{
 		Counters:   NewCounterContainer(),
 		Gauges:     NewGaugeContainer(),
-		Summaries:  NewSummaryContainer(),
+		Summaries:  NewSummaryContainer(mapper),
 		Histograms: NewHistogramContainer(mapper),
 		mapper:     mapper,
 	}

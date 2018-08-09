@@ -20,6 +20,7 @@ import (
 type mappings map[string]struct {
 	name       string
 	labels     map[string]string
+	quantiles  []metricObjective
 	notPresent bool
 }
 
@@ -287,11 +288,40 @@ mappings:
   timer_type: summary
   name: "foo"
   labels: {}
+  quantiles:
+    - quantile: 0.42
+      error: 0.04
+    - quantile: 0.7
+      error: 0.002
   `,
 			mappings: mappings{
 				"test.*.*": {
 					name:   "foo",
 					labels: map[string]string{},
+					quantiles: []metricObjective{
+						{Quantile: 0.42, Error: 0.04},
+						{Quantile: 0.7, Error: 0.002},
+					},
+				},
+			},
+		},
+		{
+			config: `---
+mappings:
+- match: test1.*.*
+  timer_type: summary
+  name: "foo"
+  labels: {}
+  `,
+			mappings: mappings{
+				"test1.*.*": {
+					name:   "foo",
+					labels: map[string]string{},
+					quantiles: []metricObjective{
+						{Quantile: 0.5, Error: 0.05},
+						{Quantile: 0.9, Error: 0.01},
+						{Quantile: 0.99, Error: 0.001},
+					},
 				},
 			},
 		},
@@ -471,6 +501,19 @@ mappings:
 				}
 			}
 
+			if len(mapping.quantiles) != 0 {
+				if len(mapping.quantiles) != len(m.Quantiles) {
+					t.Fatalf("%d.%q: Expected %d quantiles, got %d", i, metric, len(mapping.quantiles), len(m.Quantiles))
+				}
+				for i, quantile := range mapping.quantiles {
+					if quantile.Quantile != m.Quantiles[i].Quantile {
+						t.Fatalf("%d.%q: Expected quantile %v, got %v", i, metric, m.Quantiles[i].Quantile, quantile.Quantile)
+					}
+					if quantile.Error != m.Quantiles[i].Error {
+						t.Fatalf("%d.%q: Expected Error margin %v, got %v", i, metric, m.Quantiles[i].Error, quantile.Error)
+					}
+				}
+			}
 		}
 	}
 }
