@@ -34,9 +34,10 @@ var (
 )
 
 type mapperConfigDefaults struct {
-	TimerType timerType `yaml:"timer_type"`
-	Buckets   []float64 `yaml:"buckets"`
-	MatchType matchType `yaml:"match_type"`
+	TimerType timerType         `yaml:"timer_type"`
+	Buckets   []float64         `yaml:"buckets"`
+	Quantiles []metricObjective `yaml:"quantiles"`
+	MatchType matchType         `yaml:"match_type"`
 }
 
 type metricMapper struct {
@@ -54,10 +55,22 @@ type metricMapping struct {
 	Labels          prometheus.Labels `yaml:"labels"`
 	TimerType       timerType         `yaml:"timer_type"`
 	Buckets         []float64         `yaml:"buckets"`
+	Quantiles       []metricObjective `yaml:"quantiles"`
 	MatchType       matchType         `yaml:"match_type"`
 	HelpText        string            `yaml:"help"`
 	Action          actionType        `yaml:"action"`
 	MatchMetricType metricType        `yaml:"match_metric_type"`
+}
+
+type metricObjective struct {
+	Quantile float64 `yaml:"quantile"`
+	Error    float64 `yaml:"error"`
+}
+
+var defaultQuantiles = []metricObjective{
+	{Quantile: 0.5, Error: 0.05},
+	{Quantile: 0.9, Error: 0.01},
+	{Quantile: 0.99, Error: 0.001},
 }
 
 func (m *metricMapper) initFromYAMLString(fileContents string) error {
@@ -69,6 +82,10 @@ func (m *metricMapper) initFromYAMLString(fileContents string) error {
 
 	if n.Defaults.Buckets == nil || len(n.Defaults.Buckets) == 0 {
 		n.Defaults.Buckets = prometheus.DefBuckets
+	}
+
+	if n.Defaults.Quantiles == nil || len(n.Defaults.Quantiles) == 0 {
+		n.Defaults.Quantiles = defaultQuantiles
 	}
 
 	if n.Defaults.MatchType == matchTypeDefault {
@@ -128,6 +145,10 @@ func (m *metricMapper) initFromYAMLString(fileContents string) error {
 
 		if currentMapping.Buckets == nil || len(currentMapping.Buckets) == 0 {
 			currentMapping.Buckets = n.Defaults.Buckets
+		}
+
+		if currentMapping.Quantiles == nil || len(currentMapping.Quantiles) == 0 {
+			currentMapping.Quantiles = n.Defaults.Quantiles
 		}
 
 	}

@@ -176,6 +176,15 @@ mappings:
     provider: "$2"
     outcome: "$3"
     job: "${1}_server"
+  quantiles:           # Optionally configure quantiles for your summaries
+    - quantile: 0.99   # https://prometheus.io/docs/practices/histograms/#quantiles
+      error: 0.001
+    - quantile: 0.95
+      error: 0.01
+    - quantile: 0.9
+      error: 0.05
+    - quantile: 0.5
+      error: 0.005
 ```
 
 Another capability when using YAML configuration is the ability to define matches
