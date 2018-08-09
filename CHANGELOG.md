@@ -1,6 +1,7 @@
 ## Unreleased
 
 * [IMPROVEMENT] Allow matching on specific metric types (#136)
+* [IMPROVEMENT] Summary quantiles can be configured (#135)
 * [BUGFIX] Fix panic if an invalid regular expression is supplied (#126)
 
 ## v0.6.0 / 2018-01-17
