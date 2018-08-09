@@ -162,6 +162,32 @@ mappings:
     code: "$1"
 ```
 
+By default, statsd timers are represented as a Prometheus summary with
+quantiles. You may optionally configure the [quantiles and acceptable
+error](https://prometheus.io/docs/practices/histograms/#quantiles):
+
+```yaml
+mappings:
+- match: test.timing.*.*.*
+  timer_type: summary
+  name: "my_timer"
+  labels:
+    provider: "$2"
+    outcome: "$3"
+    job: "${1}_server"
+  quantiles:
+    - quantile: 0.99
+      error: 0.001
+    - quantile: 0.95
+      error: 0.01
+    - quantile: 0.9
+      error: 0.05
+    - quantile: 0.5
+      error: 0.005
+```
+
+The default quantiles are 0.99, 0.9, and 0.5.
+
 In the configuration, one may also set the timer type to "histogram". The
 default is "summary" as in the plain text configuration format.  For example,
 to set the timer type for a single metric:
@@ -176,15 +202,6 @@ mappings:
     provider: "$2"
     outcome: "$3"
     job: "${1}_server"
-  quantiles:           # Optionally configure quantiles for your summaries
-    - quantile: 0.99   # https://prometheus.io/docs/practices/histograms/#quantiles
-      error: 0.001
-    - quantile: 0.95
-      error: 0.01
-    - quantile: 0.9
-      error: 0.05
-    - quantile: 0.5
-      error: 0.005
 ```
 
 Another capability when using YAML configuration is the ability to define matches
@@ -213,7 +230,7 @@ automatically.
 only used when the statsd metric type is a timerand the `timer_type` is set to
 "histogram."
 
-One may also set defaults for the timer type, buckets and match_type. These will be used
+One may also set defaults for the timer type, buckets or quantiles, and match_type. These will be used
 by all mappings that do not define these.
 
 ```yaml
