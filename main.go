@@ -25,6 +25,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
+
+	"github.com/prometheus/statsd_exporter/mapper"
 )
 
 func init() {
@@ -96,7 +98,7 @@ func tcpAddrFromString(addr string) *net.TCPAddr {
 	}
 }
 
-func watchConfig(fileName string, mapper *metricMapper) {
+func watchConfig(fileName string, mapper *mapper.MetricMapper) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Fatal(err)
@@ -111,7 +113,7 @@ func watchConfig(fileName string, mapper *metricMapper) {
 		select {
 		case ev := <-watcher.Event:
 			log.Infof("Config file changed (%s), attempting reload", ev)
-			err = mapper.initFromFile(fileName)
+			err = mapper.InitFromFile(fileName)
 			if err != nil {
 				log.Errorln("Error reloading config:", err)
 				configLoads.WithLabelValues("failure").Inc()
@@ -186,9 +188,9 @@ func main() {
 		go tl.Listen(events)
 	}
 
-	mapper := &metricMapper{}
+	mapper := &mapper.MetricMapper{}
 	if *mappingConfig != "" {
-		err := mapper.initFromFile(*mappingConfig)
+		err := mapper.InitFromFile(*mappingConfig)
 		if err != nil {
 			log.Fatal("Error loading config:", err)
 		}

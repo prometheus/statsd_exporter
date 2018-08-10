@@ -1,4 +1,4 @@
-// Copyright 2018 The Prometheus Authors
+// Copyright 2013 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,32 +11,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package mapper
 
 import "fmt"
 
-type actionType string
+type TimerType string
 
 const (
-	actionTypeMap     actionType = "map"
-	actionTypeDrop    actionType = "drop"
-	actionTypeDefault actionType = ""
+	TimerTypeHistogram TimerType = "histogram"
+	TimerTypeSummary   TimerType = "summary"
+	TimerTypeDefault   TimerType = ""
 )
 
-func (t *actionType) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (t *TimerType) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var v string
-
 	if err := unmarshal(&v); err != nil {
 		return err
 	}
 
-	switch actionType(v) {
-	case actionTypeDrop:
-		*t = actionTypeDrop
-	case actionTypeMap, actionTypeDefault:
-		*t = actionTypeMap
+	switch TimerType(v) {
+	case TimerTypeHistogram:
+		*t = TimerTypeHistogram
+	case TimerTypeSummary, TimerTypeDefault:
+		*t = TimerTypeSummary
 	default:
-		return fmt.Errorf("invalid action type %q", v)
+		return fmt.Errorf("invalid timer type '%s'", v)
 	}
 	return nil
 }

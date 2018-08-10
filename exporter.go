@@ -29,6 +29,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
+
+	"github.com/prometheus/statsd_exporter/mapper"
 )
 
 const (
@@ -117,17 +119,17 @@ func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels, help s
 
 type SummaryContainer struct {
 	Elements map[uint64]prometheus.Summary
-	mapper   *metricMapper
+	mapper   *mapper.MetricMapper
 }
 
-func NewSummaryContainer(mapper *metricMapper) *SummaryContainer {
+func NewSummaryContainer(mapper *mapper.MetricMapper) *SummaryContainer {
 	return &SummaryContainer{
 		Elements: make(map[uint64]prometheus.Summary),
 		mapper:   mapper,
 	}
 }
 
-func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, help string, mapping *metricMapping) (prometheus.Summary, error) {
+func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping) (prometheus.Summary, error) {
 	hash := hashNameAndLabels(metricName, labels)
 	summary, ok := c.Elements[hash]
 	if !ok {
@@ -156,17 +158,17 @@ func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, help
 
 type HistogramContainer struct {
 	Elements map[uint64]prometheus.Histogram
-	mapper   *metricMapper
+	mapper   *mapper.MetricMapper
 }
 
-func NewHistogramContainer(mapper *metricMapper) *HistogramContainer {
+func NewHistogramContainer(mapper *mapper.MetricMapper) *HistogramContainer {
 	return &HistogramContainer{
 		Elements: make(map[uint64]prometheus.Histogram),
 		mapper:   mapper,
 	}
 }
 
-func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, help string, mapping *metricMapping) (prometheus.Histogram, error) {
+func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping) (prometheus.Histogram, error) {
 	hash := hashNameAndLabels(metricName, labels)
 	histogram, ok := c.Elements[hash]
 	if !ok {
@@ -193,7 +195,7 @@ type Event interface {
 	MetricName() string
 	Value() float64
 	Labels() map[string]string
-	MetricType() metricType
+	MetricType() mapper.MetricType
 }
 
 type CounterEvent struct {
@@ -202,10 +204,10 @@ type CounterEvent struct {
 	labels     map[string]string
 }
 
-func (c *CounterEvent) MetricName() string        { return c.metricName }
-func (c *CounterEvent) Value() float64            { return c.value }
-func (c *CounterEvent) Labels() map[string]string { return c.labels }
-func (c *CounterEvent) MetricType() metricType    { return metricTypeCounter }
+func (c *CounterEvent) MetricName() string            { return c.metricName }
+func (c *CounterEvent) Value() float64                { return c.value }
+func (c *CounterEvent) Labels() map[string]string     { return c.labels }
+func (c *CounterEvent) MetricType() mapper.MetricType { return mapper.MetricTypeCounter }
 
 type GaugeEvent struct {
 	metricName string
@@ -214,10 +216,10 @@ type GaugeEvent struct {
 	labels     map[string]string
 }
 
-func (g *GaugeEvent) MetricName() string        { return g.metricName }
-func (g *GaugeEvent) Value() float64            { return g.value }
-func (c *GaugeEvent) Labels() map[string]string { return c.labels }
-func (c *GaugeEvent) MetricType() metricType    { return metricTypeGauge }
+func (g *GaugeEvent) MetricName() string            { return g.metricName }
+func (g *GaugeEvent) Value() float64                { return g.value }
+func (c *GaugeEvent) Labels() map[string]string     { return c.labels }
+func (c *GaugeEvent) MetricType() mapper.MetricType { return mapper.MetricTypeGauge }
 
 type TimerEvent struct {
 	metricName string
@@ -225,10 +227,10 @@ type TimerEvent struct {
 	labels     map[string]string
 }
 
-func (t *TimerEvent) MetricName() string        { return t.metricName }
-func (t *TimerEvent) Value() float64            { return t.value }
-func (c *TimerEvent) Labels() map[string]string { return c.labels }
-func (c *TimerEvent) MetricType() metricType    { return metricTypeTimer }
+func (t *TimerEvent) MetricName() string            { return t.metricName }
+func (t *TimerEvent) Value() float64                { return t.value }
+func (c *TimerEvent) Labels() map[string]string     { return c.labels }
+func (c *TimerEvent) MetricType() mapper.MetricType { return mapper.MetricTypeTimer }
 
 type Events []Event
 
@@ -237,7 +239,7 @@ type Exporter struct {
 	Gauges     *GaugeContainer
 	Summaries  *SummaryContainer
 	Histograms *HistogramContainer
-	mapper     *metricMapper
+	mapper     *mapper.MetricMapper
 }
 
 func escapeMetricName(metricName string) string {
@@ -263,12 +265,12 @@ func (b *Exporter) Listen(e <-chan Events) {
 			metricName := ""
 			prometheusLabels := event.Labels()
 
-			mapping, labels, present := b.mapper.getMapping(event.MetricName(), event.MetricType())
+			mapping, labels, present := b.mapper.GetMapping(event.MetricName(), event.MetricType())
 			if mapping == nil {
-				mapping = &metricMapping{}
+				mapping = &mapper.MetricMapping{}
 			}
 
-			if mapping.Action == actionTypeDrop {
+			if mapping.Action == mapper.ActionTypeDrop {
 				continue
 			}
 
@@ -332,16 +334,16 @@ func (b *Exporter) Listen(e <-chan Events) {
 				}
 
 			case *TimerEvent:
-				t := timerTypeDefault
+				t := mapper.TimerTypeDefault
 				if mapping != nil {
 					t = mapping.TimerType
 				}
-				if t == timerTypeDefault {
+				if t == mapper.TimerTypeDefault {
 					t = b.mapper.Defaults.TimerType
 				}
 
 				switch t {
-				case timerTypeHistogram:
+				case mapper.TimerTypeHistogram:
 					histogram, err := b.Histograms.Get(
 						metricName,
 						prometheusLabels,
@@ -356,7 +358,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 						conflictingEventStats.WithLabelValues("timer").Inc()
 					}
 
-				case timerTypeDefault, timerTypeSummary:
+				case mapper.TimerTypeDefault, mapper.TimerTypeSummary:
 					summary, err := b.Summaries.Get(
 						metricName,
 						prometheusLabels,
@@ -383,7 +385,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 	}
 }
 
-func NewExporter(mapper *metricMapper) *Exporter {
+func NewExporter(mapper *mapper.MetricMapper) *Exporter {
 	return &Exporter{
 		Counters:   NewCounterContainer(),
 		Gauges:     NewGaugeContainer(),

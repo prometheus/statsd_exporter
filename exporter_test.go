@@ -20,6 +20,8 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/prometheus/statsd_exporter/mapper"
 )
 
 // TestNegativeCounter validates when we send a negative
@@ -44,7 +46,7 @@ func TestNegativeCounter(t *testing.T) {
 		},
 	}
 	events <- c
-	ex := NewExporter(&metricMapper{})
+	ex := NewExporter(&mapper.MetricMapper{})
 
 	// Close channel to signify we are done with the listener after a short period.
 	go func() {
@@ -60,7 +62,7 @@ func TestNegativeCounter(t *testing.T) {
 // It sends the same tags first with a valid value, then with an invalid one.
 // The exporter should not panic, but drop the invalid event
 func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
-	ex := NewExporter(&metricMapper{})
+	ex := NewExporter(&mapper.MetricMapper{})
 	for _, l := range []statsDPacketHandler{&StatsDUDPListener{}, &mockStatsDTCPListener{}} {
 		events := make(chan Events, 2)
 
@@ -96,8 +98,8 @@ func TestHistogramUnits(t *testing.T) {
 		},
 	}
 	events <- c
-	ex := NewExporter(&metricMapper{})
-	ex.mapper.Defaults.TimerType = timerTypeHistogram
+	ex := NewExporter(&mapper.MetricMapper{})
+	ex.mapper.Defaults.TimerType = mapper.TimerTypeHistogram
 
 	// Close channel to signify we are done with the listener after a short period.
 	go func() {
