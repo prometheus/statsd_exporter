@@ -44,6 +44,8 @@ type MetricMapper struct {
 	Defaults mapperConfigDefaults `yaml:"defaults"`
 	Mappings []MetricMapping      `yaml:"mappings"`
 	mutex    sync.Mutex
+
+	MappingsCount prometheus.Gauge
 }
 
 type matchMetricType string
@@ -159,7 +161,9 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 	m.Defaults = n.Defaults
 	m.Mappings = n.Mappings
 
-	mappingsCount.Set(float64(len(n.Mappings)))
+	if m.MappingsCount != nil {
+		m.MappingsCount.Set(float64(len(n.Mappings)))
+	}
 
 	return nil
 }

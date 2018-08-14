@@ -91,6 +91,10 @@ var (
 		},
 		[]string{"outcome"},
 	)
+	mappingsCount = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "statsd_exporter_loaded_mappings",
+		Help: "The current number of configured metric mappings.",
+	})
 	conflictingEventStats = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_events_conflict_total",
@@ -112,5 +116,6 @@ func init() {
 	prometheus.MustRegister(tagsReceived)
 	prometheus.MustRegister(tagErrors)
 	prometheus.MustRegister(configLoads)
+	prometheus.MustRegister(mappingsCount)
 	prometheus.MustRegister(conflictingEventStats)
 }

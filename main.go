@@ -188,7 +188,7 @@ func main() {
 		go tl.Listen(events)
 	}
 
-	mapper := &mapper.MetricMapper{}
+	mapper := &mapper.MetricMapper{MappingsCount: mappingsCount}
 	if *mappingConfig != "" {
 		err := mapper.InitFromFile(*mappingConfig)
 		if err != nil {
