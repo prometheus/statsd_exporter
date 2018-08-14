@@ -30,7 +30,7 @@ import (
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
 
-	"github.com/prometheus/statsd_exporter/mapper"
+	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
 
 const (

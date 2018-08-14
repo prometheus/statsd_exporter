@@ -26,7 +26,7 @@ import (
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
 
-	"github.com/prometheus/statsd_exporter/mapper"
+	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
 
 func init() {
