@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package mapper
 
 import (
 	"fmt"
@@ -34,32 +34,34 @@ var (
 )
 
 type mapperConfigDefaults struct {
-	TimerType timerType         `yaml:"timer_type"`
+	TimerType TimerType         `yaml:"timer_type"`
 	Buckets   []float64         `yaml:"buckets"`
 	Quantiles []metricObjective `yaml:"quantiles"`
-	MatchType matchType         `yaml:"match_type"`
+	MatchType MatchType         `yaml:"match_type"`
 }
 
-type metricMapper struct {
+type MetricMapper struct {
 	Defaults mapperConfigDefaults `yaml:"defaults"`
-	Mappings []metricMapping      `yaml:"mappings"`
+	Mappings []MetricMapping      `yaml:"mappings"`
 	mutex    sync.Mutex
+
+	MappingsCount prometheus.Gauge
 }
 
 type matchMetricType string
 
-type metricMapping struct {
+type MetricMapping struct {
 	Match           string `yaml:"match"`
 	Name            string `yaml:"name"`
 	regex           *regexp.Regexp
 	Labels          prometheus.Labels `yaml:"labels"`
-	TimerType       timerType         `yaml:"timer_type"`
+	TimerType       TimerType         `yaml:"timer_type"`
 	Buckets         []float64         `yaml:"buckets"`
 	Quantiles       []metricObjective `yaml:"quantiles"`
-	MatchType       matchType         `yaml:"match_type"`
+	MatchType       MatchType         `yaml:"match_type"`
 	HelpText        string            `yaml:"help"`
-	Action          actionType        `yaml:"action"`
-	MatchMetricType metricType        `yaml:"match_metric_type"`
+	Action          ActionType        `yaml:"action"`
+	MatchMetricType MetricType        `yaml:"match_metric_type"`
 }
 
 type metricObjective struct {
@@ -73,8 +75,8 @@ var defaultQuantiles = []metricObjective{
 	{Quantile: 0.99, Error: 0.001},
 }
 
-func (m *metricMapper) initFromYAMLString(fileContents string) error {
-	var n metricMapper
+func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
+	var n MetricMapper
 
 	if err := yaml.Unmarshal([]byte(fileContents), &n); err != nil {
 		return err
@@ -88,8 +90,8 @@ func (m *metricMapper) initFromYAMLString(fileContents string) error {
 		n.Defaults.Quantiles = defaultQuantiles
 	}
 
-	if n.Defaults.MatchType == matchTypeDefault {
-		n.Defaults.MatchType = matchTypeGlob
+	if n.Defaults.MatchType == MatchTypeDefault {
+		n.Defaults.MatchType = MatchTypeGlob
 	}
 
 	for i := range n.Mappings {
@@ -115,10 +117,10 @@ func (m *metricMapper) initFromYAMLString(fileContents string) error {
 		}
 
 		if currentMapping.Action == "" {
-			currentMapping.Action = actionTypeMap
+			currentMapping.Action = ActionTypeMap
 		}
 
-		if currentMapping.MatchType == matchTypeGlob {
+		if currentMapping.MatchType == MatchTypeGlob {
 			if !metricLineRE.MatchString(currentMapping.Match) {
 				return fmt.Errorf("invalid match: %s", currentMapping.Match)
 			}
@@ -159,20 +161,22 @@ func (m *metricMapper) initFromYAMLString(fileContents string) error {
 	m.Defaults = n.Defaults
 	m.Mappings = n.Mappings
 
-	mappingsCount.Set(float64(len(n.Mappings)))
+	if m.MappingsCount != nil {
+		m.MappingsCount.Set(float64(len(n.Mappings)))
+	}
 
 	return nil
 }
 
-func (m *metricMapper) initFromFile(fileName string) error {
+func (m *MetricMapper) InitFromFile(fileName string) error {
 	mappingStr, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		return err
 	}
-	return m.initFromYAMLString(string(mappingStr))
+	return m.InitFromYAMLString(string(mappingStr))
 }
 
-func (m *metricMapper) getMapping(statsdMetric string, statsdMetricType metricType) (*metricMapping, prometheus.Labels, bool) {
+func (m *MetricMapper) GetMapping(statsdMetric string, statsdMetricType MetricType) (*MetricMapping, prometheus.Labels, bool) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 

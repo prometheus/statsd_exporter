@@ -1,4 +1,4 @@
-// Copyright 2013 The Prometheus Authors
+// Copyright 2018 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,31 +11,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package mapper
 
 import "fmt"
 
-type matchType string
+type MetricType string
 
 const (
-	matchTypeGlob    matchType = "glob"
-	matchTypeRegex   matchType = "regex"
-	matchTypeDefault matchType = ""
+	MetricTypeCounter MetricType = "counter"
+	MetricTypeGauge   MetricType = "gauge"
+	MetricTypeTimer   MetricType = "timer"
 )
 
-func (t *matchType) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (m *MetricType) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var v string
 	if err := unmarshal(&v); err != nil {
 		return err
 	}
 
-	switch matchType(v) {
-	case matchTypeRegex:
-		*t = matchTypeRegex
-	case matchTypeGlob, matchTypeDefault:
-		*t = matchTypeGlob
+	switch MetricType(v) {
+	case MetricTypeCounter:
+		*m = MetricTypeCounter
+	case MetricTypeGauge:
+		*m = MetricTypeGauge
+	case MetricTypeTimer:
+		*m = MetricTypeTimer
 	default:
-		return fmt.Errorf("invalid match type %q", v)
+		return fmt.Errorf("invalid metric type '%s'", v)
 	}
 	return nil
 }

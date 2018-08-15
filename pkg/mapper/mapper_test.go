@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package mapper
 
 import (
 	"testing"
@@ -473,9 +473,9 @@ mappings:
 		},
 	}
 
-	mapper := metricMapper{}
+	mapper := MetricMapper{}
 	for i, scenario := range scenarios {
-		err := mapper.initFromYAMLString(scenario.config)
+		err := mapper.InitFromYAMLString(scenario.config)
 		if err != nil && !scenario.configBad {
 			t.Fatalf("%d. Config load error: %s %s", i, scenario.config, err)
 		}
@@ -483,9 +483,9 @@ mappings:
 			t.Fatalf("%d. Expected bad config, but loaded ok: %s", i, scenario.config)
 		}
 
-		var dummyMetricType metricType = ""
+		var dummyMetricType MetricType = ""
 		for metric, mapping := range scenario.mappings {
-			m, labels, present := mapper.getMapping(metric, dummyMetricType)
+			m, labels, present := mapper.GetMapping(metric, dummyMetricType)
 			if present && mapping.name != "" && m.Name != mapping.name {
 				t.Fatalf("%d.%q: Expected name %v, got %v", i, metric, m.Name, mapping.name)
 			}
@@ -522,7 +522,7 @@ func TestAction(t *testing.T) {
 	scenarios := []struct {
 		config         string
 		configBad      bool
-		expectedAction actionType
+		expectedAction ActionType
 	}{
 		{
 			// no action set
@@ -532,7 +532,7 @@ mappings:
   name: "foo"
 `,
 			configBad:      false,
-			expectedAction: actionTypeMap,
+			expectedAction: ActionTypeMap,
 		},
 		{
 			// map action set
@@ -543,7 +543,7 @@ mappings:
   action: map
 `,
 			configBad:      false,
-			expectedAction: actionTypeMap,
+			expectedAction: ActionTypeMap,
 		},
 		{
 			// drop action set
@@ -554,7 +554,7 @@ mappings:
   action: drop
 `,
 			configBad:      false,
-			expectedAction: actionTypeDrop,
+			expectedAction: ActionTypeDrop,
 		},
 		{
 			// invalid action set
@@ -565,13 +565,13 @@ mappings:
   action: xyz
 `,
 			configBad:      true,
-			expectedAction: actionTypeDrop,
+			expectedAction: ActionTypeDrop,
 		},
 	}
 
 	for i, scenario := range scenarios {
-		mapper := metricMapper{}
-		err := mapper.initFromYAMLString(scenario.config)
+		mapper := MetricMapper{}
+		err := mapper.InitFromYAMLString(scenario.config)
 		if err != nil && !scenario.configBad {
 			t.Fatalf("%d. Config load error: %s %s", i, scenario.config, err)
 		}
