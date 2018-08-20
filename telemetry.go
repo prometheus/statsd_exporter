@@ -81,7 +81,7 @@ var (
 	tagErrors = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_tag_errors_total",
-			Help: "The number of errors parsign DogStatsD tags.",
+			Help: "The number of errors parsing DogStatsD tags.",
 		},
 	)
 	configLoads = prometheus.NewCounterVec(
@@ -100,7 +100,7 @@ var (
 			Name: "statsd_exporter_events_conflict_total",
 			Help: "The total number of StatsD events with conflicting names.",
 		},
-		[]string{"type"},
+		[]string{"type", "event_name"},
 	)
 )
 
