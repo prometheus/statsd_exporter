@@ -43,23 +43,36 @@ without values (`#some_tag`) are not supported.
 
     $ go build
     $ ./statsd_exporter --help
-    Usage of ./statsd_exporter:
-      -statsd.listen-address string
-          The UDP address on which to receive statsd metric lines. DEPRECATED, use statsd.listen-udp instead.
-      -statsd.listen-tcp string
-          The TCP address on which to receive statsd metric lines. "" disables it. (default ":9125")
-      -statsd.listen-udp string
-          The UDP address on which to receive statsd metric lines. "" disables it. (default ":9125")
-      -statsd.mapping-config string
-          Metric mapping configuration file name.
-      -statsd.read-buffer int
-          Size (in bytes) of the operating system's transmit read buffer associated with the UDP connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.
-      -version
-          Print version information.
-      -web.listen-address string
-          The address on which to expose the web interface and generated Prometheus metrics. (default ":9102")
-      -web.telemetry-path string
-          Path under which to expose metrics. (default "/metrics")
+    usage: statsd_exporter [<flags>]
+
+    Flags:
+      -h, --help              Show context-sensitive help (also try --help-long and
+                              --help-man).
+          --web.listen-address=":9102"  
+                              The address on which to expose the web interface and
+                              generated Prometheus metrics.
+          --web.telemetry-path="/metrics"  
+                              Path under which to expose metrics.
+          --statsd.listen-udp=":9125"  
+                              The UDP address on which to receive statsd metric
+                              lines. "" disables it.
+          --statsd.listen-tcp=":9125"  
+                              The TCP address on which to receive statsd metric
+                              lines. "" disables it.
+          --statsd.mapping-config=STATSD.MAPPING-CONFIG  
+                              Metric mapping configuration file name.
+          --statsd.read-buffer=STATSD.READ-BUFFER  
+                              Size (in bytes) of the operating system's transmit
+                              read buffer associated with the UDP connection. Please
+                              make sure the kernel parameters net.core.rmem_max is
+                              set to a value greater than the value specified.
+          --log.level="info"  Only log messages with the given severity or above.
+                              Valid levels: [debug, info, warn, error, fatal]
+          --log.format="logger:stderr"  
+                              Set the log target and format. Example:
+                              "logger:syslog?appname=bob&local=7" or
+                              "logger:stdout?json=true"
+          --version           Show application version.
 
 ## Tests
 
