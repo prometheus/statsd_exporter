@@ -310,7 +310,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 					eventStats.WithLabelValues("counter").Inc()
 				} else {
 					log.Debugf(regErrF, metricName, err)
-					conflictingEventStats.WithLabelValues("counter").Inc()
+					conflictingEventStats.WithLabelValues("counter", metricName).Inc()
 				}
 
 			case *GaugeEvent:
@@ -330,7 +330,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 					eventStats.WithLabelValues("gauge").Inc()
 				} else {
 					log.Debugf(regErrF, metricName, err)
-					conflictingEventStats.WithLabelValues("gauge").Inc()
+					conflictingEventStats.WithLabelValues("gauge", metricName).Inc()
 				}
 
 			case *TimerEvent:
@@ -355,7 +355,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 						eventStats.WithLabelValues("timer").Inc()
 					} else {
 						log.Debugf(regErrF, metricName, err)
-						conflictingEventStats.WithLabelValues("timer").Inc()
+						conflictingEventStats.WithLabelValues("timer", metricName).Inc()
 					}
 
 				case mapper.TimerTypeDefault, mapper.TimerTypeSummary:
@@ -370,7 +370,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 						eventStats.WithLabelValues("timer").Inc()
 					} else {
 						log.Debugf(regErrF, metricName, err)
-						conflictingEventStats.WithLabelValues("timer").Inc()
+						conflictingEventStats.WithLabelValues("timer", metricName).Inc()
 					}
 
 				default:
