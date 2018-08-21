@@ -14,17 +14,15 @@
 package main
 
 import (
-	"flag"
-	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"strconv"
 
 	"github.com/howeyc/fsnotify"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
+	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
@@ -33,29 +31,18 @@ func init() {
 	prometheus.MustRegister(version.NewCollector("statsd_exporter"))
 }
 
-var (
-	listenAddress       = flag.String("web.listen-address", ":9102", "The address on which to expose the web interface and generated Prometheus metrics.")
-	metricsEndpoint     = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
-	statsdListenAddress = flag.String("statsd.listen-address", "", "The UDP address on which to receive statsd metric lines. DEPRECATED, use statsd.listen-udp instead.")
-	statsdListenUDP     = flag.String("statsd.listen-udp", ":9125", "The UDP address on which to receive statsd metric lines. \"\" disables it.")
-	statsdListenTCP     = flag.String("statsd.listen-tcp", ":9125", "The TCP address on which to receive statsd metric lines. \"\" disables it.")
-	mappingConfig       = flag.String("statsd.mapping-config", "", "Metric mapping configuration file name.")
-	readBuffer          = flag.Int("statsd.read-buffer", 0, "Size (in bytes) of the operating system's transmit read buffer associated with the UDP connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.")
-	showVersion         = flag.Bool("version", false, "Print version information.")
-)
-
-func serveHTTP() {
-	http.Handle(*metricsEndpoint, prometheus.Handler())
+func serveHTTP(listenAddress, metricsEndpoint string) {
+	http.Handle(metricsEndpoint, prometheus.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
 			<head><title>StatsD Exporter</title></head>
 			<body>
 			<h1>StatsD Exporter</h1>
-			<p><a href="` + *metricsEndpoint + `">Metrics</a></p>
+			<p><a href="` + metricsEndpoint + `">Metrics</a></p>
 			</body>
 			</html>`))
 	})
-	log.Fatal(http.ListenAndServe(*listenAddress, nil))
+	log.Fatal(http.ListenAndServe(listenAddress, nil))
 }
 
 func ipPortFromString(addr string) (*net.IPAddr, int) {
@@ -132,17 +119,19 @@ func watchConfig(fileName string, mapper *mapper.MetricMapper) {
 }
 
 func main() {
-	flag.Parse()
+	var (
+		listenAddress   = kingpin.Flag("web.listen-address", "The address on which to expose the web interface and generated Prometheus metrics.").Default(":9102").String()
+		metricsEndpoint = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
+		statsdListenUDP = kingpin.Flag("statsd.listen-udp", "The UDP address on which to receive statsd metric lines. \"\" disables it.").Default(":9125").String()
+		statsdListenTCP = kingpin.Flag("statsd.listen-tcp", "The TCP address on which to receive statsd metric lines. \"\" disables it.").Default(":9125").String()
+		mappingConfig   = kingpin.Flag("statsd.mapping-config", "Metric mapping configuration file name.").String()
+		readBuffer      = kingpin.Flag("statsd.read-buffer", "Size (in bytes) of the operating system's transmit read buffer associated with the UDP connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.").Int()
+	)
 
-	if *showVersion {
-		fmt.Fprintln(os.Stdout, version.Print("statsd_exporter"))
-		os.Exit(0)
-	}
-
-	if *statsdListenAddress != "" {
-		log.Warnln("Warning: statsd.listen-address is DEPRECATED, please use statsd.listen-udp instead.")
-		*statsdListenUDP = *statsdListenAddress
-	}
+	log.AddFlags(kingpin.CommandLine)
+	kingpin.Version(version.Print("statsd_exporter"))
+	kingpin.HelpFlag.Short('h')
+	kingpin.Parse()
 
 	if *statsdListenUDP == "" && *statsdListenTCP == "" {
 		log.Fatalln("At least one of UDP/TCP listeners must be specified.")
@@ -153,7 +142,7 @@ func main() {
 	log.Infof("Accepting StatsD Traffic: UDP %v, TCP %v", *statsdListenUDP, *statsdListenTCP)
 	log.Infoln("Accepting Prometheus Requests on", *listenAddress)
 
-	go serveHTTP()
+	go serveHTTP(*listenAddress, *metricsEndpoint)
 
 	events := make(chan Events, 1024)
 	defer close(events)
