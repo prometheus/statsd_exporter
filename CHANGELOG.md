@@ -1,4 +1,4 @@
-## Unreleased
+## 0.7.0 / 2018-08-22
 
 This is a breaking release, but the migration is easy: command line flags now
 require two dashes (`--help` instead of `-help`). The previous flag library
