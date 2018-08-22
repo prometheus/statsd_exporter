@@ -8,7 +8,7 @@ before upgrading.
 The deprecated `--statsd.listen-address` flag has been removed, use
 `--statsd.listen-udp` instead.
 
-* [CHANGE] Switch to Kingpin for flags, fixes setting log level [#141](https://github.com/prometheus/statsd_exporter/pull/141)
+* [CHANGE] Switch to Kingpin for flags, fixes setting log level ([#141](https://github.com/prometheus/statsd_exporter/pull/141))
 * [IMPROVEMENT] Allow matching on specific metric types ([#136](https://github.com/prometheus/statsd_exporter/pulls/136))
 * [IMPROVEMENT] Summary quantiles can be configured ([#135](https://github.com/prometheus/statsd_exporter/pulls/135))
 * [BUGFIX] Fix panic if an invalid regular expression is supplied ([#126](https://github.com/prometheus/statsd_exporter/pulls/126))
