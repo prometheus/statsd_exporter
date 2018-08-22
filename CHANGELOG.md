@@ -9,14 +9,14 @@ The deprecated `--statsd.listen-address` flag has been removed, use
 `--statsd.listen-udp` instead.
 
 * [CHANGE] Switch to Kingpin for flags, fixes setting log level ([#141](https://github.com/prometheus/statsd_exporter/pull/141))
-* [IMPROVEMENT] Allow matching on specific metric types ([#136](https://github.com/prometheus/statsd_exporter/pulls/136))
-* [IMPROVEMENT] Summary quantiles can be configured ([#135](https://github.com/prometheus/statsd_exporter/pulls/135))
+* [ENHANCEMENT] Allow matching on specific metric types ([#136](https://github.com/prometheus/statsd_exporter/pulls/136))
+* [ENHANCEMENT] Summary quantiles can be configured ([#135](https://github.com/prometheus/statsd_exporter/pulls/135))
 * [BUGFIX] Fix panic if an invalid regular expression is supplied ([#126](https://github.com/prometheus/statsd_exporter/pulls/126))
 
 ## v0.6.0 / 2018-01-17
 
-* [IMPROVEMENT] Add a drop action ([#115](https://github.com/prometheus/statsd_exporter/pulls/115))
-* [IMPROVEMENT] Allow templating metric names ([#117](https://github.com/prometheus/statsd_exporter/pulls/117))
+* [ENHANCEMENT] Add a drop action ([#115](https://github.com/prometheus/statsd_exporter/pulls/115))
+* [ENHANCEMENT] Allow templating metric names ([#117](https://github.com/prometheus/statsd_exporter/pulls/117))
 
 ## v0.5.0 / 2017-11-16
 
@@ -73,18 +73,18 @@ There is a [tool](https://github.com/bakins/statsd-exporter-convert) available t
   to debug log level.
 * [CHANGE] Use YAML for configuration file [#66](https://github.com/prometheus/statsd_exporter/pulls/66). See note above about file format
   conversion.
-* [IMPROVEMENT] Allow help text to be customized [#87](https://github.com/prometheus/statsd_exporter/pulls/87)
-* [IMPROVEMENT] Add support for regex mappers [#85](https://github.com/prometheus/statsd_exporter/pulls/85)
-* [IMPROVEMENT] Add TCP listener support [#71](https://github.com/prometheus/statsd_exporter/pulls/71)
-* [IMPROVEMENT] Allow histograms for timer metrics [#66](https://github.com/prometheus/statsd_exporter/pulls/66)
-* [IMPROVEMENT] Added support for sampling factor on timing events [#28](https://github.com/prometheus/statsd_exporter/pulls/28)
+* [ENHANCEMENT] Allow help text to be customized [#87](https://github.com/prometheus/statsd_exporter/pulls/87)
+* [ENHANCEMENT] Add support for regex mappers [#85](https://github.com/prometheus/statsd_exporter/pulls/85)
+* [ENHANCEMENT] Add TCP listener support [#71](https://github.com/prometheus/statsd_exporter/pulls/71)
+* [ENHANCEMENT] Allow histograms for timer metrics [#66](https://github.com/prometheus/statsd_exporter/pulls/66)
+* [ENHANCEMENT] Added support for sampling factor on timing events [#28](https://github.com/prometheus/statsd_exporter/pulls/28)
 * [BUGFIX] Conflicting label sets no longer crash the exporter and will be
   ignored. Restart to clear the remembered label set. [#72](https://github.com/prometheus/statsd_exporter/pulls/72)
 
 ## v0.4.0 / 2017-05-12
 
-* [IMPROVEMENT] Improve mapping configuration parser [#61](https://github.com/prometheus/statsd_exporter/pulls/61)
-* [IMPROVEMENT] Add increment/decrement support to Gauges [#65](https://github.com/prometheus/statsd_exporter/pulls/65)
+* [ENHANCEMENT] Improve mapping configuration parser [#61](https://github.com/prometheus/statsd_exporter/pulls/61)
+* [ENHANCEMENT] Add increment/decrement support to Gauges [#65](https://github.com/prometheus/statsd_exporter/pulls/65)
 * [BUGFIX] Tolerate more forms of broken lines from StatsD [#48](https://github.com/prometheus/statsd_exporter/pulls/48)
 * [BUGFIX] Skip metrics with invalid utf8 [#50](https://github.com/prometheus/statsd_exporter/pulls/50)
 * [BUGFIX] ListenAndServe now fails on exit [#58](https://github.com/prometheus/statsd_exporter/pulls/58)
@@ -92,8 +92,8 @@ There is a [tool](https://github.com/bakins/statsd-exporter-convert) available t
 ## 0.3.0 / 2016-05-05
 
 * [CHANGE] Drop `_count` suffix for `loaded_mappings` metric ([#41](https://github.com/prometheus/statsd_exporter/pulls/41))
-* [IMPROVEMENT] Use common's log and version packages, and add -version flag ([#44](https://github.com/prometheus/statsd_exporter/pulls/44))
-* [IMPROVEMENT] Add flag to disable metric type suffixes ([#37](https://github.com/prometheus/statsd_exporter/pulls/37))
+* [ENHANCEMENT] Use common's log and version packages, and add -version flag ([#44](https://github.com/prometheus/statsd_exporter/pulls/44))
+* [ENHANCEMENT] Add flag to disable metric type suffixes ([#37](https://github.com/prometheus/statsd_exporter/pulls/37))
 * [BUGFIX] Increase receivable UDP datagram size to 65535 bytes ([#36](https://github.com/prometheus/statsd_exporter/pulls/36))
 * [BUGFIX] Warn, not panic when negative number counter is submitted ([#33](https://github.com/prometheus/statsd_exporter/pulls/33))
 
@@ -102,9 +102,9 @@ There is a [tool](https://github.com/bakins/statsd-exporter-convert) available t
 NOTE: This release renames `statsd_bridge` to `statsd_exporter`
 
 * [CHANGE] New Dockerfile using alpine-golang-make-onbuild base image ([#17](https://github.com/prometheus/statsd_exporter/pulls/17))
-* [IMPROVEMENT] Allow configuration of UDP read buffer ([#22](https://github.com/prometheus/statsd_exporter/pulls/22))
+* [ENHANCEMENT] Allow configuration of UDP read buffer ([#22](https://github.com/prometheus/statsd_exporter/pulls/22))
 * [BUGFIX] allow metrics with dashes when mapping ([#24](https://github.com/prometheus/statsd_exporter/pulls/24))
-* [IMPROVEMENT] add root endpoint with redirect ([#25](https://github.com/prometheus/statsd_exporter/pulls/25))
+* [ENHANCEMENT] add root endpoint with redirect ([#25](https://github.com/prometheus/statsd_exporter/pulls/25))
 * [CHANGE] rename bridge to exporter ([#26](https://github.com/prometheus/statsd_exporter/pulls/26))
 
 
