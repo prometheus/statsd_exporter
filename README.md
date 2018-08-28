@@ -41,6 +41,12 @@ without values (`#some_tag`) are not supported.
 
 ## Building and Running
 
+NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/kingpin) flags library. With this change, flag behaviour is POSIX-ish:
+
+* long flags start with two dashes (`--version`)
+* multiple short flags can be combined (but there currently is only one)
+* flag processing stops at the first `--`
+
     $ go build
     $ ./statsd_exporter --help
     usage: statsd_exporter [<flags>]
