@@ -442,7 +442,7 @@ func parseDogStatsDTagsToLabels(component string) map[string]string {
 	return labels
 }
 
-func lineToEvents(line string) Events {
+func lineToEvents(line string, addr string) Events {
 	events := Events{}
 	if line == "" {
 		return events
@@ -488,6 +488,9 @@ samples:
 
 		multiplyEvents := 1
 		labels := map[string]string{}
+		if addr != "" {
+			labels["ip"] = addr
+		}
 		if len(components) >= 3 {
 			for _, component := range components[2:] {
 				if len(component) == 0 {
@@ -549,21 +552,25 @@ type StatsDUDPListener struct {
 func (l *StatsDUDPListener) Listen(e chan<- Events) {
 	buf := make([]byte, 65535)
 	for {
-		n, _, err := l.conn.ReadFromUDP(buf)
+		n, addr, err := l.conn.ReadFromUDP(buf)
 		if err != nil {
 			log.Fatal(err)
 		}
-		l.handlePacket(buf[0:n], e)
+		l.handlePacketAddr(buf[0:n], addr.IP.String(), e)
 	}
 }
 
 func (l *StatsDUDPListener) handlePacket(packet []byte, e chan<- Events) {
+	l.handlePacketAddr(packet, "", e)
+}
+
+func (l *StatsDUDPListener) handlePacketAddr(packet []byte, addr string, e chan<- Events) {
 	udpPackets.Inc()
 	lines := strings.Split(string(packet), "\n")
 	events := Events{}
 	for _, line := range lines {
 		linesReceived.Inc()
-		events = append(events, lineToEvents(line)...)
+		events = append(events, lineToEvents(line, addr)...)
 	}
 	e <- events
 }
@@ -603,6 +610,6 @@ func (l *StatsDTCPListener) handleConn(c *net.TCPConn, e chan<- Events) {
 			break
 		}
 		linesReceived.Inc()
-		e <- lineToEvents(string(line))
+		e <- lineToEvents(string(line), c.RemoteAddr().String())
 	}
 }
