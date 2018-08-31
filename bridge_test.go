@@ -288,6 +288,7 @@ func TestHandlePacket(t *testing.T) {
 			}
 
 			for j, expected := range scenario.out {
+				delete(actual[j].Labels(), "ip")
 				if !reflect.DeepEqual(&expected, &actual[j]) {
 					t.Fatalf("%d.%d.%d. Expected %#v, got %#v in scenario '%s'", k, i, j, expected, actual[j], scenario.name)
 				}
