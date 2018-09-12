@@ -368,30 +368,6 @@ mappings:
     `,
 			configBad: true,
 		},
-		//Config with multiple captures for fsm match type
-		{
-			config: `---
-	mappings:
-	- match: "foo.*.*"
-		match_type: fsm
-		name: "foo"
-		labels:
-		  bar: "$1-$2"
-			`,
-			configBad: true,
-		},
-		//Config with non-numeric capture index for fsm match type
-		{
-			config: `---
-		mappings:
-		- match: "foo.*.*"
-			match_type: fsm
-			name: "foo"
-			labels:
-				bar: "$a"
-				`,
-			configBad: true,
-		},
 		//Config with non-matched metric.
 		{
 			config: `---
@@ -542,7 +518,7 @@ mappings:
 	}
 }
 
-func TestFSMMatcher(t *testing.T) {
+/*func TestRPS(t *testing.T) {
 	scenarios := []struct {
 		config    string
 		configBad bool
@@ -553,12 +529,10 @@ func TestFSMMatcher(t *testing.T) {
 		// Config with several mapping definitions.
 		{
 			config: `---
-defaults:
-  match_type: "fsm"
 mappings:
 - match: test.dispatcher.*.*.*
   name: "dispatch_events"
-  labels: 
+  labels:
     processor: "$1"
     action: "$2"
     result: "$3"
@@ -573,23 +547,23 @@ mappings:
 - match: request_time.*.*.*.*.*.*.*.*.*.*.*.*
   name: "tyk_http_request"
   labels:
-    method_and_path: "$1"
-    response_code: "$2"
-    apikey: "$3"
-    apiversion: "$4"
-    apiname: "$5"
-    apiid: "$6"
-    ipv4_t1: "$7"
-    ipv4_t2: "$8"
-    ipv4_t3: "$9"
-    ipv4_t4: "$10"
-    orgid: "$11"
-    oauthid: "$12"
+    method_and_path: "${1}"
+    response_code: "${2}"
+    apikey: "${3}"
+    apiversion: "${4}"
+    apiname: "${5}"
+    apiid: "${6}"
+    ipv4_t1: "${7}"
+    ipv4_t2: "${8}"
+    ipv4_t3: "${9}"
+    ipv4_t4: "${10}"
+    orgid: "${11}"
+    oauthid: "${12}"
 - match: "*.*"
   name: "catchall"
   labels:
     first: "$1"
-    second: "second_label_$2"
+    second: "$2"
     third: "$3"
     job: "-"
   `,
@@ -633,100 +607,7 @@ mappings:
 					name: "catchall",
 					labels: map[string]string{
 						"first":  "foo",
-						"second": "second_label_bar",
-						"third":  "",
-						"job":    "-",
-					},
-				},
-				"foo.bar.baz": {},
-			},
-		},
-		// local match_type
-		{
-			config: `---
-mappings:
-- match: test.dispatcher.*.*.*
-  name: "dispatch_events"
-  labels:
-    match_type: "fsm"
-    processor: "$1"
-    action: "$2"
-    result: "$3"
-    job: "test_dispatcher"
-- match: test.my-dispatch-host01.name.dispatcher.*.*.*
-  name: "host_dispatch_events"
-  labels:
-    match_type: "fsm"
-    processor: "$1"
-    action: "$2"
-    result: "$3"
-    job: "test_dispatcher"
-- match: request_time.*.*.*.*.*.*.*.*.*.*.*.*
-  name: "tyk_http_request"
-  labels:
-    match_type: "fsm"
-    method_and_path: "$1"
-    response_code: "$2"
-    apikey: "$3"
-    apiversion: "$4"
-    apiname: "$5"
-    apiid: "$6"
-    ipv4_t1: "$7"
-    ipv4_t2: "$8"
-    ipv4_t3: "$9"
-    ipv4_t4: "$10"
-    orgid: "$11"
-    oauthid: "$12"
-- match: "*.*"
-  name: "catchall"
-  labels:
-    match_type: "fsm"
-    first: "$1"
-    second: "second_label_$2"
-    third: "$3"
-    job: "-"
-  `,
-			mappings: mappings{
-				"test.dispatcher.FooProcessor.send.succeeded": {
-					name: "dispatch_events",
-					labels: map[string]string{
-						"processor": "FooProcessor",
-						"action":    "send",
-						"result":    "succeeded",
-						"job":       "test_dispatcher",
-					},
-				},
-				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {
-					name: "host_dispatch_events",
-					labels: map[string]string{
-						"processor": "FooProcessor",
-						"action":    "send",
-						"result":    "succeeded",
-						"job":       "test_dispatcher",
-					},
-				},
-				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {
-					name: "tyk_http_request",
-					labels: map[string]string{
-						"method_and_path": "get/threads/1/posts",
-						"response_code":   "200",
-						"apikey":          "00000000",
-						"apiversion":      "nonversioned",
-						"apiname":         "discussions",
-						"apiid":           "a11bbcdf0ac64ec243658dc64b7100fb",
-						"ipv4_t1":         "172",
-						"ipv4_t2":         "20",
-						"ipv4_t3":         "0",
-						"ipv4_t4":         "1",
-						"orgid":           "12ba97b7eaa1a50001000001",
-						"oauthid":         "",
-					},
-				},
-				"foo.bar": {
-					name: "catchall",
-					labels: map[string]string{
-						"first":  "foo",
-						"second": "second_label_bar",
+						"second": "bar",
 						"third":  "",
 						"job":    "-",
 					},
@@ -747,139 +628,29 @@ mappings:
 		}
 
 		var dummyMetricType MetricType = ""
-		for metric, mapping := range scenario.mappings {
-			m, labels, present := mapper.GetMapping(metric, dummyMetricType)
-			if present && mapping.name != "" && m.Name != mapping.name {
-				t.Fatalf("%d.%q: Expected name %v, got %v", i, metric, m.Name, mapping.name)
-			}
-			if mapping.notPresent && present {
-				t.Fatalf("%d.%q: Expected metric to not be present", i, metric)
-			}
-			if len(labels) != len(mapping.labels) {
-				t.Fatalf("%d.%q: Expected %d labels, got %d", i, metric, len(mapping.labels), len(labels))
-			}
-			for label, value := range labels {
-				if mapping.labels[label] != value {
-					t.Fatalf("%d.%q: Expected labels %v, got %v", i, metric, mapping, labels)
+		start := int32(time.Now().Unix())
+		for j := 1; j < 100000; j++ {
+			for metric, mapping := range scenario.mappings {
+				m, labels, present := mapper.GetMapping(metric, dummyMetricType)
+				if present && mapping.name != "" && m.Name != mapping.name {
+					t.Fatalf("%d.%q: Expected name %v, got %v", i, metric, m.Name, mapping.name)
+				}
+				if mapping.notPresent && present {
+					t.Fatalf("%d.%q: Expected metric to not be present", i, metric)
+				}
+				if len(labels) != len(mapping.labels) {
+					t.Fatalf("%d.%q: Expected %d labels, got %d", i, metric, len(mapping.labels), len(labels))
+				}
+				for label, value := range labels {
+					if mapping.labels[label] != value {
+						t.Fatalf("%d.%q: Expected labels %v, got %v", i, metric, mapping, labels)
+					}
 				}
 			}
-
 		}
+		fmt.Println("finished in", int32(time.Now().Unix())-start)
 	}
-}
-
-func TestFSMMatcherFallbackRegex(t *testing.T) {
-	scenarios := []struct {
-		config    string
-		configBad bool
-		mappings  mappings
-	}{
-		// Config with simple matcher as default mathcer and fallback_regex to false.
-		{
-			config: `---
-defaults:
-  match_type: "fsm"
-mappings:
-- match: client.*.request.duration
-  name: "request_size"
-  labels: 
-    client: "$1"
-- match: client.*.*.size
-  name: "request_response_size"
-  labels: 
-    client: "$1"
-    direction: "$2"
-  `,
-			mappings: mappings{
-				"client.a.request.duration": {
-					name: "request_size",
-					labels: map[string]string{
-						"client": "a",
-					},
-				},
-				"client.a.request.size": {},
-				"client.a.response.size": {
-					name: "request_response_size",
-					labels: map[string]string{
-						"client":    "a",
-						"direction": "response",
-					},
-				},
-			},
-		},
-		// Config with simple matcher as default mathcer and fallback_regex to true.
-		{
-			config: `---
-defaults:
-  match_type: "fsm"
-  fsm_fallback: "glob"
-mappings:
-- match: client.*.request.duration
-  name: "request_size"
-  labels: 
-    client: "$1"
-- match: client.*.*.size
-  name: "request_response_size"
-  labels: 
-    client: "$1"
-    direction: "$2"
-  `,
-			mappings: mappings{
-				"client.a.request.duration": {
-					name: "request_size",
-					labels: map[string]string{
-						"client": "a",
-					},
-				},
-				"client.a.request.size": {
-					name: "request_response_size",
-					labels: map[string]string{
-						"client":    "a",
-						"direction": "request",
-					},
-				},
-				"client.a.response.size": {
-					name: "request_response_size",
-					labels: map[string]string{
-						"client":    "a",
-						"direction": "response",
-					},
-				},
-			},
-		},
-	}
-
-	mapper := MetricMapper{}
-	for i, scenario := range scenarios {
-		err := mapper.InitFromYAMLString(scenario.config)
-		if err != nil && !scenario.configBad {
-			t.Fatalf("%d. Config load error: %s %s", i, scenario.config, err)
-		}
-		if err == nil && scenario.configBad {
-			t.Fatalf("%d. Expected bad config, but loaded ok: %s", i, scenario.config)
-		}
-
-		var dummyMetricType MetricType = ""
-		for metric, mapping := range scenario.mappings {
-			m, labels, present := mapper.GetMapping(metric, dummyMetricType)
-			if present && mapping.name != "" && m.Name != mapping.name {
-				t.Fatalf("%d.%q: Expected name %v, got %v", i, metric, m.Name, mapping.name)
-			}
-			if mapping.notPresent && present {
-				t.Fatalf("%d.%q: Expected metric to not be present", i, metric)
-			}
-			if len(labels) != len(mapping.labels) {
-				t.Fatalf("%d.%q: Expected %d labels, got %d", i, metric, len(mapping.labels), len(labels))
-			}
-			for label, value := range labels {
-				if mapping.labels[label] != value {
-					t.Fatalf("%d.%q: Expected labels %v, got %v", i, metric, mapping, labels)
-				}
-			}
-
-		}
-	}
-}
+}*/
 
 func TestAction(t *testing.T) {
 	scenarios := []struct {

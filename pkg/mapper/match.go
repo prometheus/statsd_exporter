@@ -20,7 +20,6 @@ type MatchType string
 const (
 	MatchTypeGlob    MatchType = "glob"
 	MatchTypeRegex   MatchType = "regex"
-	MatchTypeFSM     MatchType = "fsm"
 	MatchTypeDefault MatchType = ""
 )
 
@@ -33,8 +32,6 @@ func (t *MatchType) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	switch MatchType(v) {
 	case MatchTypeRegex:
 		*t = MatchTypeRegex
-	case MatchTypeFSM:
-		*t = MatchTypeFSM
 	case MatchTypeGlob, MatchTypeDefault:
 		*t = MatchTypeGlob
 	default:
