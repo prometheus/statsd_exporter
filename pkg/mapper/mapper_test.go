@@ -471,6 +471,31 @@ mappings:
 				},
 			},
 		},
+		//Config with backtracking
+		{
+			config: `mappings:
+- match: foo.*.ccc
+  name: "fooc"
+  labels: {}
+- match: foo.bbb.aaa
+  name: "foob"
+  labels: {}
+  `,
+			mappings: mappings{
+				"foo.bbb.ccc": {
+					name:   "fooc",
+					labels: map[string]string{},
+				},
+				"foo.ddd.ccc": {
+					name:   "fooc",
+					labels: map[string]string{},
+				},
+				"foo.bbb.aaa": {
+					name:   "foob",
+					labels: map[string]string{},
+				},
+			},
+		},
 	}
 
 	mapper := MetricMapper{}
