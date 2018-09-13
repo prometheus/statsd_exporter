@@ -48,9 +48,7 @@ type mapperConfigDefaults struct {
 }
 
 type mappingState struct {
-	transitionsMap   map[string]*mappingState
-	transitionsArray []*mappingState
-	// use to compare length upfront to avoid unnecessary backtrack
+	transitions        map[string]*mappingState
 	minRemainingLength int
 	maxRemainingLength int
 	// result is nil unless there's a metric ends with this state
@@ -76,9 +74,13 @@ type templateFormatter struct {
 	fmtString      string
 }
 
-type fsmBacktrackRecord struct {
-	fieldIndex int
-	state      *mappingState
+type fsmBacktrackStackCursor struct {
+	fieldIndex     int
+	captureIdx     int
+	currentCapture string
+	state          *mappingState
+	prev           *fsmBacktrackStackCursor
+	next           *fsmBacktrackStackCursor
 }
 
 type matchMetricType string
@@ -188,11 +190,11 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 	maxPossibleTransitions := len(n.Mappings)
 
 	n.FSM = &mappingState{}
-	n.FSM.transitionsMap = make(map[string]*mappingState, 3)
+	n.FSM.transitions = make(map[string]*mappingState, 3)
 	for _, field := range []MetricType{MetricTypeCounter, MetricTypeTimer, MetricTypeGauge, ""} {
 		state := &mappingState{}
-		(*state).transitionsMap = make(map[string]*mappingState, maxPossibleTransitions)
-		n.FSM.transitionsMap[string(field)] = state
+		(*state).transitions = make(map[string]*mappingState, maxPossibleTransitions)
+		n.FSM.transitions[string(field)] = state
 	}
 
 	for i := range n.Mappings {
@@ -234,25 +236,25 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 			roots := []*mappingState{}
 			if currentMapping.MatchMetricType == "" {
 				for _, metricType := range []MetricType{MetricTypeCounter, MetricTypeTimer, MetricTypeGauge, ""} {
-					roots = append(roots, n.FSM.transitionsMap[string(metricType)])
+					roots = append(roots, n.FSM.transitions[string(metricType)])
 				}
 			} else {
-				roots = append(roots, n.FSM.transitionsMap[string(currentMapping.MatchMetricType)])
+				roots = append(roots, n.FSM.transitions[string(currentMapping.MatchMetricType)])
 			}
 			var captureCount int
 			for _, root := range roots {
 				captureCount = 0
 				for i, field := range matchFields {
-					state, prs := root.transitionsMap[field]
+					state, prs := root.transitions[field]
 					if !prs {
 						state = &mappingState{}
-						(*state).transitionsMap = make(map[string]*mappingState, maxPossibleTransitions)
+						(*state).transitions = make(map[string]*mappingState, maxPossibleTransitions)
 						(*state).maxRemainingLength = len(matchFields) - i - 1
 						(*state).minRemainingLength = len(matchFields) - i - 1
-						root.transitionsMap[field] = state
+						root.transitions[field] = state
 						// if this is last field, set result to currentMapping instance
 						if i == len(matchFields)-1 {
-							root.transitionsMap[field].result = currentMapping
+							root.transitions[field].result = currentMapping
 						}
 					} else {
 						(*state).maxRemainingLength = max(len(matchFields)-i-1, (*state).maxRemainingLength)
@@ -322,7 +324,7 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 
 	m.Defaults = n.Defaults
 	m.Mappings = n.Mappings
-	if len(n.FSM.transitionsMap) > 0 || len(n.FSM.transitionsArray) > 0 {
+	if len(n.FSM.transitions) > 0 {
 		m.FSM = n.FSM
 		m.doRegex = n.doRegex
 		if m.dumpFSMPath != "" {
@@ -335,7 +337,7 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 			backtrackingRules := findBacktrackRules(&n)
 			if len(backtrackingRules) > 0 {
 				for _, rule := range backtrackingRules {
-					log.Infof("backtracking required for match \"%s\", matching performance may be degraded\n", rule)
+					log.Warnf("backtracking required because of match \"%s\", matching performance may be degraded\n", rule)
 				}
 				m.FSMNeedsBacktracking = true
 			}
@@ -366,7 +368,7 @@ func findBacktrackRules(n *MetricMapper) []string {
 		if mapping.MatchType != MatchTypeGlob {
 			continue
 		}
-		l := len(mapping.Match)
+		l := len(strings.Split(mapping.Match, "."))
 		ruleByLength[l] = append(ruleByLength[l], mapping.Match)
 
 		metricRe := strings.Replace(mapping.Match, ".", "\\.", -1)
@@ -375,6 +377,7 @@ func findBacktrackRules(n *MetricMapper) []string {
 		if err != nil {
 			log.Warnf("invalid match %s. cannot compile regex in mapping: %v", mapping.Match, err)
 		}
+		// put into array no matter there's error or not, we will skip later if regex is nil
 		ruleREByLength[l] = append(ruleREByLength[l], regex)
 	}
 
@@ -393,9 +396,8 @@ func findBacktrackRules(n *MetricMapper) []string {
 			}
 			for _, r2 := range rules {
 				if r2 != r1 && len(re1.FindStringSubmatchIndex(r2)) > 0 {
-					fmt.Println("subset", r1, "of", r2)
+					log.Warnf("rule \"%s\" is a super set of rule \"%s\", the later will never be matched\n", r1, r2)
 					hasSubset = true
-					break
 				}
 			}
 			if !hasSubset {
@@ -419,13 +421,13 @@ func dumpFSM(fileName string, root *mappingState) {
 	w.WriteString("node [ label=\"\",style=filled,fillcolor=white,shape=circle ]\n") // remove label of node
 
 	for idx < len(states) {
-		for field, transition := range states[idx].transitionsMap {
+		for field, transition := range states[idx].transitions {
 			states[len(states)] = transition
 			w.WriteString(fmt.Sprintf("%d -> %d  [label = \"%s\"];\n", idx, len(states)-1, field))
 			if idx == 0 {
 				// color for metric types
 				w.WriteString(fmt.Sprintf("%d [color=\"#D6B656\",fillcolor=\"#FFF2CC\"];\n", len(states)-1))
-			} else if transition.transitionsMap == nil || len(transition.transitionsMap) == 0 {
+			} else if transition.transitions == nil || len(transition.transitions) == 0 {
 				// color for end state
 				w.WriteString(fmt.Sprintf("%d [color=\"#82B366\",fillcolor=\"#D5E8D4\"];\n", len(states)-1))
 			}
@@ -450,41 +452,77 @@ func (m *MetricMapper) InitFromFile(fileName string) error {
 func (m *MetricMapper) GetMapping(statsdMetric string, statsdMetricType MetricType) (*MetricMapping, prometheus.Labels, bool) {
 	// glob matching
 	if root := m.FSM; root != nil {
-		root = root.transitionsMap[string(statsdMetricType)]
+		root = root.transitions[string(statsdMetricType)]
 		matchFields := strings.Split(statsdMetric, ".")
 		captures := make(map[int]string, len(matchFields))
 		captureIdx := 0
+		var backtrackCursor *fsmBacktrackStackCursor
+		backtrackCursor = nil
 		filedsCount := len(matchFields)
-		for i, field := range matchFields {
-			if root.transitionsMap == nil {
-				break
-			}
-			state, prs := root.transitionsMap[field]
-			fieldsLeft := filedsCount - i - 1
-			if !prs || fieldsLeft > state.maxRemainingLength || fieldsLeft < state.minRemainingLength {
-				state, prs = root.transitionsMap["*"]
-				if !prs || fieldsLeft > state.maxRemainingLength || fieldsLeft < state.minRemainingLength {
+		i := 0
+		for {
+			for i < filedsCount {
+				if root.transitions == nil {
 					break
 				}
-				captures[captureIdx] = field
-				captureIdx++
-			}
-			if state.result != nil && i == filedsCount-1 {
-				mapping := *state.result
-				state.result.Name = formatTemplate(mapping.NameFormatter, captures)
+				field := matchFields[i]
+				state, prs := root.transitions[field]
+				fieldsLeft := filedsCount - i - 1
+				// also compare length upfront to avoid unnecessary loop or backtrack
+				if !prs || fieldsLeft > state.maxRemainingLength || fieldsLeft < state.minRemainingLength {
+					state, prs = root.transitions["*"]
+					if !prs || fieldsLeft > state.maxRemainingLength || fieldsLeft < state.minRemainingLength {
+						break
+					} else {
+						captures[captureIdx] = field
+						captureIdx++
+					}
+				} else if m.FSMNeedsBacktracking {
+					otherState, prs := root.transitions["*"]
+					if !prs || fieldsLeft > otherState.maxRemainingLength || fieldsLeft < otherState.minRemainingLength {
+					} else {
+						newCursor := fsmBacktrackStackCursor{prev: backtrackCursor, state: otherState,
+							fieldIndex: i + 1,
+							captureIdx: captureIdx + 1, currentCapture: field,
+						}
+						if backtrackCursor != nil {
+							backtrackCursor.next = &newCursor
+						}
+						backtrackCursor = &newCursor
+					}
 
-				labels := prometheus.Labels{}
-				for label := range mapping.Labels {
-					labels[label] = formatTemplate(mapping.LabelsFormatter[label], captures)
 				}
-				return state.result, labels, true
-			}
-			root = state
-		}
+				// found!
+				if state != nil && state.result != nil && i == filedsCount-1 {
+					mapping := *state.result
+					state.result.Name = formatTemplate(mapping.NameFormatter, captures)
 
-		// if there's no regex match type, return immediately
-		if !m.doRegex {
-			return nil, nil, false
+					labels := prometheus.Labels{}
+					for label := range mapping.Labels {
+						labels[label] = formatTemplate(mapping.LabelsFormatter[label], captures)
+					}
+					return state.result, labels, true
+				}
+				root = state
+				i++
+			}
+			// if we are not doing backtracking or  all path has been travesaled
+			if backtrackCursor == nil {
+				// if there's no regex match type, return immediately
+				if !m.doRegex {
+					return nil, nil, false
+				} else {
+					break
+				}
+			} else {
+				// pop one from stack
+				root = backtrackCursor.state
+				i = backtrackCursor.fieldIndex
+				captureIdx = backtrackCursor.captureIdx
+				// put the * capture back
+				captures[captureIdx-1] = backtrackCursor.currentCapture
+				backtrackCursor = backtrackCursor.prev
+			}
 		}
 	}
 

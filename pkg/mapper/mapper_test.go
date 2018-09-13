@@ -139,6 +139,56 @@ mappings:
 				},
 			},
 		},
+		//Config with backtracking
+		{
+			config: `
+mappings:
+- match: test.*.bbb
+  name: "testb"
+  labels:
+    label: "${1}_foo"
+- match: test.justatest.aaa
+  name: "testa"
+  labels:
+    label: "${1}_foo"
+  `,
+			mappings: mappings{
+				"test.good.bbb": {
+					name: "testb",
+					labels: map[string]string{
+						"label": "good_foo",
+					},
+				},
+				"test.justatest.bbb": {
+					name: "testb",
+					labels: map[string]string{
+						"label": "justatest_foo",
+					},
+				},
+			},
+		},
+		//Config with super sets
+		{
+			config: `
+mappings:
+- match: test.*.bbb
+  name: "testb"
+  labels:
+    label: "${1}_foo"
+- match: test.*.*
+  name: "testa"
+  labels:
+    label: "${1}_foo"
+  `,
+			mappings: mappings{
+				"test.good.bbb": {
+					name: "testb",
+					labels: map[string]string{
+						"label": "good_foo",
+					},
+				},
+			},
+		},
 		// Config with bad regex reference.
 		{
 			config: `---
@@ -468,31 +518,6 @@ mappings:
 					labels: map[string]string{
 						"site": "localhost",
 					},
-				},
-			},
-		},
-		//Config with backtracking
-		{
-			config: `mappings:
-- match: foo.*.ccc
-  name: "fooc"
-  labels: {}
-- match: foo.bbb.aaa
-  name: "foob"
-  labels: {}
-  `,
-			mappings: mappings{
-				"foo.bbb.ccc": {
-					name:   "fooc",
-					labels: map[string]string{},
-				},
-				"foo.ddd.ccc": {
-					name:   "fooc",
-					labels: map[string]string{},
-				},
-				"foo.bbb.aaa": {
-					name:   "foob",
-					labels: map[string]string{},
 				},
 			},
 		},
