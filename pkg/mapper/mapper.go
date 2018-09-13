@@ -59,6 +59,7 @@ type MetricMapper struct {
 	Defaults             mapperConfigDefaults `yaml:"defaults"`
 	Mappings             []MetricMapping      `yaml:"mappings"`
 	FSM                  *mappingState
+	hasFSM               bool
 	FSMNeedsBacktracking bool
 	// if doRegex is true,  at least one matching rule is regex type
 	doRegex     bool
@@ -76,7 +77,7 @@ type templateFormatter struct {
 
 type fsmBacktrackStackCursor struct {
 	fieldIndex     int
-	captureIdx     int
+	captureIndex   int
 	currentCapture string
 	state          *mappingState
 	prev           *fsmBacktrackStackCursor
@@ -99,6 +100,7 @@ type MetricMapping struct {
 	HelpText        string            `yaml:"help"`
 	Action          ActionType        `yaml:"action"`
 	MatchMetricType MetricType        `yaml:"match_metric_type"`
+	priority        int
 }
 
 type metricObjective struct {
@@ -225,7 +227,10 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 			currentMapping.Action = ActionTypeMap
 		}
 
+		currentMapping.priority = i
+
 		if currentMapping.MatchType == MatchTypeGlob {
+			n.hasFSM = true
 			if !metricLineRE.MatchString(currentMapping.Match) {
 				return fmt.Errorf("invalid match: %s", currentMapping.Match)
 			}
@@ -235,6 +240,7 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 			// fill into our FSM
 			roots := []*mappingState{}
 			if currentMapping.MatchMetricType == "" {
+				// if metricType not specified, connect the state from all three types
 				for _, metricType := range []MetricType{MetricTypeCounter, MetricTypeTimer, MetricTypeGauge, ""} {
 					roots = append(roots, n.FSM.transitions[string(metricType)])
 				}
@@ -290,20 +296,7 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 				currentMapping.regex = regex
 			}
 			n.doRegex = true
-		} /*else if currentMapping.MatchType == MatchTypeGlob {
-			if !metricLineRE.MatchString(currentMapping.Match) {
-				return fmt.Errorf("invalid match: %s", currentMapping.Match)
-			}
-			// Translate the glob-style metric match line into a proper regex that we
-			// can use to match metrics later on.
-			metricRe := strings.Replace(currentMapping.Match, ".", "\\.", -1)
-			metricRe = strings.Replace(metricRe, "*", "([^.]*)", -1)
-			if regex, err := regexp.Compile("^" + metricRe + "$"); err != nil {
-				return fmt.Errorf("invalid match %s. cannot compile regex in mapping: %v", currentMapping.Match, err)
-			} else {
-				currentMapping.regex = regex
-			}
-		} */
+		}
 
 		if currentMapping.TimerType == "" {
 			currentMapping.TimerType = n.Defaults.TimerType
@@ -324,24 +317,15 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 
 	m.Defaults = n.Defaults
 	m.Mappings = n.Mappings
-	if len(n.FSM.transitions) > 0 {
+	if n.hasFSM {
+		m.hasFSM = n.hasFSM
 		m.FSM = n.FSM
 		m.doRegex = n.doRegex
 		if m.dumpFSMPath != "" {
 			dumpFSM(m.dumpFSMPath, m.FSM)
 		}
 
-		// backtracking only makes sense when we disbled ordering of rules
-		// where transistions are stored in (unordered) map
-		if m.Defaults.GlobDisbleOrdering || true {
-			backtrackingRules := findBacktrackRules(&n)
-			if len(backtrackingRules) > 0 {
-				for _, rule := range backtrackingRules {
-					log.Warnf("backtracking required because of match \"%s\", matching performance may be degraded\n", rule)
-				}
-				m.FSMNeedsBacktracking = true
-			}
-		}
+		m.FSMNeedsBacktracking = needBacktracking(&n)
 	}
 
 	if m.MappingsCount != nil {
@@ -356,12 +340,13 @@ func (m *MetricMapper) SetDumpFSMPath(path string) error {
 	return nil
 }
 
-func findBacktrackRules(n *MetricMapper) []string {
-	var found []string
+func needBacktracking(n *MetricMapper) bool {
+	needBacktrack := false
 	// rule A and B that has same length and
 	// A one has * in rules but is not a superset of B makes it needed for backtracking
 	ruleByLength := make(map[int][]string)
 	ruleREByLength := make(map[int][]*regexp.Regexp)
+	rulesOrderByLength := make(map[int][]int)
 
 	// first sort rules by length
 	for _, mapping := range n.Mappings {
@@ -379,6 +364,7 @@ func findBacktrackRules(n *MetricMapper) []string {
 		}
 		// put into array no matter there's error or not, we will skip later if regex is nil
 		ruleREByLength[l] = append(ruleREByLength[l], regex)
+		rulesOrderByLength[l] = append(rulesOrderByLength[l], mapping.priority)
 	}
 
 	for l, rules := range ruleByLength {
@@ -386,26 +372,49 @@ func findBacktrackRules(n *MetricMapper) []string {
 			continue
 		}
 		rulesRE := ruleREByLength[l]
+		rulesOrder := rulesOrderByLength[l]
 		// for each rule r1 in rules that has * inside, check if r1 is the superset of any rules
 		// if not then r1 is a rule that leads to backtrack
 		for i1, r1 := range rules {
-			hasSubset := false
+			currentRuleNeedBacktrack := true
 			re1 := rulesRE[i1]
 			if re1 == nil || strings.Index(r1, "*") == -1 {
 				continue
 			}
-			for _, r2 := range rules {
-				if r2 != r1 && len(re1.FindStringSubmatchIndex(r2)) > 0 {
-					log.Warnf("rule \"%s\" is a super set of rule \"%s\", the later will never be matched\n", r1, r2)
-					hasSubset = true
+			for i2, r2 := range rules {
+				if i2 != i1 && len(re1.FindStringSubmatchIndex(r2)) > 0 {
+					// log if we care about ordering and the superset occurs before
+					if !n.Defaults.GlobDisbleOrdering && rulesOrder[i1] < rulesOrder[i2] {
+						log.Warnf("match \"%s\" is a super set of match \"%s\" but in a lower order, "+
+							"the first will never be matched\n", r1, r2)
+					}
+					currentRuleNeedBacktrack = false
 				}
 			}
-			if !hasSubset {
-				found = append(found, r1)
+			for i2, re2 := range rulesRE {
+				// especially, if r1 is a subset of other rule, we don't need backtrack
+				// because either we turned on ordering
+				// or we disabled ordering and can't match it with backtrack
+				if i2 != i1 && re2 != nil && len(re2.FindStringSubmatchIndex(r1)) > 0 {
+					currentRuleNeedBacktrack = false
+				}
+			}
+			if currentRuleNeedBacktrack {
+				log.Warnf("backtracking required because of match \"%s\", "+
+					"matching performance may be degraded\n", r1)
+				needBacktrack = true
 			}
 		}
 	}
-	return found
+	if !n.Defaults.GlobDisbleOrdering {
+		// backtracking only makes sense when we disbled ordering of rules
+		// where transistions are stored in (unordered) map
+		// note: don't move this branch to the beginning of this function
+		// since we need logs for superset rules
+		return true
+	} else {
+		return needBacktrack
+	}
 }
 
 func dumpFSM(fileName string, root *mappingState) {
@@ -451,79 +460,112 @@ func (m *MetricMapper) InitFromFile(fileName string) error {
 
 func (m *MetricMapper) GetMapping(statsdMetric string, statsdMetricType MetricType) (*MetricMapping, prometheus.Labels, bool) {
 	// glob matching
-	if root := m.FSM; root != nil {
-		root = root.transitions[string(statsdMetricType)]
+	if m.hasFSM {
 		matchFields := strings.Split(statsdMetric, ".")
+
+		root := m.FSM.transitions[string(statsdMetricType)]
 		captures := make(map[int]string, len(matchFields))
 		captureIdx := 0
 		var backtrackCursor *fsmBacktrackStackCursor
 		backtrackCursor = nil
+		resumeFromBacktrack := false
+		var result *MetricMapping
 		filedsCount := len(matchFields)
 		i := 0
+		var state *mappingState
 		for {
-			for i < filedsCount {
-				if root.transitions == nil {
-					break
-				}
-				field := matchFields[i]
-				state, prs := root.transitions[field]
-				fieldsLeft := filedsCount - i - 1
-				// also compare length upfront to avoid unnecessary loop or backtrack
-				if !prs || fieldsLeft > state.maxRemainingLength || fieldsLeft < state.minRemainingLength {
-					state, prs = root.transitions["*"]
-					if !prs || fieldsLeft > state.maxRemainingLength || fieldsLeft < state.minRemainingLength {
+			for {
+				var prs bool
+				if !resumeFromBacktrack {
+					if len(root.transitions) > 0 {
+						field := matchFields[i]
+						state, prs = root.transitions[field]
+						fieldsLeft := filedsCount - i - 1
+						// also compare length upfront to avoid unnecessary loop or backtrack
+						if !prs || fieldsLeft > state.maxRemainingLength || fieldsLeft < state.minRemainingLength {
+							state, prs = root.transitions["*"]
+							if !prs || fieldsLeft > state.maxRemainingLength || fieldsLeft < state.minRemainingLength {
+								break
+							} else {
+								captures[captureIdx] = field
+								captureIdx++
+							}
+						} else if m.FSMNeedsBacktracking {
+							altState, prs := root.transitions["*"]
+							if !prs || fieldsLeft > altState.maxRemainingLength || fieldsLeft < altState.minRemainingLength {
+							} else {
+								// push to stack
+								newCursor := fsmBacktrackStackCursor{prev: backtrackCursor, state: altState,
+									fieldIndex:   i,
+									captureIndex: captureIdx, currentCapture: field,
+								}
+								if backtrackCursor != nil {
+									backtrackCursor.next = &newCursor
+								}
+								backtrackCursor = &newCursor
+							}
+						}
+					} else { // root.transitions == nil
 						break
-					} else {
-						captures[captureIdx] = field
-						captureIdx++
 					}
-				} else if m.FSMNeedsBacktracking {
-					otherState, prs := root.transitions["*"]
-					if !prs || fieldsLeft > otherState.maxRemainingLength || fieldsLeft < otherState.minRemainingLength {
-					} else {
-						newCursor := fsmBacktrackStackCursor{prev: backtrackCursor, state: otherState,
-							fieldIndex: i + 1,
-							captureIdx: captureIdx + 1, currentCapture: field,
-						}
-						if backtrackCursor != nil {
-							backtrackCursor.next = &newCursor
-						}
-						backtrackCursor = &newCursor
-					}
+				} // backtrack will resume from here
 
-				}
-				// found!
-				if state != nil && state.result != nil && i == filedsCount-1 {
-					mapping := *state.result
-					state.result.Name = formatTemplate(mapping.NameFormatter, captures)
-
-					labels := prometheus.Labels{}
-					for label := range mapping.Labels {
-						labels[label] = formatTemplate(mapping.LabelsFormatter[label], captures)
+				// do we reach a final state?
+				if state.result != nil && i == filedsCount-1 {
+					if m.Defaults.GlobDisbleOrdering {
+						result = state.result
+						// do a double break
+						goto formatLabels
+					} else if result == nil || result.priority > state.result.priority {
+						// if we care about ordering, try to find a result with highest prioity
+						result = state.result
 					}
-					return state.result, labels, true
-				}
-				root = state
-				i++
-			}
-			// if we are not doing backtracking or  all path has been travesaled
-			if backtrackCursor == nil {
-				// if there's no regex match type, return immediately
-				if !m.doRegex {
-					return nil, nil, false
-				} else {
 					break
 				}
+
+				i++
+				if i >= filedsCount {
+					break
+				}
+
+				resumeFromBacktrack = false
+				root = state
+			}
+			if backtrackCursor == nil {
+				// if we are not doing backtracking or all path has been travesaled
+				break
 			} else {
 				// pop one from stack
-				root = backtrackCursor.state
+				state = backtrackCursor.state
+				root = state
 				i = backtrackCursor.fieldIndex
-				captureIdx = backtrackCursor.captureIdx
+				captureIdx = backtrackCursor.captureIndex + 1
 				// put the * capture back
 				captures[captureIdx-1] = backtrackCursor.currentCapture
 				backtrackCursor = backtrackCursor.prev
+				if backtrackCursor != nil {
+					// deref for GC
+					backtrackCursor.next = nil
+				}
+				resumeFromBacktrack = true
 			}
 		}
+
+	formatLabels:
+		// format name and labels
+		if result != nil {
+			result.Name = formatTemplate(result.NameFormatter, captures)
+
+			labels := prometheus.Labels{}
+			for label := range result.Labels {
+				labels[label] = formatTemplate(result.LabelsFormatter[label], captures)
+			}
+			return result, labels, true
+		} else if !m.doRegex {
+			// if there's no regex match type, return immediately
+			return nil, nil, false
+		}
+
 	}
 
 	// regex matching

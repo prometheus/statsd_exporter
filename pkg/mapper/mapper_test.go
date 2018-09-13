@@ -14,7 +14,9 @@
 package mapper
 
 import (
+	"fmt"
 	"testing"
+	"time"
 )
 
 type mappings map[string]struct {
@@ -142,24 +144,26 @@ mappings:
 		//Config with backtracking
 		{
 			config: `
+defaults:
+  glob_disable_ordering: true
 mappings:
-- match: test.*.bbb
+- match: backtrack.*.bbb
   name: "testb"
   labels:
     label: "${1}_foo"
-- match: test.justatest.aaa
+- match: backtrack.justatest.aaa
   name: "testa"
   labels:
     label: "${1}_foo"
   `,
 			mappings: mappings{
-				"test.good.bbb": {
+				"backtrack.good.bbb": {
 					name: "testb",
 					labels: map[string]string{
 						"label": "good_foo",
 					},
 				},
-				"test.justatest.bbb": {
+				"backtrack.justatest.bbb": {
 					name: "testb",
 					labels: map[string]string{
 						"label": "justatest_foo",
@@ -167,22 +171,58 @@ mappings:
 				},
 			},
 		},
-		//Config with super sets
+		//Config with super sets, disables ordering
 		{
 			config: `
+defaults:
+  glob_disable_ordering: true
 mappings:
-- match: test.*.bbb
+- match: noorder.*.*
+  name: "testa"
+  labels:
+    label: "${1}_foo"
+- match: noorder.*.bbb
   name: "testb"
   labels:
     label: "${1}_foo"
-- match: test.*.*
+- match: noorder.ccc.bbb
+  name: "testc"
+  labels:
+    label: "ccc_foo"
+  `,
+			mappings: mappings{
+				"noorder.good.bbb": {
+					name: "testb",
+					labels: map[string]string{
+						"label": "good_foo",
+					},
+				},
+				"noorder.ccc.bbb": {
+					name: "testc",
+					labels: map[string]string{
+						"label": "ccc_foo",
+					},
+				},
+			},
+		},
+		//Config with super sets, keeps ordering
+		{
+			config: `
+defaults:
+  glob_disable_ordering: false
+mappings:
+- match: order.*.*
   name: "testa"
+  labels:
+    label: "${1}_foo"
+- match: order.*.bbb
+  name: "testb"
   labels:
     label: "${1}_foo"
   `,
 			mappings: mappings{
-				"test.good.bbb": {
-					name: "testb",
+				"order.good.bbb": {
+					name: "testa",
 					labels: map[string]string{
 						"label": "good_foo",
 					},
@@ -568,17 +608,17 @@ mappings:
 	}
 }
 
-/*func TestRPS(t *testing.T) {
+func TestRPS(t *testing.T) {
 	scenarios := []struct {
 		config    string
 		configBad bool
 		mappings  mappings
 	}{
-		// Empty config.
-		{},
 		// Config with several mapping definitions.
 		{
 			config: `---
+defaults:
+  glob_disable_ordering: true
 mappings:
 - match: test.dispatcher.*.*.*
   name: "dispatch_events"
@@ -678,29 +718,15 @@ mappings:
 		}
 
 		var dummyMetricType MetricType = ""
-		start := int32(time.Now().Unix())
+		start := time.Now()
 		for j := 1; j < 100000; j++ {
-			for metric, mapping := range scenario.mappings {
-				m, labels, present := mapper.GetMapping(metric, dummyMetricType)
-				if present && mapping.name != "" && m.Name != mapping.name {
-					t.Fatalf("%d.%q: Expected name %v, got %v", i, metric, m.Name, mapping.name)
-				}
-				if mapping.notPresent && present {
-					t.Fatalf("%d.%q: Expected metric to not be present", i, metric)
-				}
-				if len(labels) != len(mapping.labels) {
-					t.Fatalf("%d.%q: Expected %d labels, got %d", i, metric, len(mapping.labels), len(labels))
-				}
-				for label, value := range labels {
-					if mapping.labels[label] != value {
-						t.Fatalf("%d.%q: Expected labels %v, got %v", i, metric, mapping, labels)
-					}
-				}
+			for metric, _ := range scenario.mappings {
+				mapper.GetMapping(metric, dummyMetricType)
 			}
 		}
-		fmt.Println("finished in", int32(time.Now().Unix())-start)
+		fmt.Println("finished 100000 iterations in", time.Now().Sub(start))
 	}
-}*/
+}
 
 func TestAction(t *testing.T) {
 	scenarios := []struct {
