@@ -114,11 +114,11 @@ var defaultQuantiles = []metricObjective{
 	{Quantile: 0.99, Error: 0.001},
 }
 
-func generateFormatter(valueExpr string, captureCount int) (templateFormatter, error) {
+func generateFormatter(valueExpr string, captureCount int) templateFormatter {
 	matches := templateReplaceCaptureRE.FindAllStringSubmatch(valueExpr, -1)
 	if len(matches) == 0 {
 		// if no regex reference found, keep it as it is
-		return templateFormatter{captureCount: 0, fmtString: valueExpr}, nil
+		return templateFormatter{captureCount: 0, fmtString: valueExpr}
 	}
 
 	var indexes []int
@@ -139,7 +139,7 @@ func generateFormatter(valueExpr string, captureCount int) (templateFormatter, e
 		captureIndexes: indexes,
 		captureCount:   len(indexes),
 		fmtString:      valueFormatter,
-	}, nil
+	}
 }
 
 func formatTemplate(formatter templateFormatter, captures map[int]string) string {
@@ -274,18 +274,13 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 					root = state
 				}
 			}
-			nameFmt, err := generateFormatter(currentMapping.Name, captureCount)
-			if err != nil {
-				return err
-			}
+			nameFmt := generateFormatter(currentMapping.Name, captureCount)
+
 			currentMapping.NameFormatter = nameFmt
 
 			currentLabelFormatter := make(map[string]templateFormatter, captureCount)
 			for label, valueExpr := range currentMapping.Labels {
-				lblFmt, err := generateFormatter(valueExpr, captureCount)
-				if err != nil {
-					return err
-				}
+				lblFmt := generateFormatter(valueExpr, captureCount)
 				currentLabelFormatter[label] = lblFmt
 			}
 			currentMapping.LabelsFormatter = currentLabelFormatter
@@ -317,8 +312,8 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 
 	m.Defaults = n.Defaults
 	m.Mappings = n.Mappings
+	m.hasFSM = n.hasFSM
 	if n.hasFSM {
-		m.hasFSM = n.hasFSM
 		m.FSM = n.FSM
 		m.doRegex = n.doRegex
 		if m.dumpFSMPath != "" {
@@ -394,7 +389,7 @@ func needBacktracking(n *MetricMapper) bool {
 			for i2, re2 := range rulesRE {
 				// especially, if r1 is a subset of other rule, we don't need backtrack
 				// because either we turned on ordering
-				// or we disabled ordering and can't match it with backtrack
+				// or we disabled ordering and can't match it even with backtrack
 				if i2 != i1 && re2 != nil && len(re2.FindStringSubmatchIndex(r1)) > 0 {
 					currentRuleNeedBacktrack = false
 				}
@@ -462,12 +457,10 @@ func (m *MetricMapper) GetMapping(statsdMetric string, statsdMetricType MetricTy
 	// glob matching
 	if m.hasFSM {
 		matchFields := strings.Split(statsdMetric, ".")
-
 		root := m.FSM.transitions[string(statsdMetricType)]
 		captures := make(map[int]string, len(matchFields))
 		captureIdx := 0
 		var backtrackCursor *fsmBacktrackStackCursor
-		backtrackCursor = nil
 		resumeFromBacktrack := false
 		var result *MetricMapping
 		filedsCount := len(matchFields)
@@ -505,7 +498,7 @@ func (m *MetricMapper) GetMapping(statsdMetric string, statsdMetricType MetricTy
 								backtrackCursor = &newCursor
 							}
 						}
-					} else { // root.transitions == nil
+					} else { // no more transitions for this state
 						break
 					}
 				} // backtrack will resume from here
