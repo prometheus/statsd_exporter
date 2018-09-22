@@ -14,8 +14,10 @@
 package main
 
 import (
+	"bufio"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/howeyc/fsnotify"
@@ -118,6 +120,20 @@ func watchConfig(fileName string, mapper *mapper.MetricMapper) {
 	}
 }
 
+func dumpFSM(mapper *mapper.MetricMapper, dumpFilename string) error {
+	f, err := os.Create(dumpFilename)
+	if err != nil {
+		return err
+	}
+	log.Infoln("Start dumping FSM to", dumpFilename)
+	w := bufio.NewWriter(f)
+	mapper.FSM.DumpFSM(w)
+	w.Flush()
+	f.Close()
+	log.Infoln("Finish dumping FSM")
+	return nil
+}
+
 func main() {
 	var (
 		listenAddress   = kingpin.Flag("web.listen-address", "The address on which to expose the web interface and generated Prometheus metrics.").Default(":9102").String()
@@ -179,16 +195,16 @@ func main() {
 	}
 
 	mapper := &mapper.MetricMapper{MappingsCount: mappingsCount}
-	if *dumpFSMPath != "" {
-		err := mapper.FSM.SetDumpFSMPath(*dumpFSMPath)
-		if err != nil {
-			log.Fatal("Error setting dump FSM path:", err)
-		}
-	}
 	if *mappingConfig != "" {
 		err := mapper.InitFromFile(*mappingConfig)
 		if err != nil {
 			log.Fatal("Error loading config:", err)
+		}
+		if *dumpFSMPath != "" {
+			err := dumpFSM(mapper, *dumpFSMPath)
+			if err != nil {
+				log.Fatal("Error dumpping FSM:", err)
+			}
 		}
 		go watchConfig(*mappingConfig, mapper)
 	}

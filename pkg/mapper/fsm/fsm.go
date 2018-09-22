@@ -1,9 +1,8 @@
 package fsm
 
 import (
-	"bufio"
 	"fmt"
-	"os"
+	"io"
 	"regexp"
 	"strings"
 
@@ -38,15 +37,9 @@ type fsmBacktrackStackCursor struct {
 type FSM struct {
 	root              *mappingState
 	needsBacktracking bool
-	dumpFSMPath       string
 	metricTypes       []string
 	disableOrdering   bool
 	statesCount       int
-}
-
-func (fsm *FSM) SetDumpFSMPath(path string) error {
-	fsm.dumpFSMPath = path
-	return nil
 }
 
 func NewFSM(metricTypes []string, maxPossibleTransitions int, disableOrdering bool) *FSM {
@@ -128,40 +121,32 @@ func (f *FSM) AddState(match string, name string, labels prometheus.Labels, matc
 
 }
 
-func (f *FSM) DumpFSM() {
-	if f.dumpFSMPath == "" {
-		return
-	}
-	log.Infoln("Start dumping FSM to", f.dumpFSMPath)
+func (f *FSM) DumpFSM(w io.Writer) {
 	idx := 0
 	states := make(map[int]*mappingState)
 	states[idx] = f.root
 
-	fd, _ := os.Create(f.dumpFSMPath)
-	w := bufio.NewWriter(fd)
-	w.WriteString("digraph g {\n")
-	w.WriteString("rankdir=LR\n")                                                    // make it vertical
-	w.WriteString("node [ label=\"\",style=filled,fillcolor=white,shape=circle ]\n") // remove label of node
+	w.Write([]byte("digraph g {\n"))
+	w.Write([]byte("rankdir=LR\n"))                                                    // make it vertical
+	w.Write([]byte("node [ label=\"\",style=filled,fillcolor=white,shape=circle ]\n")) // remove label of node
 
 	for idx < len(states) {
 		for field, transition := range states[idx].transitions {
 			states[len(states)] = transition
-			w.WriteString(fmt.Sprintf("%d -> %d  [label = \"%s\"];\n", idx, len(states)-1, field))
+			w.Write([]byte(fmt.Sprintf("%d -> %d  [label = \"%s\"];\n", idx, len(states)-1, field)))
 			if idx == 0 {
 				// color for metric types
-				w.WriteString(fmt.Sprintf("%d [color=\"#D6B656\",fillcolor=\"#FFF2CC\"];\n", len(states)-1))
+				w.Write([]byte(fmt.Sprintf("%d [color=\"#D6B656\",fillcolor=\"#FFF2CC\"];\n", len(states)-1)))
 			} else if transition.transitions == nil || len(transition.transitions) == 0 {
 				// color for end state
-				w.WriteString(fmt.Sprintf("%d [color=\"#82B366\",fillcolor=\"#D5E8D4\"];\n", len(states)-1))
+				w.Write([]byte(fmt.Sprintf("%d [color=\"#82B366\",fillcolor=\"#D5E8D4\"];\n", len(states)-1)))
 			}
 		}
 		idx++
 	}
 	// color for start state
-	w.WriteString(fmt.Sprintf("0 [color=\"#a94442\",fillcolor=\"#f2dede\"];\n"))
-	w.WriteString("}")
-	w.Flush()
-	log.Infoln("Finish dumping FSM")
+	w.Write([]byte(fmt.Sprintf("0 [color=\"#a94442\",fillcolor=\"#f2dede\"];\n")))
+	w.Write([]byte("}"))
 }
 
 func (f *FSM) TestIfNeedBacktracking(mappings []string) bool {
