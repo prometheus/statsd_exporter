@@ -180,7 +180,7 @@ func main() {
 
 	mapper := &mapper.MetricMapper{MappingsCount: mappingsCount}
 	if *dumpFSMPath != "" {
-		err := mapper.SetDumpFSMPath(*dumpFSMPath)
+		err := mapper.FSM.SetDumpFSMPath(*dumpFSMPath)
 		if err != nil {
 			log.Fatal("Error setting dump FSM path:", err)
 		}
