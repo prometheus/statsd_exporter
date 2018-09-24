@@ -608,24 +608,23 @@ mappings:
 	}
 }
 
-func TestRPS(t *testing.T) {
+func TestPerformance(t *testing.T) {
 	scenarios := []struct {
+		name      string
 		config    string
 		configBad bool
 		mappings  mappings
 	}{
-		// Config with several mapping definitions.
 		{
+			name: "glob",
 			config: `---
-defaults:
-  glob_disable_ordering: true
 mappings:
-- match: test.dispatcher.*.*.*
+- match: test.dispatcher.*.*.succeeded
   name: "dispatch_events"
   labels:
     processor: "$1"
     action: "$2"
-    result: "$3"
+    result: "succeeded"
     job: "test_dispatcher"
 - match: test.my-dispatch-host01.name.dispatcher.*.*.*
   name: "host_dispatch_events"
@@ -705,6 +704,286 @@ mappings:
 				"foo.bar.baz": {},
 			},
 		},
+		{
+			name: "glob no ordering",
+			config: `---
+defaults:
+  glob_disable_ordering: true
+mappings:
+- match: test.dispatcher.*.*.succeeded
+  name: "dispatch_events"
+  labels:
+    processor: "$1"
+    action: "$2"
+    result: "succeeded"
+    job: "test_dispatcher"
+- match: test.my-dispatch-host01.name.dispatcher.*.*.*
+  name: "host_dispatch_events"
+  labels:
+    processor: "$1"
+    action: "$2"
+    result: "$3"
+    job: "test_dispatcher"
+- match: request_time.*.*.*.*.*.*.*.*.*.*.*.*
+  name: "tyk_http_request"
+  labels:
+    method_and_path: "${1}"
+    response_code: "${2}"
+    apikey: "${3}"
+    apiversion: "${4}"
+    apiname: "${5}"
+    apiid: "${6}"
+    ipv4_t1: "${7}"
+    ipv4_t2: "${8}"
+    ipv4_t3: "${9}"
+    ipv4_t4: "${10}"
+    orgid: "${11}"
+    oauthid: "${12}"
+- match: "*.*"
+  name: "catchall"
+  labels:
+    first: "$1"
+    second: "$2"
+    third: "$3"
+    job: "-"
+  `,
+			mappings: mappings{
+				"test.dispatcher.FooProcessor.send.succeeded": {
+					name: "dispatch_events",
+					labels: map[string]string{
+						"processor": "FooProcessor",
+						"action":    "send",
+						"result":    "succeeded",
+						"job":       "test_dispatcher",
+					},
+				},
+				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {
+					name: "host_dispatch_events",
+					labels: map[string]string{
+						"processor": "FooProcessor",
+						"action":    "send",
+						"result":    "succeeded",
+						"job":       "test_dispatcher",
+					},
+				},
+				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {
+					name: "tyk_http_request",
+					labels: map[string]string{
+						"method_and_path": "get/threads/1/posts",
+						"response_code":   "200",
+						"apikey":          "00000000",
+						"apiversion":      "nonversioned",
+						"apiname":         "discussions",
+						"apiid":           "a11bbcdf0ac64ec243658dc64b7100fb",
+						"ipv4_t1":         "172",
+						"ipv4_t2":         "20",
+						"ipv4_t3":         "0",
+						"ipv4_t4":         "1",
+						"orgid":           "12ba97b7eaa1a50001000001",
+						"oauthid":         "",
+					},
+				},
+				"foo.bar": {
+					name: "catchall",
+					labels: map[string]string{
+						"first":  "foo",
+						"second": "bar",
+						"third":  "",
+						"job":    "-",
+					},
+				},
+				"foo.bar.baz": {},
+			},
+		},
+		{
+			name: "glob with backtracking (no ordering implicated)",
+			config: `---
+defaults:
+  glob_disable_ordering: true
+mappings:
+- match: test.dispatcher.*.*.succeeded
+  name: "dispatch_events"
+  labels:
+    processor: "$1"
+    action: "$2"
+    result: "succeeded"
+    job: "test_dispatcher"
+- match: test.dispatcher.*.received.*
+  name: "dispatch_events_wont_match"
+  labels:
+    processor: "$1"
+    action: "received"
+    result: "$2"
+    job: "test_dispatcher"
+- match: test.my-dispatch-host01.name.dispatcher.*.*.*
+  name: "host_dispatch_events"
+  labels:
+    processor: "$1"
+    action: "$2"
+    result: "$3"
+    job: "test_dispatcher"
+- match: request_time.*.*.*.*.*.*.*.*.*.*.*.*
+  name: "tyk_http_request"
+  labels:
+    method_and_path: "${1}"
+    response_code: "${2}"
+    apikey: "${3}"
+    apiversion: "${4}"
+    apiname: "${5}"
+    apiid: "${6}"
+    ipv4_t1: "${7}"
+    ipv4_t2: "${8}"
+    ipv4_t3: "${9}"
+    ipv4_t4: "${10}"
+    orgid: "${11}"
+    oauthid: "${12}"
+- match: "*.*"
+  name: "catchall"
+  labels:
+    first: "$1"
+    second: "$2"
+    third: "$3"
+    job: "-"
+  `,
+			mappings: mappings{
+				"test.dispatcher.FooProcessor.send.succeeded": {
+					name: "dispatch_events",
+					labels: map[string]string{
+						"processor": "FooProcessor",
+						"action":    "send",
+						"result":    "succeeded",
+						"job":       "test_dispatcher",
+					},
+				},
+				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {
+					name: "host_dispatch_events",
+					labels: map[string]string{
+						"processor": "FooProcessor",
+						"action":    "send",
+						"result":    "succeeded",
+						"job":       "test_dispatcher",
+					},
+				},
+				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {
+					name: "tyk_http_request",
+					labels: map[string]string{
+						"method_and_path": "get/threads/1/posts",
+						"response_code":   "200",
+						"apikey":          "00000000",
+						"apiversion":      "nonversioned",
+						"apiname":         "discussions",
+						"apiid":           "a11bbcdf0ac64ec243658dc64b7100fb",
+						"ipv4_t1":         "172",
+						"ipv4_t2":         "20",
+						"ipv4_t3":         "0",
+						"ipv4_t4":         "1",
+						"orgid":           "12ba97b7eaa1a50001000001",
+						"oauthid":         "",
+					},
+				},
+				"foo.bar": {
+					name: "catchall",
+					labels: map[string]string{
+						"first":  "foo",
+						"second": "bar",
+						"third":  "",
+						"job":    "-",
+					},
+				},
+				"foo.bar.baz": {},
+			},
+		},
+		{
+			name: "regex",
+			config: `---
+defaults:
+  match_type: regex
+mappings:
+- match: test\.dispatcher\.([^.]*)\.([^.]*)\.([^.]*)
+  name: "dispatch_events"
+  labels:
+    processor: "$1"
+    action: "$2"
+    result: "$3"
+    job: "test_dispatcher"
+- match: test.my-dispatch-host01.name.dispatcher\.([^.]*)\.([^.]*)\.([^.]*)
+  name: "host_dispatch_events"
+  labels:
+    processor: "$1"
+    action: "$2"
+    result: "$3"
+    job: "test_dispatcher"
+- match: request_time\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)
+  name: "tyk_http_request"
+  labels:
+    method_and_path: "${1}"
+    response_code: "${2}"
+    apikey: "${3}"
+    apiversion: "${4}"
+    apiname: "${5}"
+    apiid: "${6}"
+    ipv4_t1: "${7}"
+    ipv4_t2: "${8}"
+    ipv4_t3: "${9}"
+    ipv4_t4: "${10}"
+    orgid: "${11}"
+    oauthid: "${12}"
+- match: \.([^.]*)\.([^.]*)
+  name: "catchall"
+  labels:
+    first: "$1"
+    second: "$2"
+    third: "$3"
+    job: "-"
+  `,
+			mappings: mappings{
+				"test.dispatcher.FooProcessor.send.succeeded": {
+					name: "dispatch_events",
+					labels: map[string]string{
+						"processor": "FooProcessor",
+						"action":    "send",
+						"result":    "succeeded",
+						"job":       "test_dispatcher",
+					},
+				},
+				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {
+					name: "host_dispatch_events",
+					labels: map[string]string{
+						"processor": "FooProcessor",
+						"action":    "send",
+						"result":    "succeeded",
+						"job":       "test_dispatcher",
+					},
+				},
+				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {
+					name: "tyk_http_request",
+					labels: map[string]string{
+						"method_and_path": "get/threads/1/posts",
+						"response_code":   "200",
+						"apikey":          "00000000",
+						"apiversion":      "nonversioned",
+						"apiname":         "discussions",
+						"apiid":           "a11bbcdf0ac64ec243658dc64b7100fb",
+						"ipv4_t1":         "172",
+						"ipv4_t2":         "20",
+						"ipv4_t3":         "0",
+						"ipv4_t4":         "1",
+						"orgid":           "12ba97b7eaa1a50001000001",
+						"oauthid":         "",
+					},
+				},
+				"foo.bar": {
+					name: "catchall",
+					labels: map[string]string{
+						"first":  "foo",
+						"second": "bar",
+						"third":  "",
+						"job":    "-",
+					},
+				},
+				"foo.bar.baz": {},
+			},
+		},
 	}
 
 	mapper := MetricMapper{}
@@ -724,7 +1003,7 @@ mappings:
 				mapper.GetMapping(metric, dummyMetricType)
 			}
 		}
-		fmt.Println("finished 100000 iterations in", time.Now().Sub(start))
+		fmt.Printf("finished 100000 iterations for \"%s\" in %v\n", scenario.name, time.Now().Sub(start))
 	}
 }
 
