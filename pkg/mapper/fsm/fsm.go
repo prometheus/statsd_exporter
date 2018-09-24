@@ -55,6 +55,7 @@ type FSM struct {
 	statesCount       int
 }
 
+// NewFSM creates a new FSM instance
 func NewFSM(metricTypes []string, maxPossibleTransitions int, disableOrdering bool) *FSM {
 	fsm := FSM{}
 	root := &mappingState{}
@@ -73,6 +74,7 @@ func NewFSM(metricTypes []string, maxPossibleTransitions int, disableOrdering bo
 	return &fsm
 }
 
+// AddState adds a state into the existing FSM
 func (f *FSM) AddState(match string, name string, labels prometheus.Labels, matchMetricType string,
 	maxPossibleTransitions int, result interface{}) {
 	// first split by "."
@@ -134,6 +136,7 @@ func (f *FSM) AddState(match string, name string, labels prometheus.Labels, matc
 
 }
 
+// DumpFSM accepts a io.writer and write the current FSM into dot file format
 func (f *FSM) DumpFSM(w io.Writer) {
 	idx := 0
 	states := make(map[int]*mappingState)
@@ -162,6 +165,7 @@ func (f *FSM) DumpFSM(w io.Writer) {
 	w.Write([]byte("}"))
 }
 
+// TestIfNeedBacktracking test if backtrack is needed for current FSM
 func (f *FSM) TestIfNeedBacktracking(mappings []string) bool {
 	needBacktrack := false
 	// rule A and B that has same length and
@@ -232,17 +236,20 @@ func (f *FSM) TestIfNeedBacktracking(mappings []string) bool {
 	return f.needsBacktracking
 }
 
+// GetMapping implements a mapping algorithm for Glob pattern
 func (f *FSM) GetMapping(statsdMetric string, statsdMetricType string) (interface{}, string, prometheus.Labels, bool) {
 	matchFields := strings.Split(statsdMetric, ".")
 	currentState := f.root.transitions[statsdMetricType]
 
-	// the cursor/pointer in the backtrack stack
+	// the cursor/pointer in the backtrack stack implemented as a double-linked list
 	var backtrackCursor *fsmBacktrackStackCursor
 	resumeFromBacktrack := false
 
+	// the return variable
 	var finalState *mappingState
 
 	captures := make(map[int]string, len(matchFields))
+	// keep track of captured group so we don't need to do append() on captures
 	captureIdx := 0
 	filedsCount := len(matchFields)
 	i := 0
@@ -267,6 +274,7 @@ func (f *FSM) GetMapping(statsdMetric string, statsdMetricType string) (interfac
 							captureIdx++
 						}
 					} else if f.needsBacktracking {
+						// if backtracking is needed, also check for alternative transition
 						altState, present := currentState.transitions["*"]
 						if !present || fieldsLeft > altState.maxRemainingLength || fieldsLeft < altState.minRemainingLength {
 						} else {
@@ -275,13 +283,15 @@ func (f *FSM) GetMapping(statsdMetric string, statsdMetricType string) (interfac
 								fieldIndex:   i,
 								captureIndex: captureIdx, currentCapture: field,
 							}
+							// if this is not the first time, connect to the previous cursor
 							if backtrackCursor != nil {
 								backtrackCursor.next = &newCursor
 							}
 							backtrackCursor = &newCursor
 						}
 					}
-				} else { // no more transitions for this state
+				} else {
+					// no more transitions for this state
 					break
 				}
 			} // backtrack will resume from here
@@ -290,8 +300,7 @@ func (f *FSM) GetMapping(statsdMetric string, statsdMetricType string) (interfac
 			if state.result != nil && i == filedsCount-1 {
 				if f.disableOrdering {
 					finalState = state
-					// do a double break
-					goto formatLabels
+					return formatLabels(finalState, captures)
 				} else if finalState == nil || finalState.resultPriority > state.resultPriority {
 					// if we care about ordering, try to find a result with highest prioity
 					finalState = state
@@ -327,7 +336,10 @@ func (f *FSM) GetMapping(statsdMetric string, statsdMetricType string) (interfac
 		}
 	}
 
-formatLabels:
+	return formatLabels(finalState, captures)
+}
+
+func formatLabels(finalState *mappingState, captures map[int]string) (interface{}, string, prometheus.Labels, bool) {
 	// format name and labels
 	if finalState != nil {
 		name := finalState.resultNameFormatter.format(captures)
