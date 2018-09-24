@@ -694,10 +694,18 @@ mappings:
     job: "-"
   `,
 			mappings: mappings{
-				"test.dispatcher.FooProcessor.send.succeeded":                         {},
-				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {},
-				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {},
-				"foo.bar":     {},
+				"test.dispatcher.FooProcessor.send.succeeded": {
+					name: "ignored-in-test-dont-set-me",
+				},
+				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {
+					name: "ignored-in-test-dont-set-me",
+				},
+				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {
+					name: "ignored-in-test-dont-set-me",
+				},
+				"foo.bar": {
+					name: "ignored-in-test-dont-set-me",
+				},
 				"foo.bar.baz": {},
 			},
 		},
@@ -745,10 +753,18 @@ mappings:
     job: "-"
   `,
 			mappings: mappings{
-				"test.dispatcher.FooProcessor.send.succeeded":                         {},
-				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {},
-				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {},
-				"foo.bar":     {},
+				"test.dispatcher.FooProcessor.send.succeeded": {
+					name: "ignored-in-test-dont-set-me",
+				},
+				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {
+					name: "ignored-in-test-dont-set-me",
+				},
+				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {
+					name: "ignored-in-test-dont-set-me",
+				},
+				"foo.bar": {
+					name: "ignored-in-test-dont-set-me",
+				},
 				"foo.bar.baz": {},
 			},
 		},
@@ -803,10 +819,18 @@ mappings:
     job: "-"
   `,
 			mappings: mappings{
-				"test.dispatcher.FooProcessor.send.succeeded":                         {},
-				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {},
-				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {},
-				"foo.bar":     {},
+				"test.dispatcher.FooProcessor.send.succeeded": {
+					name: "ignored-in-test-dont-set-me",
+				},
+				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {
+					name: "ignored-in-test-dont-set-me",
+				},
+				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {
+					name: "ignored-in-test-dont-set-me",
+				},
+				"foo.bar": {
+					name: "ignored-in-test-dont-set-me",
+				},
 				"foo.bar.baz": {},
 			},
 		},
@@ -854,10 +878,18 @@ mappings:
     job: "-"
   `,
 			mappings: mappings{
-				"test.dispatcher.FooProcessor.send.succeeded":                         {},
-				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {},
-				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {},
-				"foo.bar":     {},
+				"test.dispatcher.FooProcessor.send.succeeded": {
+					name: "ignored-in-test-dont-set-me",
+				},
+				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {
+					name: "ignored-in-test-dont-set-me",
+				},
+				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {
+					name: "ignored-in-test-dont-set-me",
+				},
+				"foo.bar": {
+					name: "ignored-in-test-dont-set-me",
+				},
 				"foo.bar.baz": {},
 			},
 		},
