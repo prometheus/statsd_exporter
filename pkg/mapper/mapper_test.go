@@ -608,7 +608,44 @@ mappings:
 	}
 }
 
+func duplicateRules(count int, template string) string {
+	rules := ""
+	for i := 0; i < count; i++ {
+		rules += fmt.Sprintf(template, i)
+	}
+	return rules
+}
+
 func TestPerformance(t *testing.T) {
+	sampleRulesAmount := 100
+
+	ruleTemplateSingleMatchGlob := `
+  - match: metric%d.*
+    name: "metric_single"
+    labels:
+      name: "$1"
+`
+	ruleTemplateSingleMatchRegex := `
+  - match: metric%d\.([^.]*)
+    name: "metric_single"
+    labels:
+      name: "$1"
+`
+
+	ruleTemplateMultipleMatchGlob := `
+  - match: metric%d.*.*.*.*.*.*.*.*.*.*.*.*
+    name: "metric_multi"
+    labels:
+      name: "$1-$2-$3.$4-$5-$6.$7-$8-$9.$10-$11-$12"
+`
+
+	ruleTemplateMultipleMatchRegex := `
+  - match: metric%d\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)
+    name: "metric_multi"
+    labels:
+      name: "$1-$2-$3.$4-$5-$6.$7-$8-$9.$10-$11-$12"
+`
+
 	scenarios := []struct {
 		name      string
 		config    string
@@ -657,50 +694,10 @@ mappings:
     job: "-"
   `,
 			mappings: mappings{
-				"test.dispatcher.FooProcessor.send.succeeded": {
-					name: "dispatch_events",
-					labels: map[string]string{
-						"processor": "FooProcessor",
-						"action":    "send",
-						"result":    "succeeded",
-						"job":       "test_dispatcher",
-					},
-				},
-				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {
-					name: "host_dispatch_events",
-					labels: map[string]string{
-						"processor": "FooProcessor",
-						"action":    "send",
-						"result":    "succeeded",
-						"job":       "test_dispatcher",
-					},
-				},
-				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {
-					name: "tyk_http_request",
-					labels: map[string]string{
-						"method_and_path": "get/threads/1/posts",
-						"response_code":   "200",
-						"apikey":          "00000000",
-						"apiversion":      "nonversioned",
-						"apiname":         "discussions",
-						"apiid":           "a11bbcdf0ac64ec243658dc64b7100fb",
-						"ipv4_t1":         "172",
-						"ipv4_t2":         "20",
-						"ipv4_t3":         "0",
-						"ipv4_t4":         "1",
-						"orgid":           "12ba97b7eaa1a50001000001",
-						"oauthid":         "",
-					},
-				},
-				"foo.bar": {
-					name: "catchall",
-					labels: map[string]string{
-						"first":  "foo",
-						"second": "bar",
-						"third":  "",
-						"job":    "-",
-					},
-				},
+				"test.dispatcher.FooProcessor.send.succeeded":                         {},
+				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {},
+				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {},
+				"foo.bar":     {},
 				"foo.bar.baz": {},
 			},
 		},
@@ -748,50 +745,10 @@ mappings:
     job: "-"
   `,
 			mappings: mappings{
-				"test.dispatcher.FooProcessor.send.succeeded": {
-					name: "dispatch_events",
-					labels: map[string]string{
-						"processor": "FooProcessor",
-						"action":    "send",
-						"result":    "succeeded",
-						"job":       "test_dispatcher",
-					},
-				},
-				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {
-					name: "host_dispatch_events",
-					labels: map[string]string{
-						"processor": "FooProcessor",
-						"action":    "send",
-						"result":    "succeeded",
-						"job":       "test_dispatcher",
-					},
-				},
-				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {
-					name: "tyk_http_request",
-					labels: map[string]string{
-						"method_and_path": "get/threads/1/posts",
-						"response_code":   "200",
-						"apikey":          "00000000",
-						"apiversion":      "nonversioned",
-						"apiname":         "discussions",
-						"apiid":           "a11bbcdf0ac64ec243658dc64b7100fb",
-						"ipv4_t1":         "172",
-						"ipv4_t2":         "20",
-						"ipv4_t3":         "0",
-						"ipv4_t4":         "1",
-						"orgid":           "12ba97b7eaa1a50001000001",
-						"oauthid":         "",
-					},
-				},
-				"foo.bar": {
-					name: "catchall",
-					labels: map[string]string{
-						"first":  "foo",
-						"second": "bar",
-						"third":  "",
-						"job":    "-",
-					},
-				},
+				"test.dispatcher.FooProcessor.send.succeeded":                         {},
+				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {},
+				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {},
+				"foo.bar":     {},
 				"foo.bar.baz": {},
 			},
 		},
@@ -846,50 +803,10 @@ mappings:
     job: "-"
   `,
 			mappings: mappings{
-				"test.dispatcher.FooProcessor.send.succeeded": {
-					name: "dispatch_events",
-					labels: map[string]string{
-						"processor": "FooProcessor",
-						"action":    "send",
-						"result":    "succeeded",
-						"job":       "test_dispatcher",
-					},
-				},
-				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {
-					name: "host_dispatch_events",
-					labels: map[string]string{
-						"processor": "FooProcessor",
-						"action":    "send",
-						"result":    "succeeded",
-						"job":       "test_dispatcher",
-					},
-				},
-				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {
-					name: "tyk_http_request",
-					labels: map[string]string{
-						"method_and_path": "get/threads/1/posts",
-						"response_code":   "200",
-						"apikey":          "00000000",
-						"apiversion":      "nonversioned",
-						"apiname":         "discussions",
-						"apiid":           "a11bbcdf0ac64ec243658dc64b7100fb",
-						"ipv4_t1":         "172",
-						"ipv4_t2":         "20",
-						"ipv4_t3":         "0",
-						"ipv4_t4":         "1",
-						"orgid":           "12ba97b7eaa1a50001000001",
-						"oauthid":         "",
-					},
-				},
-				"foo.bar": {
-					name: "catchall",
-					labels: map[string]string{
-						"first":  "foo",
-						"second": "bar",
-						"third":  "",
-						"job":    "-",
-					},
-				},
+				"test.dispatcher.FooProcessor.send.succeeded":                         {},
+				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {},
+				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {},
+				"foo.bar":     {},
 				"foo.bar.baz": {},
 			},
 		},
@@ -937,57 +854,241 @@ mappings:
     job: "-"
   `,
 			mappings: mappings{
-				"test.dispatcher.FooProcessor.send.succeeded": {
-					name: "dispatch_events",
-					labels: map[string]string{
-						"processor": "FooProcessor",
-						"action":    "send",
-						"result":    "succeeded",
-						"job":       "test_dispatcher",
-					},
-				},
-				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {
-					name: "host_dispatch_events",
-					labels: map[string]string{
-						"processor": "FooProcessor",
-						"action":    "send",
-						"result":    "succeeded",
-						"job":       "test_dispatcher",
-					},
-				},
-				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {
-					name: "tyk_http_request",
-					labels: map[string]string{
-						"method_and_path": "get/threads/1/posts",
-						"response_code":   "200",
-						"apikey":          "00000000",
-						"apiversion":      "nonversioned",
-						"apiname":         "discussions",
-						"apiid":           "a11bbcdf0ac64ec243658dc64b7100fb",
-						"ipv4_t1":         "172",
-						"ipv4_t2":         "20",
-						"ipv4_t3":         "0",
-						"ipv4_t4":         "1",
-						"orgid":           "12ba97b7eaa1a50001000001",
-						"oauthid":         "",
-					},
-				},
-				"foo.bar": {
-					name: "catchall",
-					labels: map[string]string{
-						"first":  "foo",
-						"second": "bar",
-						"third":  "",
-						"job":    "-",
-					},
-				},
+				"test.dispatcher.FooProcessor.send.succeeded":                         {},
+				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {},
+				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {},
+				"foo.bar":     {},
 				"foo.bar.baz": {},
+			},
+		},
+		{},
+		{
+			name: "glob single match ",
+			config: `---
+mappings:
+- match: metric.*
+  name: "metric_one"
+  labels:
+    name: "$1"
+  `,
+			mappings: mappings{
+				"metric.aaa": {},
+				"metric.bbb": {},
+			},
+		},
+		{
+			name: "regex single match",
+			config: `---
+mappings:
+- match: metric\.([^.]*)
+  name: "metric_one"
+  match_type: regex
+  labels:
+    name: "$1"
+  `,
+			mappings: mappings{
+				"metric.aaa": {},
+				"metric.bbb": {},
+			},
+		},
+		{},
+		{
+			name: "glob multiple captures",
+			config: `---
+mappings:
+- match: metric.*.*.*.*.*.*.*.*.*.*.*.*
+  name: "metric_multi"
+  labels:
+    name: "$1-$2-$3.$4-$5-$6.$7-$8-$9.$10-$11-$12"
+  `,
+			mappings: mappings{
+				"metric.a.b.c.d.e.f.g.h.i.j.k.l": {},
+			},
+		},
+		{
+			name: "regex multiple captures",
+			config: `---
+mappings:
+- match: metric\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)
+  name: "metric_multi"
+  match_type: regex
+  labels:
+    name: "$1-$2-$3.$4-$5-$6.$7-$8-$9.$10-$11-$12"
+  `,
+			mappings: mappings{
+				"metric.a.b.c.d.e.f.g.h.i.j.k.l": {},
+			},
+		},
+		{
+			name: "glob multiple captures no format",
+			config: `---
+mappings:
+- match: metric.*.*.*.*.*.*.*.*.*.*.*.*
+  name: "metric_multi"
+  labels:
+    name: "$1"
+  `,
+			mappings: mappings{
+				"metric.a.b.c.d.e.f.g.h.i.j.k.l": {},
+			},
+		},
+		{
+			name: "regex multiple captures no expansion",
+			config: `---
+mappings:
+- match: metric\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)
+  name: "metric_multi"
+  match_type: regex
+  labels:
+    name: "$1"
+  `,
+			mappings: mappings{
+				"metric.a.b.c.d.e.f.g.h.i.j.k.l": {},
+			},
+		},
+		{},
+		{
+			name: "glob multiple captures in different labels",
+			config: `---
+mappings:
+- match: metric.*.*.*.*.*.*.*.*.*.*.*.*
+  name: "metric_multi"
+  labels:
+    label1: "$1"
+    label2: "$2"
+    label3: "$3"
+    label4: "$4"
+    label5: "$5"
+    label6: "$6"
+    label7: "$7"
+    label8: "$8"
+    label9: "$9"
+    label10: "$10"
+    label11: "$11"
+    label12: "$12"
+  `,
+			mappings: mappings{
+				"metric.a.b.c.d.e.f.g.h.i.j.k.l": {},
+			},
+		},
+		{
+			name: "regex multiple captures",
+			config: `---
+mappings:
+- match: metric\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)
+  name: "metric_multi"
+  match_type: regex
+  labels:
+    label1: "$1"
+    label2: "$2"
+    label3: "$3"
+    label4: "$4"
+    label5: "$5"
+    label6: "$6"
+    label7: "$7"
+    label8: "$8"
+    label9: "$9"
+    label10: "$10"
+    label11: "$11"
+    label12: "$12"
+  `,
+			mappings: mappings{
+				"metric.a.b.c.d.e.f.g.h.i.j.k.l": {},
+			},
+		},
+		{},
+		{
+			name: "glob 100 rules",
+			config: `---
+mappings:` + duplicateRules(sampleRulesAmount, ruleTemplateSingleMatchGlob),
+			mappings: mappings{
+				"metric100.a": {},
+			},
+		},
+		{
+			name: "glob 100 rules, no match",
+			config: `---
+mappings:` + duplicateRules(sampleRulesAmount, ruleTemplateSingleMatchGlob),
+			mappings: mappings{
+				"metricnomatchy.a": {},
+			},
+		},
+		{
+			name: "glob 100 rules without ordering, no match",
+			config: `---
+defaults:
+  glob_disable_ordering: true
+mappings:` + duplicateRules(sampleRulesAmount, ruleTemplateSingleMatchGlob),
+			mappings: mappings{
+				"metricnomatchy.a": {},
+			},
+		},
+		{
+			name: "regex 100 rules, average case",
+			config: `---
+defaults:
+  match_type: regex
+mappings:` + duplicateRules(sampleRulesAmount, ruleTemplateSingleMatchRegex),
+			mappings: mappings{
+				fmt.Sprintf("metric%d.a", sampleRulesAmount/2): {}, // average match position
+			},
+		},
+		{
+			name: "regex 100 rules, worst case",
+			config: `---
+defaults:
+  match_type: regex
+mappings:` + duplicateRules(sampleRulesAmount, ruleTemplateSingleMatchRegex),
+			mappings: mappings{
+				"metric100.a": {},
+			},
+		},
+		{},
+		{
+			name: "glob 100 rules, multiple captures",
+			config: `---
+mappings:` + duplicateRules(sampleRulesAmount, ruleTemplateMultipleMatchGlob),
+			mappings: mappings{
+				"metric50.a.b.c.d.e.f.g.h.i.j.k.l": {},
+			},
+		},
+		{
+			name: "regex 100 rules, multiple captures, average case",
+			config: `---
+defaults:
+  match_type: regex
+mappings:` + duplicateRules(sampleRulesAmount, ruleTemplateMultipleMatchRegex),
+			mappings: mappings{
+				fmt.Sprintf("metric%d.a.b.c.d.e.f.g.h.i.j.k.l", sampleRulesAmount/2): {}, // average match position
+			},
+		},
+		{},
+		{
+			name: "glob 10 rules",
+			config: `---
+mappings:` + duplicateRules(sampleRulesAmount, ruleTemplateSingleMatchGlob),
+			mappings: mappings{
+				"metric50.a": {},
+			},
+		},
+		{
+			name: "regex 10 rules average case",
+			config: `---
+defaults:
+  match_type: regex
+mappings:` + duplicateRules(sampleRulesAmount, ruleTemplateSingleMatchRegex),
+			mappings: mappings{
+				fmt.Sprintf("metric%d.a", sampleRulesAmount/2): {}, // average match position
 			},
 		},
 	}
 
-	mapper := MetricMapper{}
 	for i, scenario := range scenarios {
+		if len(scenario.config) == 0 {
+			fmt.Println("--------------------------------")
+			continue
+		}
+		mapper := MetricMapper{}
 		err := mapper.InitFromYAMLString(scenario.config)
 		if err != nil && !scenario.configBad {
 			t.Fatalf("%d. Config load error: %s %s", i, scenario.config, err)
@@ -998,12 +1099,12 @@ mappings:
 
 		var dummyMetricType MetricType = ""
 		start := time.Now()
-		for j := 1; j < 100000; j++ {
+		for j := 1; j < 10000; j++ {
 			for metric, _ := range scenario.mappings {
 				mapper.GetMapping(metric, dummyMetricType)
 			}
 		}
-		fmt.Printf("finished 100000 iterations for \"%s\" in %v\n", scenario.name, time.Now().Sub(start))
+		fmt.Printf("finished 10000 iterations for \"%s\" in %v\n", scenario.name, time.Now().Sub(start))
 	}
 }
 

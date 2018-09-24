@@ -168,8 +168,8 @@ func (f *FSM) DumpFSM(w io.Writer) {
 // TestIfNeedBacktracking test if backtrack is needed for current FSM
 func (f *FSM) TestIfNeedBacktracking(mappings []string) bool {
 	needBacktrack := false
-	// rule A and B that has same length and
-	// A one has * in rules but is not a superset of B makes it needed for backtracking
+	// A has * in rules there's other transisitions at the same state
+	// this makes A the cause of backtracking
 	ruleByLength := make(map[int][]string)
 	ruleREByLength := make(map[int][]*regexp.Regexp)
 
@@ -193,14 +193,31 @@ func (f *FSM) TestIfNeedBacktracking(mappings []string) bool {
 			continue
 		}
 		rulesRE := ruleREByLength[l]
-		// for each rule r1 in rules that has * inside, check if r1 is the superset of any rules
-		// if not then r1 is a rule that leads to backtrack
 		for i1, r1 := range rules {
-			currentRuleNeedBacktrack := true
+			currentRuleNeedBacktrack := false
 			re1 := rulesRE[i1]
 			if re1 == nil || strings.Index(r1, "*") == -1 {
 				continue
 			}
+			// if a rule is A.B.C.*.E.*, is there a rule A.B.C.D.x.x or A.B.C.*.E.F? (x is any string or *)
+			for index := 0; index < len(r1); index++ {
+				if r1[index] != '*' {
+					continue
+				}
+				reStr := strings.Replace(r1[:index], ".", "\\.", -1)
+				reStr = strings.Replace(reStr, "*", "\\*", -1)
+				re := regexp.MustCompile("^" + reStr)
+				for i2, r2 := range rules {
+					if i2 == i1 {
+						continue
+					}
+					if len(re.FindStringSubmatchIndex(r2)) > 0 {
+						currentRuleNeedBacktrack = true
+						break
+					}
+				}
+			}
+
 			for i2, r2 := range rules {
 				if i2 != i1 && len(re1.FindStringSubmatchIndex(r2)) > 0 {
 					// log if we care about ordering and the superset occurs before
@@ -212,13 +229,17 @@ func (f *FSM) TestIfNeedBacktracking(mappings []string) bool {
 				}
 			}
 			for i2, re2 := range rulesRE {
-				// especially, if r1 is a subset of other rule, we don't need backtrack
+				if i2 == i1 || re2 == nil {
+					continue
+				}
+				// if r1 is a subset of other rule, we don't need backtrack
 				// because either we turned on ordering
 				// or we disabled ordering and can't match it even with backtrack
-				if i2 != i1 && re2 != nil && len(re2.FindStringSubmatchIndex(r1)) > 0 {
+				if len(re2.FindStringSubmatchIndex(r1)) > 0 {
 					currentRuleNeedBacktrack = false
 				}
 			}
+
 			if currentRuleNeedBacktrack {
 				log.Warnf("backtracking required because of match \"%s\", "+
 					"matching performance may be degraded\n", r1)
