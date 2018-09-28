@@ -57,8 +57,11 @@ type matchMetricType string
 type MetricMapping struct {
 	Match           string `yaml:"match"`
 	Name            string `yaml:"name"`
+	nameFormatter   *fsm.TemplateFormatter
 	regex           *regexp.Regexp
 	Labels          prometheus.Labels `yaml:"labels"`
+	labelKeys       []string
+	labelFormatters []*fsm.TemplateFormatter
 	TimerType       TimerType         `yaml:"timer_type"`
 	Buckets         []float64         `yaml:"buckets"`
 	Quantiles       []metricObjective `yaml:"quantiles"`
@@ -137,8 +140,21 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 				return fmt.Errorf("invalid match: %s", currentMapping.Match)
 			}
 
-			n.FSM.AddState(currentMapping.Match, currentMapping.Name, currentMapping.Labels, string(currentMapping.MatchMetricType),
+			captureCount := n.FSM.AddState(currentMapping.Match, currentMapping.Name, string(currentMapping.MatchMetricType),
 				remainingMappingsCount, currentMapping)
+
+			currentMapping.nameFormatter = fsm.NewTemplateFormatter(currentMapping.Name, captureCount)
+
+			labelKeys := make([]string, len(currentMapping.Labels))
+			labelFormatters := make([]*fsm.TemplateFormatter, len(currentMapping.Labels))
+			labelIndex := 0
+			for label, valueExpr := range currentMapping.Labels {
+				labelKeys[labelIndex] = label
+				labelFormatters[labelIndex] = fsm.NewTemplateFormatter(valueExpr, captureCount)
+				labelIndex++
+			}
+			currentMapping.labelFormatters = labelFormatters
+			currentMapping.labelKeys = labelKeys
 
 		} else {
 			if regex, err := regexp.Compile(currentMapping.Match); err != nil {
@@ -200,11 +216,17 @@ func (m *MetricMapper) InitFromFile(fileName string) error {
 func (m *MetricMapper) GetMapping(statsdMetric string, statsdMetricType MetricType) (*MetricMapping, prometheus.Labels, bool) {
 	// glob matching
 	if m.doFSM {
-		mapping, mappingName, labels, matched := m.FSM.GetMapping(statsdMetric, string(statsdMetricType))
-		if matched {
-			mapping.(*MetricMapping).Name = mappingName
-			return mapping.(*MetricMapping), labels, matched
-		} else if !matched && !m.doRegex {
+		finalState, captures := m.FSM.GetMapping(statsdMetric, string(statsdMetricType))
+		if finalState != nil && finalState.Result != nil {
+			result := finalState.Result.(*MetricMapping)
+			result.Name = result.nameFormatter.Format(captures)
+
+			labels := prometheus.Labels{}
+			for index, formatter := range result.labelFormatters {
+				labels[result.labelKeys[index]] = formatter.Format(captures)
+			}
+			return result, labels, true
+		} else if !m.doRegex {
 			// if there's no regex match type, return immediately
 			return nil, nil, false
 		}

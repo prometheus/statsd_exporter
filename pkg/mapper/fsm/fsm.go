@@ -17,7 +17,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 )
 
@@ -26,10 +25,8 @@ type mappingState struct {
 	minRemainingLength int
 	maxRemainingLength int
 	// result* members are nil unless there's a metric ends with this state
-	result                interface{}
-	resultPriority        int
-	resultNameFormatter   *templateFormatter
-	resultLabelsFormatter map[string]*templateFormatter
+	Result         interface{}
+	ResultPriority int
 }
 
 type fsmBacktrackStackCursor struct {
@@ -69,8 +66,7 @@ func NewFSM(metricTypes []string, maxPossibleTransitions int, orderingDisabled b
 }
 
 // AddState adds a state into the existing FSM
-func (f *FSM) AddState(match string, name string, labels prometheus.Labels, matchMetricType string,
-	maxPossibleTransitions int, result interface{}) {
+func (f *FSM) AddState(match string, name string, matchMetricType string, maxPossibleTransitions int, result interface{}) int {
 	// first split by "."
 	matchFields := strings.Split(match, ".")
 	// fill into our FSM
@@ -97,7 +93,7 @@ func (f *FSM) AddState(match string, name string, labels prometheus.Labels, matc
 				root.transitions[field] = state
 				// if this is last field, set result to currentMapping instance
 				if i == len(matchFields)-1 {
-					root.transitions[field].result = result
+					root.transitions[field].Result = result
 				}
 			} else {
 				(*state).maxRemainingLength = max(len(matchFields)-i-1, (*state).maxRemainingLength)
@@ -112,26 +108,18 @@ func (f *FSM) AddState(match string, name string, labels prometheus.Labels, matc
 		}
 		finalStates = append(finalStates, root)
 	}
-	nameFmt := newTemplateFormatter(name, captureCount)
-
-	currentLabelFormatter := make(map[string]*templateFormatter, captureCount)
-	for label, valueExpr := range labels {
-		lblFmt := newTemplateFormatter(valueExpr, captureCount)
-		currentLabelFormatter[label] = lblFmt
-	}
 
 	for _, state := range finalStates {
-		state.resultNameFormatter = nameFmt
-		state.resultLabelsFormatter = currentLabelFormatter
-		state.resultPriority = f.statesCount
+		state.ResultPriority = f.statesCount
 	}
 
 	f.statesCount++
 
+	return captureCount
 }
 
 // GetMapping implements a mapping algorithm for Glob pattern
-func (f *FSM) GetMapping(statsdMetric string, statsdMetricType string) (interface{}, string, prometheus.Labels, bool) {
+func (f *FSM) GetMapping(statsdMetric string, statsdMetricType string) (*mappingState, []string) {
 	matchFields := strings.Split(statsdMetric, ".")
 	currentState := f.root.transitions[statsdMetricType]
 
@@ -142,7 +130,7 @@ func (f *FSM) GetMapping(statsdMetric string, statsdMetricType string) (interfac
 	// the return variable
 	var finalState *mappingState
 
-	captures := make(map[int]string, len(matchFields))
+	captures := make([]string, len(matchFields))
 	// keep track of captured group so we don't need to do append() on captures
 	captureIdx := 0
 	filedsCount := len(matchFields)
@@ -191,11 +179,11 @@ func (f *FSM) GetMapping(statsdMetric string, statsdMetricType string) (interfac
 			} // backtrack will resume from here
 
 			// do we reach a final state?
-			if state.result != nil && i == filedsCount-1 {
+			if state.Result != nil && i == filedsCount-1 {
 				if f.OrderingDisabled {
 					finalState = state
-					return formatLabels(finalState, captures)
-				} else if finalState == nil || finalState.resultPriority > state.resultPriority {
+					return finalState, captures
+				} else if finalState == nil || finalState.ResultPriority > state.ResultPriority {
 					// if we care about ordering, try to find a result with highest prioity
 					finalState = state
 				}
@@ -230,7 +218,7 @@ func (f *FSM) GetMapping(statsdMetric string, statsdMetricType string) (interfac
 		}
 	}
 
-	return formatLabels(finalState, captures)
+	return finalState, captures
 }
 
 // TestIfNeedBacktracking test if backtrack is needed for current mappings
@@ -322,18 +310,4 @@ func TestIfNeedBacktracking(mappings []string, orderingDisabled bool) bool {
 	// since we need logs for superset rules
 
 	return !orderingDisabled || backtrackingNeeded
-}
-
-func formatLabels(finalState *mappingState, captures map[int]string) (interface{}, string, prometheus.Labels, bool) {
-	// format name and labels
-	if finalState != nil {
-		name := finalState.resultNameFormatter.format(captures)
-
-		labels := prometheus.Labels{}
-		for key, formatter := range finalState.resultLabelsFormatter {
-			labels[key] = formatter.format(captures)
-		}
-		return finalState.result, name, labels, true
-	}
-	return nil, "", nil, false
 }

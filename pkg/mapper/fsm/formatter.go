@@ -24,17 +24,17 @@ var (
 	templateReplaceCaptureRE = regexp.MustCompile(`\$\{?([a-zA-Z0-9_\$]+)\}?`)
 )
 
-type templateFormatter struct {
+type TemplateFormatter struct {
 	captureIndexes []int
 	captureCount   int
 	fmtString      string
 }
 
-func newTemplateFormatter(valueExpr string, captureCount int) *templateFormatter {
+func NewTemplateFormatter(valueExpr string, captureCount int) *TemplateFormatter {
 	matches := templateReplaceCaptureRE.FindAllStringSubmatch(valueExpr, -1)
 	if len(matches) == 0 {
 		// if no regex reference found, keep it as it is
-		return &templateFormatter{captureCount: 0, fmtString: valueExpr}
+		return &TemplateFormatter{captureCount: 0, fmtString: valueExpr}
 	}
 
 	var indexes []int
@@ -51,14 +51,14 @@ func newTemplateFormatter(valueExpr string, captureCount int) *templateFormatter
 			indexes = append(indexes, idx-1)
 		}
 	}
-	return &templateFormatter{
+	return &TemplateFormatter{
 		captureIndexes: indexes,
 		captureCount:   len(indexes),
 		fmtString:      valueFormatter,
 	}
 }
 
-func (formatter *templateFormatter) format(captures map[int]string) string {
+func (formatter *TemplateFormatter) Format(captures []string) string {
 	if formatter.captureCount == 0 {
 		// no label substitution, keep as it is
 		return formatter.fmtString
