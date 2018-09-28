@@ -16,7 +16,6 @@ package mapper
 import (
 	"fmt"
 	"testing"
-	"time"
 )
 
 type mappings map[string]struct {
@@ -25,6 +24,35 @@ type mappings map[string]struct {
 	quantiles  []metricObjective
 	notPresent bool
 }
+
+var (
+	ruleTemplateSingleMatchGlob = `
+- match: metric%d.*
+  name: "metric_single"
+  labels:
+    name: "$1"
+`
+	ruleTemplateSingleMatchRegex = `
+- match: metric%d\.([^.]*)
+  name: "metric_single"
+  labels:
+    name: "$1"
+`
+
+	ruleTemplateMultipleMatchGlob = `
+- match: metric%d.*.*.*.*.*.*.*.*.*.*.*.*
+  name: "metric_multi"
+  labels:
+    name: "$1-$2-$3.$4-$5-$6.$7-$8-$9.$10-$11-$12"
+`
+
+	ruleTemplateMultipleMatchRegex = `
+- match: metric%d\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)
+  name: "metric_multi"
+  labels:
+    name: "$1-$2-$3.$4-$5-$6.$7-$8-$9.$10-$11-$12"
+`
+)
 
 func TestMetricMapperYAML(t *testing.T) {
 	scenarios := []struct {
@@ -615,46 +643,8 @@ func duplicateRules(count int, template string) string {
 	}
 	return rules
 }
-
-func TestPerformance(t *testing.T) {
-	sampleRulesAmount := 100
-
-	ruleTemplateSingleMatchGlob := `
-  - match: metric%d.*
-    name: "metric_single"
-    labels:
-      name: "$1"
-`
-	ruleTemplateSingleMatchRegex := `
-  - match: metric%d\.([^.]*)
-    name: "metric_single"
-    labels:
-      name: "$1"
-`
-
-	ruleTemplateMultipleMatchGlob := `
-  - match: metric%d.*.*.*.*.*.*.*.*.*.*.*.*
-    name: "metric_multi"
-    labels:
-      name: "$1-$2-$3.$4-$5-$6.$7-$8-$9.$10-$11-$12"
-`
-
-	ruleTemplateMultipleMatchRegex := `
-  - match: metric%d\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)
-    name: "metric_multi"
-    labels:
-      name: "$1-$2-$3.$4-$5-$6.$7-$8-$9.$10-$11-$12"
-`
-
-	scenarios := []struct {
-		name      string
-		config    string
-		configBad bool
-		mappings  mappings
-	}{
-		{
-			name: "glob",
-			config: `---
+func BenchmarkGlob(b *testing.B) {
+	config := `---
 mappings:
 - match: test.dispatcher.*.*.succeeded
   name: "dispatch_events"
@@ -692,26 +682,40 @@ mappings:
     second: "$2"
     third: "$3"
     job: "-"
-  `,
-			mappings: mappings{
-				"test.dispatcher.FooProcessor.send.succeeded": {
-					name: "ignored-in-test-dont-set-me",
-				},
-				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {
-					name: "ignored-in-test-dont-set-me",
-				},
-				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {
-					name: "ignored-in-test-dont-set-me",
-				},
-				"foo.bar": {
-					name: "ignored-in-test-dont-set-me",
-				},
-				"foo.bar.baz": {},
-			},
+  `
+	mappings := mappings{
+		"test.dispatcher.FooProcessor.send.succeeded": {
+			name: "ignored-in-test-dont-set-me",
 		},
-		{
-			name: "glob no ordering",
-			config: `---
+		"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {
+			name: "ignored-in-test-dont-set-me",
+		},
+		"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {
+			name: "ignored-in-test-dont-set-me",
+		},
+		"foo.bar": {
+			name: "ignored-in-test-dont-set-me",
+		},
+		"foo.bar.baz": {},
+	}
+
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	var dummyMetricType MetricType
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for metric := range mappings {
+			mapper.GetMapping(metric, dummyMetricType)
+		}
+	}
+}
+
+func BenchmarkGlobNoOrdering(b *testing.B) {
+	config := `---
 defaults:
   glob_disable_ordering: true
 mappings:
@@ -751,26 +755,40 @@ mappings:
     second: "$2"
     third: "$3"
     job: "-"
-  `,
-			mappings: mappings{
-				"test.dispatcher.FooProcessor.send.succeeded": {
-					name: "ignored-in-test-dont-set-me",
-				},
-				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {
-					name: "ignored-in-test-dont-set-me",
-				},
-				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {
-					name: "ignored-in-test-dont-set-me",
-				},
-				"foo.bar": {
-					name: "ignored-in-test-dont-set-me",
-				},
-				"foo.bar.baz": {},
-			},
+  `
+	mappings := mappings{
+		"test.dispatcher.FooProcessor.send.succeeded": {
+			name: "ignored-in-test-dont-set-me",
 		},
-		{
-			name: "glob with backtracking (no ordering implicated)",
-			config: `---
+		"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {
+			name: "ignored-in-test-dont-set-me",
+		},
+		"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {
+			name: "ignored-in-test-dont-set-me",
+		},
+		"foo.bar": {
+			name: "ignored-in-test-dont-set-me",
+		},
+		"foo.bar.baz": {},
+	}
+
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	var dummyMetricType MetricType
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for metric := range mappings {
+			mapper.GetMapping(metric, dummyMetricType)
+		}
+	}
+}
+
+func BenchmarkGlobNoOrderingWithBacktracking(b *testing.B) {
+	config := `---
 defaults:
   glob_disable_ordering: true
 mappings:
@@ -817,26 +835,40 @@ mappings:
     second: "$2"
     third: "$3"
     job: "-"
-  `,
-			mappings: mappings{
-				"test.dispatcher.FooProcessor.send.succeeded": {
-					name: "ignored-in-test-dont-set-me",
-				},
-				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {
-					name: "ignored-in-test-dont-set-me",
-				},
-				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {
-					name: "ignored-in-test-dont-set-me",
-				},
-				"foo.bar": {
-					name: "ignored-in-test-dont-set-me",
-				},
-				"foo.bar.baz": {},
-			},
+  `
+	mappings := mappings{
+		"test.dispatcher.FooProcessor.send.succeeded": {
+			name: "ignored-in-test-dont-set-me",
 		},
-		{
-			name: "regex",
-			config: `---
+		"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {
+			name: "ignored-in-test-dont-set-me",
+		},
+		"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {
+			name: "ignored-in-test-dont-set-me",
+		},
+		"foo.bar": {
+			name: "ignored-in-test-dont-set-me",
+		},
+		"foo.bar.baz": {},
+	}
+
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	var dummyMetricType MetricType
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for metric := range mappings {
+			mapper.GetMapping(metric, dummyMetricType)
+		}
+	}
+}
+
+func BenchmarkRegex(b *testing.B) {
+	config := `---
 defaults:
   match_type: regex
 mappings:
@@ -876,267 +908,511 @@ mappings:
     second: "$2"
     third: "$3"
     job: "-"
-  `,
-			mappings: mappings{
-				"test.dispatcher.FooProcessor.send.succeeded": {
-					name: "ignored-in-test-dont-set-me",
-				},
-				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {
-					name: "ignored-in-test-dont-set-me",
-				},
-				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {
-					name: "ignored-in-test-dont-set-me",
-				},
-				"foo.bar": {
-					name: "ignored-in-test-dont-set-me",
-				},
-				"foo.bar.baz": {},
-			},
+  `
+	mappings := mappings{
+		"test.dispatcher.FooProcessor.send.succeeded": {
+			name: "ignored-in-test-dont-set-me",
 		},
-		{},
-		{
-			name: "glob single match ",
-			config: `---
+		"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {
+			name: "ignored-in-test-dont-set-me",
+		},
+		"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {
+			name: "ignored-in-test-dont-set-me",
+		},
+		"foo.bar": {
+			name: "ignored-in-test-dont-set-me",
+		},
+		"foo.bar.baz": {},
+	}
+
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	var dummyMetricType MetricType
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for metric := range mappings {
+			mapper.GetMapping(metric, dummyMetricType)
+		}
+	}
+}
+
+func BenchmarkGlobSingleMatch(b *testing.B) {
+	config := `---
 mappings:
 - match: metric.*
   name: "metric_one"
   labels:
     name: "$1"
-  `,
-			mappings: mappings{
-				"metric.aaa": {},
-				"metric.bbb": {},
-			},
-		},
-		{
-			name: "regex single match",
-			config: `---
+  `
+	mappings := mappings{
+		"metric.aaa": {},
+		"metric.bbb": {},
+	}
+
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	var dummyMetricType MetricType
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for metric := range mappings {
+			mapper.GetMapping(metric, dummyMetricType)
+		}
+	}
+}
+
+func BenchmarkRegexSingleMatch(b *testing.B) {
+	config := `---
 mappings:
 - match: metric\.([^.]*)
   name: "metric_one"
   match_type: regex
   labels:
     name: "$1"
-  `,
-			mappings: mappings{
-				"metric.aaa": {},
-				"metric.bbb": {},
-			},
-		},
-		{},
-		{
-			name: "glob multiple captures",
-			config: `---
-mappings:
-- match: metric.*.*.*.*.*.*.*.*.*.*.*.*
-  name: "metric_multi"
-  labels:
-    name: "$1-$2-$3.$4-$5-$6.$7-$8-$9.$10-$11-$12"
-  `,
-			mappings: mappings{
-				"metric.a.b.c.d.e.f.g.h.i.j.k.l": {},
-			},
-		},
-		{
-			name: "regex multiple captures",
-			config: `---
-mappings:
-- match: metric\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)
-  name: "metric_multi"
-  match_type: regex
-  labels:
-    name: "$1-$2-$3.$4-$5-$6.$7-$8-$9.$10-$11-$12"
-  `,
-			mappings: mappings{
-				"metric.a.b.c.d.e.f.g.h.i.j.k.l": {},
-			},
-		},
-		{
-			name: "glob multiple captures no format",
-			config: `---
-mappings:
-- match: metric.*.*.*.*.*.*.*.*.*.*.*.*
-  name: "metric_multi"
-  labels:
-    name: "$1"
-  `,
-			mappings: mappings{
-				"metric.a.b.c.d.e.f.g.h.i.j.k.l": {},
-			},
-		},
-		{
-			name: "regex multiple captures no expansion",
-			config: `---
-mappings:
-- match: metric\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)
-  name: "metric_multi"
-  match_type: regex
-  labels:
-    name: "$1"
-  `,
-			mappings: mappings{
-				"metric.a.b.c.d.e.f.g.h.i.j.k.l": {},
-			},
-		},
-		{},
-		{
-			name: "glob multiple captures in different labels",
-			config: `---
-mappings:
-- match: metric.*.*.*.*.*.*.*.*.*.*.*.*
-  name: "metric_multi"
-  labels:
-    label1: "$1"
-    label2: "$2"
-    label3: "$3"
-    label4: "$4"
-    label5: "$5"
-    label6: "$6"
-    label7: "$7"
-    label8: "$8"
-    label9: "$9"
-    label10: "$10"
-    label11: "$11"
-    label12: "$12"
-  `,
-			mappings: mappings{
-				"metric.a.b.c.d.e.f.g.h.i.j.k.l": {},
-			},
-		},
-		{
-			name: "regex multiple captures",
-			config: `---
-mappings:
-- match: metric\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)
-  name: "metric_multi"
-  match_type: regex
-  labels:
-    label1: "$1"
-    label2: "$2"
-    label3: "$3"
-    label4: "$4"
-    label5: "$5"
-    label6: "$6"
-    label7: "$7"
-    label8: "$8"
-    label9: "$9"
-    label10: "$10"
-    label11: "$11"
-    label12: "$12"
-  `,
-			mappings: mappings{
-				"metric.a.b.c.d.e.f.g.h.i.j.k.l": {},
-			},
-		},
-		{},
-		{
-			name: "glob 100 rules",
-			config: `---
-mappings:` + duplicateRules(sampleRulesAmount, ruleTemplateSingleMatchGlob),
-			mappings: mappings{
-				"metric100.a": {},
-			},
-		},
-		{
-			name: "glob 100 rules, no match",
-			config: `---
-mappings:` + duplicateRules(sampleRulesAmount, ruleTemplateSingleMatchGlob),
-			mappings: mappings{
-				"metricnomatchy.a": {},
-			},
-		},
-		{
-			name: "glob 100 rules without ordering, no match",
-			config: `---
-defaults:
-  glob_disable_ordering: true
-mappings:` + duplicateRules(sampleRulesAmount, ruleTemplateSingleMatchGlob),
-			mappings: mappings{
-				"metricnomatchy.a": {},
-			},
-		},
-		{
-			name: "regex 100 rules, average case",
-			config: `---
-defaults:
-  match_type: regex
-mappings:` + duplicateRules(sampleRulesAmount, ruleTemplateSingleMatchRegex),
-			mappings: mappings{
-				fmt.Sprintf("metric%d.a", sampleRulesAmount/2): {}, // average match position
-			},
-		},
-		{
-			name: "regex 100 rules, worst case",
-			config: `---
-defaults:
-  match_type: regex
-mappings:` + duplicateRules(sampleRulesAmount, ruleTemplateSingleMatchRegex),
-			mappings: mappings{
-				"metric100.a": {},
-			},
-		},
-		{},
-		{
-			name: "glob 100 rules, multiple captures",
-			config: `---
-mappings:` + duplicateRules(sampleRulesAmount, ruleTemplateMultipleMatchGlob),
-			mappings: mappings{
-				"metric50.a.b.c.d.e.f.g.h.i.j.k.l": {},
-			},
-		},
-		{
-			name: "regex 100 rules, multiple captures, average case",
-			config: `---
-defaults:
-  match_type: regex
-mappings:` + duplicateRules(sampleRulesAmount, ruleTemplateMultipleMatchRegex),
-			mappings: mappings{
-				fmt.Sprintf("metric%d.a.b.c.d.e.f.g.h.i.j.k.l", sampleRulesAmount/2): {}, // average match position
-			},
-		},
-		{},
-		{
-			name: "glob 10 rules",
-			config: `---
-mappings:` + duplicateRules(sampleRulesAmount, ruleTemplateSingleMatchGlob),
-			mappings: mappings{
-				"metric50.a": {},
-			},
-		},
-		{
-			name: "regex 10 rules average case",
-			config: `---
-defaults:
-  match_type: regex
-mappings:` + duplicateRules(sampleRulesAmount, ruleTemplateSingleMatchRegex),
-			mappings: mappings{
-				fmt.Sprintf("metric%d.a", sampleRulesAmount/2): {}, // average match position
-			},
-		},
+  `
+	mappings := mappings{
+		"metric.aaa": {},
+		"metric.bbb": {},
 	}
 
-	for i, scenario := range scenarios {
-		if len(scenario.config) == 0 {
-			fmt.Println("--------------------------------")
-			continue
-		}
-		mapper := MetricMapper{}
-		err := mapper.InitFromYAMLString(scenario.config)
-		if err != nil && !scenario.configBad {
-			t.Fatalf("%d. Config load error: %s %s", i, scenario.config, err)
-		}
-		if err == nil && scenario.configBad {
-			t.Fatalf("%d. Expected bad config, but loaded ok: %s", i, scenario.config)
-		}
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
 
-		var dummyMetricType MetricType = ""
-		start := time.Now()
-		for j := 1; j < 10000; j++ {
-			for metric, _ := range scenario.mappings {
-				mapper.GetMapping(metric, dummyMetricType)
-			}
+	var dummyMetricType MetricType
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for metric := range mappings {
+			mapper.GetMapping(metric, dummyMetricType)
 		}
-		fmt.Printf("finished 10000 iterations for \"%s\" in %v\n", scenario.name, time.Now().Sub(start))
+	}
+}
+
+func BenchmarkGlobMultipleCaptures(b *testing.B) {
+	config := `---
+mappings:
+- match: metric.*.*.*.*.*.*.*.*.*.*.*.*
+  name: "metric_multi"
+  labels:
+    name: "$1-$2-$3.$4-$5-$6.$7-$8-$9.$10-$11-$12"
+  `
+	mappings := mappings{
+		"metric.a.b.c.d.e.f.g.h.i.j.k.l": {},
+	}
+
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	var dummyMetricType MetricType
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for metric := range mappings {
+			mapper.GetMapping(metric, dummyMetricType)
+		}
+	}
+}
+
+func BenchmarkRegexMultipleCaptures(b *testing.B) {
+	config := `---
+mappings:
+- match: metric\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)
+  name: "metric_multi"
+  match_type: regex
+  labels:
+    name: "$1-$2-$3.$4-$5-$6.$7-$8-$9.$10-$11-$12"
+  `
+	mappings := mappings{
+		"metric.a.b.c.d.e.f.g.h.i.j.k.l": {},
+	}
+
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	var dummyMetricType MetricType
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for metric := range mappings {
+			mapper.GetMapping(metric, dummyMetricType)
+		}
+	}
+}
+
+func BenchmarkGlobMultipleCapturesNoFormat(b *testing.B) {
+	config := `---
+mappings:
+- match: metric.*.*.*.*.*.*.*.*.*.*.*.*
+  name: "metric_multi"
+  labels:
+    name: "not_relevant"
+  `
+	mappings := mappings{
+		"metric.a.b.c.d.e.f.g.h.i.j.k.l": {},
+	}
+
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	var dummyMetricType MetricType
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for metric := range mappings {
+			mapper.GetMapping(metric, dummyMetricType)
+		}
+	}
+}
+
+func BenchmarkRegexMultipleCapturesNoFormat(b *testing.B) {
+	config := `---
+mappings:
+- match: metric\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)
+  name: "metric_multi"
+  match_type: regex
+  labels:
+    name: "not_relevant"
+  `
+	mappings := mappings{
+		"metric.a.b.c.d.e.f.g.h.i.j.k.l": {},
+	}
+
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	var dummyMetricType MetricType
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for metric := range mappings {
+			mapper.GetMapping(metric, dummyMetricType)
+		}
+	}
+}
+
+func BenchmarkGlobMultipleCapturesDifferentLabels(b *testing.B) {
+	config := `---
+mappings:
+- match: metric.*.*.*.*.*.*.*.*.*.*.*.*
+  name: "metric_multi"
+  labels:
+    label1: "$1"
+    label2: "$2"
+    label3: "$3"
+    label4: "$4"
+    label5: "$5"
+    label6: "$6"
+    label7: "$7"
+    label8: "$8"
+    label9: "$9"
+    label10: "$10"
+    label11: "$11"
+    label12: "$12"
+  `
+	mappings := mappings{
+		"metric.a.b.c.d.e.f.g.h.i.j.k.l": {},
+	}
+
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	var dummyMetricType MetricType
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for metric := range mappings {
+			mapper.GetMapping(metric, dummyMetricType)
+		}
+	}
+}
+
+func BenchmarkRegexMultipleCapturesDifferentLabels(b *testing.B) {
+	config := `---
+mappings:
+- match: metric\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)
+  name: "metric_multi"
+  match_type: regex
+  labels:
+    label1: "$1"
+    label2: "$2"
+    label3: "$3"
+    label4: "$4"
+    label5: "$5"
+    label6: "$6"
+    label7: "$7"
+    label8: "$8"
+    label9: "$9"
+    label10: "$10"
+    label11: "$11"
+    label12: "$12"
+  `
+	mappings := mappings{
+		"metric.a.b.c.d.e.f.g.h.i.j.k.l": {},
+	}
+
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	var dummyMetricType MetricType
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for metric := range mappings {
+			mapper.GetMapping(metric, dummyMetricType)
+		}
+	}
+}
+
+func BenchmarkGlob10Rules(b *testing.B) {
+	config := `---
+mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)
+	mappings := mappings{
+		"metric100.a": {},
+	}
+
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	var dummyMetricType MetricType
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for metric := range mappings {
+			mapper.GetMapping(metric, dummyMetricType)
+		}
+	}
+}
+
+func BenchmarkRegex10RulesAverage(b *testing.B) {
+	config := `---
+defaults:
+  match_type: regex
+mappings:` + duplicateRules(10, ruleTemplateSingleMatchRegex)
+	mappings := mappings{
+		"metric5.a": {},
+	}
+
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	var dummyMetricType MetricType
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for metric := range mappings {
+			mapper.GetMapping(metric, dummyMetricType)
+		}
+	}
+}
+
+func BenchmarkGlob100Rules(b *testing.B) {
+	config := `---
+mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)
+	mappings := mappings{
+		"metric100.a": {},
+	}
+
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	var dummyMetricType MetricType
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for metric := range mappings {
+			mapper.GetMapping(metric, dummyMetricType)
+		}
+	}
+}
+
+func BenchmarkGlob100RulesNoMatch(b *testing.B) {
+	config := `---
+mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)
+	mappings := mappings{
+		"metricnomatchy.a": {},
+	}
+
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	var dummyMetricType MetricType
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for metric := range mappings {
+			mapper.GetMapping(metric, dummyMetricType)
+		}
+	}
+}
+
+func BenchmarkGlob100RulesNoOrderingNoMatch(b *testing.B) {
+	config := `---
+defaults:
+  glob_disable_ordering: true
+mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)
+	mappings := mappings{
+		"metricnomatchy.a": {},
+	}
+
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	var dummyMetricType MetricType
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for metric := range mappings {
+			mapper.GetMapping(metric, dummyMetricType)
+		}
+	}
+}
+
+func BenchmarkRegex100RulesAverage(b *testing.B) {
+	config := `---
+defaults:
+  match_type: regex
+mappings:` + duplicateRules(100, ruleTemplateSingleMatchRegex)
+	mappings := mappings{
+		"metric50.a": {},
+	}
+
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	var dummyMetricType MetricType
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for metric := range mappings {
+			mapper.GetMapping(metric, dummyMetricType)
+		}
+	}
+}
+
+func BenchmarkRegex100RulesWorst(b *testing.B) {
+	config := `---
+defaults:
+  match_type: regex
+mappings:` + duplicateRules(100, ruleTemplateSingleMatchRegex)
+	mappings := mappings{
+		"metric100.a": {},
+	}
+
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	var dummyMetricType MetricType
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for metric := range mappings {
+			mapper.GetMapping(metric, dummyMetricType)
+		}
+	}
+}
+
+func BenchmarkGlob100RulesMultipleCaptures(b *testing.B) {
+	config := `---
+mappings:` + duplicateRules(100, ruleTemplateMultipleMatchGlob)
+	mappings := mappings{
+		"metric50.a.b.c.d.e.f.g.h.i.j.k.l": {},
+	}
+
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	var dummyMetricType MetricType
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for metric := range mappings {
+			mapper.GetMapping(metric, dummyMetricType)
+		}
+	}
+}
+
+func BenchmarkRegex100RulesMultipleCapturesAverage(b *testing.B) {
+	config := `---
+defaults:
+  match_type: regex
+mappings:` + duplicateRules(100, ruleTemplateMultipleMatchRegex)
+	mappings := mappings{
+		"metric50.a.b.c.d.e.f.g.h.i.j.k.l": {},
+	}
+
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	var dummyMetricType MetricType
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for metric := range mappings {
+			mapper.GetMapping(metric, dummyMetricType)
+		}
+	}
+}
+
+func BenchmarkRegex100RulesMultipleCapturesWorst(b *testing.B) {
+	config := `---
+defaults:
+  match_type: regex
+mappings:` + duplicateRules(100, ruleTemplateMultipleMatchRegex)
+	mappings := mappings{
+		"metric100.a.b.c.d.e.f.g.h.i.j.k.l": {},
+	}
+
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	var dummyMetricType MetricType
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for metric := range mappings {
+			mapper.GetMapping(metric, dummyMetricType)
+		}
 	}
 }
 

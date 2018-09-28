@@ -142,7 +142,7 @@ func main() {
 		statsdListenTCP = kingpin.Flag("statsd.listen-tcp", "The TCP address on which to receive statsd metric lines. \"\" disables it.").Default(":9125").String()
 		mappingConfig   = kingpin.Flag("statsd.mapping-config", "Metric mapping configuration file name.").String()
 		readBuffer      = kingpin.Flag("statsd.read-buffer", "Size (in bytes) of the operating system's transmit read buffer associated with the UDP connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.").Int()
-		dumpFSMPath     = kingpin.Flag("statsd.dump-fsm", "The path to dump internal FSM generated for glob matching as Dot file.").Default("").String()
+		dumpFSMPath     = kingpin.Flag("debug.dump-fsm", "The path to dump internal FSM generated for glob matching as Dot file.").Default("").String()
 	)
 
 	log.AddFlags(kingpin.CommandLine)
@@ -203,7 +203,7 @@ func main() {
 		if *dumpFSMPath != "" {
 			err := dumpFSM(mapper, *dumpFSMPath)
 			if err != nil {
-				log.Fatal("Error dumpping FSM:", err)
+				log.Fatal("Error dumping FSM:", err)
 			}
 		}
 		go watchConfig(*mappingConfig, mapper)

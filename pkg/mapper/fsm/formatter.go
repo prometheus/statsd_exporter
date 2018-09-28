@@ -15,8 +15,13 @@ package fsm
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
+)
+
+var (
+	templateReplaceCaptureRE = regexp.MustCompile(`\$\{?([a-zA-Z0-9_\$]+)\}?`)
 )
 
 type templateFormatter struct {
@@ -57,12 +62,11 @@ func (formatter *templateFormatter) format(captures map[int]string) string {
 	if formatter.captureCount == 0 {
 		// no label substitution, keep as it is
 		return formatter.fmtString
-	} else {
-		indexes := formatter.captureIndexes
-		vargs := make([]interface{}, formatter.captureCount)
-		for i, idx := range indexes {
-			vargs[i] = captures[idx]
-		}
-		return fmt.Sprintf(formatter.fmtString, vargs...)
 	}
+	indexes := formatter.captureIndexes
+	vargs := make([]interface{}, formatter.captureCount)
+	for i, idx := range indexes {
+		vargs[i] = captures[idx]
+	}
+	return fmt.Sprintf(formatter.fmtString, vargs...)
 }

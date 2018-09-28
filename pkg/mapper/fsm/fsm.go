@@ -14,17 +14,11 @@
 package fsm
 
 import (
-	"fmt"
-	"io"
 	"regexp"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
-)
-
-var (
-	templateReplaceCaptureRE = regexp.MustCompile(`\$\{?([a-zA-Z0-9_\$]+)\}?`)
 )
 
 type mappingState struct {
@@ -48,18 +42,18 @@ type fsmBacktrackStackCursor struct {
 }
 
 type FSM struct {
-	root              *mappingState
-	needsBacktracking bool
-	metricTypes       []string
-	disableOrdering   bool
-	statesCount       int
+	root               *mappingState
+	metricTypes        []string
+	statesCount        int
+	BacktrackingNeeded bool
+	OrderingDisabled   bool
 }
 
 // NewFSM creates a new FSM instance
-func NewFSM(metricTypes []string, maxPossibleTransitions int, disableOrdering bool) *FSM {
+func NewFSM(metricTypes []string, maxPossibleTransitions int, orderingDisabled bool) *FSM {
 	fsm := FSM{}
 	root := &mappingState{}
-	root.transitions = make(map[string]*mappingState, 3)
+	root.transitions = make(map[string]*mappingState, len(metricTypes))
 
 	metricTypes = append(metricTypes, "")
 	for _, field := range metricTypes {
@@ -67,7 +61,7 @@ func NewFSM(metricTypes []string, maxPossibleTransitions int, disableOrdering bo
 		(*state).transitions = make(map[string]*mappingState, maxPossibleTransitions)
 		root.transitions[string(field)] = state
 	}
-	fsm.disableOrdering = disableOrdering
+	fsm.OrderingDisabled = orderingDisabled
 	fsm.metricTypes = metricTypes
 	fsm.statesCount = 0
 	fsm.root = root
@@ -136,38 +130,112 @@ func (f *FSM) AddState(match string, name string, labels prometheus.Labels, matc
 
 }
 
-// DumpFSM accepts a io.writer and write the current FSM into dot file format
-func (f *FSM) DumpFSM(w io.Writer) {
-	idx := 0
-	states := make(map[int]*mappingState)
-	states[idx] = f.root
+// GetMapping implements a mapping algorithm for Glob pattern
+func (f *FSM) GetMapping(statsdMetric string, statsdMetricType string) (interface{}, string, prometheus.Labels, bool) {
+	matchFields := strings.Split(statsdMetric, ".")
+	currentState := f.root.transitions[statsdMetricType]
 
-	w.Write([]byte("digraph g {\n"))
-	w.Write([]byte("rankdir=LR\n"))                                                    // make it vertical
-	w.Write([]byte("node [ label=\"\",style=filled,fillcolor=white,shape=circle ]\n")) // remove label of node
+	// the cursor/pointer in the backtrack stack implemented as a double-linked list
+	var backtrackCursor *fsmBacktrackStackCursor
+	resumeFromBacktrack := false
 
-	for idx < len(states) {
-		for field, transition := range states[idx].transitions {
-			states[len(states)] = transition
-			w.Write([]byte(fmt.Sprintf("%d -> %d  [label = \"%s\"];\n", idx, len(states)-1, field)))
-			if idx == 0 {
-				// color for metric types
-				w.Write([]byte(fmt.Sprintf("%d [color=\"#D6B656\",fillcolor=\"#FFF2CC\"];\n", len(states)-1)))
-			} else if transition.transitions == nil || len(transition.transitions) == 0 {
-				// color for end state
-				w.Write([]byte(fmt.Sprintf("%d [color=\"#82B366\",fillcolor=\"#D5E8D4\"];\n", len(states)-1)))
+	// the return variable
+	var finalState *mappingState
+
+	captures := make(map[int]string, len(matchFields))
+	// keep track of captured group so we don't need to do append() on captures
+	captureIdx := 0
+	filedsCount := len(matchFields)
+	i := 0
+	var state *mappingState
+	for { // the loop for backtracking
+		for { // the loop for a single "depth only" search
+			var present bool
+			// if we resume from backtrack, we should skip this branch in this case
+			// since the state that were saved at the end of this branch
+			if !resumeFromBacktrack {
+				if len(currentState.transitions) > 0 {
+					field := matchFields[i]
+					state, present = currentState.transitions[field]
+					fieldsLeft := filedsCount - i - 1
+					// also compare length upfront to avoid unnecessary loop or backtrack
+					if !present || fieldsLeft > state.maxRemainingLength || fieldsLeft < state.minRemainingLength {
+						state, present = currentState.transitions["*"]
+						if !present || fieldsLeft > state.maxRemainingLength || fieldsLeft < state.minRemainingLength {
+							break
+						} else {
+							captures[captureIdx] = field
+							captureIdx++
+						}
+					} else if f.BacktrackingNeeded {
+						// if backtracking is needed, also check for alternative transition
+						altState, present := currentState.transitions["*"]
+						if !present || fieldsLeft > altState.maxRemainingLength || fieldsLeft < altState.minRemainingLength {
+						} else {
+							// push to backtracking stack
+							newCursor := fsmBacktrackStackCursor{prev: backtrackCursor, state: altState,
+								fieldIndex:   i,
+								captureIndex: captureIdx, currentCapture: field,
+							}
+							// if this is not the first time, connect to the previous cursor
+							if backtrackCursor != nil {
+								backtrackCursor.next = &newCursor
+							}
+							backtrackCursor = &newCursor
+						}
+					}
+				} else {
+					// no more transitions for this state
+					break
+				}
+			} // backtrack will resume from here
+
+			// do we reach a final state?
+			if state.result != nil && i == filedsCount-1 {
+				if f.OrderingDisabled {
+					finalState = state
+					return formatLabels(finalState, captures)
+				} else if finalState == nil || finalState.resultPriority > state.resultPriority {
+					// if we care about ordering, try to find a result with highest prioity
+					finalState = state
+				}
+				break
 			}
+
+			i++
+			if i >= filedsCount {
+				break
+			}
+
+			resumeFromBacktrack = false
+			currentState = state
 		}
-		idx++
+		if backtrackCursor == nil {
+			// if we are not doing backtracking or all path has been travesaled
+			break
+		} else {
+			// pop one from stack
+			state = backtrackCursor.state
+			currentState = state
+			i = backtrackCursor.fieldIndex
+			captureIdx = backtrackCursor.captureIndex + 1
+			// put the * capture back
+			captures[captureIdx-1] = backtrackCursor.currentCapture
+			backtrackCursor = backtrackCursor.prev
+			if backtrackCursor != nil {
+				// deref for GC
+				backtrackCursor.next = nil
+			}
+			resumeFromBacktrack = true
+		}
 	}
-	// color for start state
-	w.Write([]byte(fmt.Sprintf("0 [color=\"#a94442\",fillcolor=\"#f2dede\"];\n")))
-	w.Write([]byte("}"))
+
+	return formatLabels(finalState, captures)
 }
 
-// TestIfNeedBacktracking test if backtrack is needed for current FSM
-func (f *FSM) TestIfNeedBacktracking(mappings []string) bool {
-	needBacktrack := false
+// TestIfNeedBacktracking test if backtrack is needed for current mappings
+func TestIfNeedBacktracking(mappings []string, orderingDisabled bool) bool {
+	backtrackingNeeded := false
 	// A has * in rules there's other transisitions at the same state
 	// this makes A the cause of backtracking
 	ruleByLength := make(map[int][]string)
@@ -221,9 +289,9 @@ func (f *FSM) TestIfNeedBacktracking(mappings []string) bool {
 			for i2, r2 := range rules {
 				if i2 != i1 && len(re1.FindStringSubmatchIndex(r2)) > 0 {
 					// log if we care about ordering and the superset occurs before
-					if !f.disableOrdering && i1 < i2 {
+					if !orderingDisabled && i1 < i2 {
 						log.Warnf("match \"%s\" is a super set of match \"%s\" but in a lower order, "+
-							"the first will never be matched\n", r1, r2)
+							"the first will never be matched", r1, r2)
 					}
 					currentRuleNeedBacktrack = false
 				}
@@ -242,8 +310,8 @@ func (f *FSM) TestIfNeedBacktracking(mappings []string) bool {
 
 			if currentRuleNeedBacktrack {
 				log.Warnf("backtracking required because of match \"%s\", "+
-					"matching performance may be degraded\n", r1)
-				needBacktrack = true
+					"matching performance may be degraded", r1)
+				backtrackingNeeded = true
 			}
 		}
 	}
@@ -252,112 +320,8 @@ func (f *FSM) TestIfNeedBacktracking(mappings []string) bool {
 	// since transistions are stored in (unordered) map
 	// note: don't move this branch to the beginning of this function
 	// since we need logs for superset rules
-	f.needsBacktracking = !f.disableOrdering || needBacktrack
 
-	return f.needsBacktracking
-}
-
-// GetMapping implements a mapping algorithm for Glob pattern
-func (f *FSM) GetMapping(statsdMetric string, statsdMetricType string) (interface{}, string, prometheus.Labels, bool) {
-	matchFields := strings.Split(statsdMetric, ".")
-	currentState := f.root.transitions[statsdMetricType]
-
-	// the cursor/pointer in the backtrack stack implemented as a double-linked list
-	var backtrackCursor *fsmBacktrackStackCursor
-	resumeFromBacktrack := false
-
-	// the return variable
-	var finalState *mappingState
-
-	captures := make(map[int]string, len(matchFields))
-	// keep track of captured group so we don't need to do append() on captures
-	captureIdx := 0
-	filedsCount := len(matchFields)
-	i := 0
-	var state *mappingState
-	for { // the loop for backtracking
-		for { // the loop for a single "depth only" search
-			var present bool
-			// if we resume from backtrack, we should skip this branch in this case
-			// since the state that were saved at the end of this branch
-			if !resumeFromBacktrack {
-				if len(currentState.transitions) > 0 {
-					field := matchFields[i]
-					state, present = currentState.transitions[field]
-					fieldsLeft := filedsCount - i - 1
-					// also compare length upfront to avoid unnecessary loop or backtrack
-					if !present || fieldsLeft > state.maxRemainingLength || fieldsLeft < state.minRemainingLength {
-						state, present = currentState.transitions["*"]
-						if !present || fieldsLeft > state.maxRemainingLength || fieldsLeft < state.minRemainingLength {
-							break
-						} else {
-							captures[captureIdx] = field
-							captureIdx++
-						}
-					} else if f.needsBacktracking {
-						// if backtracking is needed, also check for alternative transition
-						altState, present := currentState.transitions["*"]
-						if !present || fieldsLeft > altState.maxRemainingLength || fieldsLeft < altState.minRemainingLength {
-						} else {
-							// push to backtracking stack
-							newCursor := fsmBacktrackStackCursor{prev: backtrackCursor, state: altState,
-								fieldIndex:   i,
-								captureIndex: captureIdx, currentCapture: field,
-							}
-							// if this is not the first time, connect to the previous cursor
-							if backtrackCursor != nil {
-								backtrackCursor.next = &newCursor
-							}
-							backtrackCursor = &newCursor
-						}
-					}
-				} else {
-					// no more transitions for this state
-					break
-				}
-			} // backtrack will resume from here
-
-			// do we reach a final state?
-			if state.result != nil && i == filedsCount-1 {
-				if f.disableOrdering {
-					finalState = state
-					return formatLabels(finalState, captures)
-				} else if finalState == nil || finalState.resultPriority > state.resultPriority {
-					// if we care about ordering, try to find a result with highest prioity
-					finalState = state
-				}
-				break
-			}
-
-			i++
-			if i >= filedsCount {
-				break
-			}
-
-			resumeFromBacktrack = false
-			currentState = state
-		}
-		if backtrackCursor == nil {
-			// if we are not doing backtracking or all path has been travesaled
-			break
-		} else {
-			// pop one from stack
-			state = backtrackCursor.state
-			currentState = state
-			i = backtrackCursor.fieldIndex
-			captureIdx = backtrackCursor.captureIndex + 1
-			// put the * capture back
-			captures[captureIdx-1] = backtrackCursor.currentCapture
-			backtrackCursor = backtrackCursor.prev
-			if backtrackCursor != nil {
-				// deref for GC
-				backtrackCursor.next = nil
-			}
-			resumeFromBacktrack = true
-		}
-	}
-
-	return formatLabels(finalState, captures)
+	return !orderingDisabled || backtrackingNeeded
 }
 
 func formatLabels(finalState *mappingState, captures map[int]string) (interface{}, string, prometheus.Labels, bool) {

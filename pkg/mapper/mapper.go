@@ -31,8 +31,6 @@ var (
 	metricLineRE = regexp.MustCompile(`^(\*\.|` + statsdMetricRE + `\.)+(\*|` + statsdMetricRE + `)$`)
 	metricNameRE = regexp.MustCompile(`^([a-zA-Z_]|` + templateReplaceRE + `)([a-zA-Z0-9_]|` + templateReplaceRE + `)*$`)
 	labelNameRE  = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]+$`)
-
-	templateReplaceCaptureRE = regexp.MustCompile(`\$\{?([a-zA-Z0-9_\$]+)\}?`)
 )
 
 type mapperConfigDefaults struct {
@@ -79,20 +77,6 @@ var defaultQuantiles = []metricObjective{
 	{Quantile: 0.5, Error: 0.05},
 	{Quantile: 0.9, Error: 0.01},
 	{Quantile: 0.99, Error: 0.001},
-}
-
-func min(x, y int) int {
-	if x < y {
-		return x
-	}
-	return y
-}
-
-func max(x, y int) int {
-	if x > y {
-		return x
-	}
-	return y
 }
 
 func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
@@ -191,7 +175,7 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 				mappings = append(mappings, mapping.Match)
 			}
 		}
-		n.FSM.TestIfNeedBacktracking(mappings)
+		n.FSM.BacktrackingNeeded = fsm.TestIfNeedBacktracking(mappings, n.FSM.OrderingDisabled)
 
 		m.FSM = n.FSM
 		m.doRegex = n.doRegex
