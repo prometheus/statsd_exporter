@@ -18,7 +18,7 @@ import (
 	"io"
 )
 
-// DumpFSM accepts a io.writer and write the current FSM into dot file format
+// DumpFSM accepts a io.writer and write the current FSM into dot file format.
 func (f *FSM) DumpFSM(w io.Writer) {
 	idx := 0
 	states := make(map[int]*mappingState)

@@ -109,11 +109,10 @@ mappings:
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	var dummyMetricType MetricType
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		for _, metric := range mappings {
-			mapper.GetMapping(metric, dummyMetricType)
+			mapper.GetMapping(metric, MetricTypeCounter)
 		}
 	}
 }
@@ -174,11 +173,10 @@ mappings:
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	var dummyMetricType MetricType
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		for _, metric := range mappings {
-			mapper.GetMapping(metric, dummyMetricType)
+			mapper.GetMapping(metric, MetricTypeCounter)
 		}
 	}
 }
@@ -246,11 +244,10 @@ mappings:
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	var dummyMetricType MetricType
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		for _, metric := range mappings {
-			mapper.GetMapping(metric, dummyMetricType)
+			mapper.GetMapping(metric, MetricTypeCounter)
 		}
 	}
 }
@@ -311,11 +308,10 @@ mappings:
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	var dummyMetricType MetricType
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		for _, metric := range mappings {
-			mapper.GetMapping(metric, dummyMetricType)
+			mapper.GetMapping(metric, MetricTypeCounter)
 		}
 	}
 }
@@ -339,11 +335,10 @@ mappings:
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	var dummyMetricType MetricType
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		for _, metric := range mappings {
-			mapper.GetMapping(metric, dummyMetricType)
+			mapper.GetMapping(metric, MetricTypeCounter)
 		}
 	}
 }
@@ -368,11 +363,10 @@ mappings:
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	var dummyMetricType MetricType
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		for _, metric := range mappings {
-			mapper.GetMapping(metric, dummyMetricType)
+			mapper.GetMapping(metric, MetricTypeCounter)
 		}
 	}
 }
@@ -395,11 +389,10 @@ mappings:
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	var dummyMetricType MetricType
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		for _, metric := range mappings {
-			mapper.GetMapping(metric, dummyMetricType)
+			mapper.GetMapping(metric, MetricTypeCounter)
 		}
 	}
 }
@@ -423,11 +416,10 @@ mappings:
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	var dummyMetricType MetricType
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		for _, metric := range mappings {
-			mapper.GetMapping(metric, dummyMetricType)
+			mapper.GetMapping(metric, MetricTypeCounter)
 		}
 	}
 }
@@ -450,11 +442,10 @@ mappings:
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	var dummyMetricType MetricType
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		for _, metric := range mappings {
-			mapper.GetMapping(metric, dummyMetricType)
+			mapper.GetMapping(metric, MetricTypeCounter)
 		}
 	}
 }
@@ -478,11 +469,10 @@ mappings:
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	var dummyMetricType MetricType
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		for _, metric := range mappings {
-			mapper.GetMapping(metric, dummyMetricType)
+			mapper.GetMapping(metric, MetricTypeCounter)
 		}
 	}
 }
@@ -516,11 +506,10 @@ mappings:
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	var dummyMetricType MetricType
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		for _, metric := range mappings {
-			mapper.GetMapping(metric, dummyMetricType)
+			mapper.GetMapping(metric, MetricTypeCounter)
 		}
 	}
 }
@@ -555,11 +544,10 @@ mappings:
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	var dummyMetricType MetricType
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		for _, metric := range mappings {
-			mapper.GetMapping(metric, dummyMetricType)
+			mapper.GetMapping(metric, MetricTypeCounter)
 		}
 	}
 }
@@ -577,11 +565,10 @@ mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	var dummyMetricType MetricType
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		for _, metric := range mappings {
-			mapper.GetMapping(metric, dummyMetricType)
+			mapper.GetMapping(metric, MetricTypeCounter)
 		}
 	}
 }
@@ -601,11 +588,10 @@ mappings:` + duplicateRules(10, ruleTemplateSingleMatchRegex)
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	var dummyMetricType MetricType
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		for _, metric := range mappings {
-			mapper.GetMapping(metric, dummyMetricType)
+			mapper.GetMapping(metric, MetricTypeCounter)
 		}
 	}
 }
@@ -623,11 +609,10 @@ mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	var dummyMetricType MetricType
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		for _, metric := range mappings {
-			mapper.GetMapping(metric, dummyMetricType)
+			mapper.GetMapping(metric, MetricTypeCounter)
 		}
 	}
 }
@@ -645,11 +630,10 @@ mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	var dummyMetricType MetricType
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		for _, metric := range mappings {
-			mapper.GetMapping(metric, dummyMetricType)
+			mapper.GetMapping(metric, MetricTypeCounter)
 		}
 	}
 }
@@ -669,11 +653,10 @@ mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	var dummyMetricType MetricType
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		for _, metric := range mappings {
-			mapper.GetMapping(metric, dummyMetricType)
+			mapper.GetMapping(metric, MetricTypeCounter)
 		}
 	}
 }
@@ -693,11 +676,10 @@ mappings:` + duplicateRules(100, ruleTemplateSingleMatchRegex)
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	var dummyMetricType MetricType
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		for _, metric := range mappings {
-			mapper.GetMapping(metric, dummyMetricType)
+			mapper.GetMapping(metric, MetricTypeCounter)
 		}
 	}
 }
@@ -717,11 +699,10 @@ mappings:` + duplicateRules(100, ruleTemplateSingleMatchRegex)
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	var dummyMetricType MetricType
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		for _, metric := range mappings {
-			mapper.GetMapping(metric, dummyMetricType)
+			mapper.GetMapping(metric, MetricTypeCounter)
 		}
 	}
 }
@@ -739,11 +720,10 @@ mappings:` + duplicateRules(100, ruleTemplateMultipleMatchGlob)
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	var dummyMetricType MetricType
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		for _, metric := range mappings {
-			mapper.GetMapping(metric, dummyMetricType)
+			mapper.GetMapping(metric, MetricTypeCounter)
 		}
 	}
 }
@@ -763,11 +743,10 @@ mappings:` + duplicateRules(100, ruleTemplateMultipleMatchRegex)
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	var dummyMetricType MetricType
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		for _, metric := range mappings {
-			mapper.GetMapping(metric, dummyMetricType)
+			mapper.GetMapping(metric, MetricTypeCounter)
 		}
 	}
 }
@@ -787,11 +766,10 @@ mappings:` + duplicateRules(100, ruleTemplateMultipleMatchRegex)
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	var dummyMetricType MetricType
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		for _, metric := range mappings {
-			mapper.GetMapping(metric, dummyMetricType)
+			mapper.GetMapping(metric, MetricTypeCounter)
 		}
 	}
 }

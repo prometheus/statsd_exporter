@@ -571,9 +571,10 @@ mappings:
 			t.Fatalf("%d. Expected bad config, but loaded ok: %s", i, scenario.config)
 		}
 
-		var dummyMetricType MetricType = ""
 		for metric, mapping := range scenario.mappings {
-			m, labels, present := mapper.GetMapping(metric, dummyMetricType)
+			// exporter will call mapper.GetMapping with valid MetricType
+			// so we also pass a sane MetricType in testing
+			m, labels, present := mapper.GetMapping(metric, MetricTypeCounter)
 			if present && mapping.name != "" && m.Name != mapping.name {
 				t.Fatalf("%d.%q: Expected name %v, got %v", i, metric, m.Name, mapping.name)
 			}

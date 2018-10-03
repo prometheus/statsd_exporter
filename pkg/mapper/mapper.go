@@ -140,7 +140,7 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 				return fmt.Errorf("invalid match: %s", currentMapping.Match)
 			}
 
-			captureCount := n.FSM.AddState(currentMapping.Match, currentMapping.Name, string(currentMapping.MatchMetricType),
+			captureCount := n.FSM.AddState(currentMapping.Match, string(currentMapping.MatchMetricType),
 				remainingMappingsCount, currentMapping)
 
 			currentMapping.nameFormatter = fsm.NewTemplateFormatter(currentMapping.Name, captureCount)

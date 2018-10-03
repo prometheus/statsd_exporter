@@ -30,15 +30,17 @@ type TemplateFormatter struct {
 	fmtString      string
 }
 
-func NewTemplateFormatter(valueExpr string, captureCount int) *TemplateFormatter {
-	matches := templateReplaceCaptureRE.FindAllStringSubmatch(valueExpr, -1)
+// NewTemplateFormatter instantialize a TemplateFormatter
+// from given template string and the maxium amount of captures.
+func NewTemplateFormatter(template string, captureCount int) *TemplateFormatter {
+	matches := templateReplaceCaptureRE.FindAllStringSubmatch(template, -1)
 	if len(matches) == 0 {
 		// if no regex reference found, keep it as it is
-		return &TemplateFormatter{captureCount: 0, fmtString: valueExpr}
+		return &TemplateFormatter{captureCount: 0, fmtString: template}
 	}
 
 	var indexes []int
-	valueFormatter := valueExpr
+	valueFormatter := template
 	for _, match := range matches {
 		idx, err := strconv.Atoi(match[len(match)-1])
 		if err != nil || idx > captureCount || idx < 1 {
@@ -58,6 +60,8 @@ func NewTemplateFormatter(valueExpr string, captureCount int) *TemplateFormatter
 	}
 }
 
+// Format accepts a list containing captured strings and return the formatted string
+// using the template stored in current TemplateFormatter.
 func (formatter *TemplateFormatter) Format(captures []string) string {
 	if formatter.captureCount == 0 {
 		// no label substitution, keep as it is

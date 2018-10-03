@@ -52,7 +52,6 @@ func NewFSM(metricTypes []string, maxPossibleTransitions int, orderingDisabled b
 	root := &mappingState{}
 	root.transitions = make(map[string]*mappingState, len(metricTypes))
 
-	metricTypes = append(metricTypes, "")
 	for _, field := range metricTypes {
 		state := &mappingState{}
 		(*state).transitions = make(map[string]*mappingState, maxPossibleTransitions)
@@ -65,14 +64,17 @@ func NewFSM(metricTypes []string, maxPossibleTransitions int, orderingDisabled b
 	return &fsm
 }
 
-// AddState adds a state into the existing FSM
-func (f *FSM) AddState(match string, name string, matchMetricType string, maxPossibleTransitions int, result interface{}) int {
+// AddState adds a mapping rule into the existing FSM.
+// The maxPossibleTransitions parameter sets the expected count of transitions left.
+// The result parameter sets the generic type to be returned when fsm found a match in GetMapping.
+func (f *FSM) AddState(match string, matchMetricType string, maxPossibleTransitions int, result interface{}) int {
 	// first split by "."
 	matchFields := strings.Split(match, ".")
 	// fill into our FSM
 	roots := []*mappingState{}
+	// first state is the metric type
 	if matchMetricType == "" {
-		// if metricType not specified, connect the state from all three types
+		// if metricType not specified, connect the start state from all three types
 		for _, metricType := range f.metricTypes {
 			roots = append(roots, f.root.transitions[string(metricType)])
 		}
@@ -81,11 +83,14 @@ func (f *FSM) AddState(match string, name string, matchMetricType string, maxPos
 	}
 	var captureCount int
 	var finalStates []*mappingState
+	// iterating over different start state (different metric types)
 	for _, root := range roots {
 		captureCount = 0
+		// for each start state, connect from start state to end state
 		for i, field := range matchFields {
 			state, prs := root.transitions[field]
 			if !prs {
+				// create a state if it's not exist in the fsm
 				state = &mappingState{}
 				(*state).transitions = make(map[string]*mappingState, maxPossibleTransitions)
 				(*state).maxRemainingLength = len(matchFields) - i - 1
@@ -118,7 +123,9 @@ func (f *FSM) AddState(match string, name string, matchMetricType string, maxPos
 	return captureCount
 }
 
-// GetMapping implements a mapping algorithm for Glob pattern
+// GetMapping using the fsm to find matching rules according to given statsdMetric and statsdMetricType.
+// If it finds a match, the final state and the captured strings are returned;
+// if there's no match found, nil and a empty list will be returned.
 func (f *FSM) GetMapping(statsdMetric string, statsdMetricType string) (*mappingState, []string) {
 	matchFields := strings.Split(statsdMetric, ".")
 	currentState := f.root.transitions[statsdMetricType]
@@ -156,7 +163,7 @@ func (f *FSM) GetMapping(statsdMetric string, statsdMetricType string) (*mapping
 							captureIdx++
 						}
 					} else if f.BacktrackingNeeded {
-						// if backtracking is needed, also check for alternative transition
+						// if backtracking is needed, also check for alternative transition, i.e. *
 						altState, present := currentState.transitions["*"]
 						if !present || fieldsLeft > altState.maxRemainingLength || fieldsLeft < altState.minRemainingLength {
 						} else {
@@ -221,10 +228,11 @@ func (f *FSM) GetMapping(statsdMetric string, statsdMetricType string) (*mapping
 	return finalState, captures
 }
 
-// TestIfNeedBacktracking test if backtrack is needed for current mappings
+// TestIfNeedBacktracking tests if backtrack is needed for given list of mappings
+// and whether ordering is disabled.
 func TestIfNeedBacktracking(mappings []string, orderingDisabled bool) bool {
 	backtrackingNeeded := false
-	// A has * in rules there's other transisitions at the same state
+	// A has * in rules, but there's other transisitions at the same state,
 	// this makes A the cause of backtracking
 	ruleByLength := make(map[int][]string)
 	ruleREByLength := make(map[int][]*regexp.Regexp)
@@ -255,11 +263,14 @@ func TestIfNeedBacktracking(mappings []string, orderingDisabled bool) bool {
 			if re1 == nil || strings.Index(r1, "*") == -1 {
 				continue
 			}
-			// if a rule is A.B.C.*.E.*, is there a rule A.B.C.D.x.x or A.B.C.*.E.F? (x is any string or *)
+			// if rule r1 is A.B.C.*.E.*, is there a rule r2 is A.B.C.D.x.x or A.B.C.*.E.F ? (x is any string or *)
+			// if such r2 exists, then to match r1 we will need backtracking
 			for index := 0; index < len(r1); index++ {
 				if r1[index] != '*' {
 					continue
 				}
+				// translate the substring of r1 from 0 to the index of current * into regex
+				// A.B.C.*.E.* will becomes ^A\.B\.C\. and ^A\.B\.C\.\*\.E\.
 				reStr := strings.Replace(r1[:index], ".", "\\.", -1)
 				reStr = strings.Replace(reStr, "*", "\\*", -1)
 				re := regexp.MustCompile("^" + reStr)
