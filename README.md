@@ -72,6 +72,8 @@ NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/king
                               read buffer associated with the UDP connection. Please
                               make sure the kernel parameters net.core.rmem_max is
                               set to a value greater than the value specified.
+          --debug.dump-fsm="" The path to dump internal FSM generated for glob
+                              matching as Dot file.
           --log.level="info"  Only log messages with the given severity or above.
                               Valid levels: [debug, info, warn, error, fatal]
           --log.format="logger:stderr"  
@@ -181,6 +183,8 @@ mappings:
     code: "$1"
 ```
 
+### StatsD timers
+
 By default, statsd timers are represented as a Prometheus summary with
 quantiles. You may optionally configure the [quantiles and acceptable
 error](https://prometheus.io/docs/practices/histograms/#quantiles):
@@ -223,6 +227,8 @@ mappings:
     job: "${1}_server"
 ```
 
+### Regular expression matching
+
 Another capability when using YAML configuration is the ability to define matches
 using raw regular expressions as opposed to the default globbing style of match.
 This may allow for pulling structured data from otherwise poorly named statsd
@@ -249,14 +255,19 @@ automatically.
 only used when the statsd metric type is a timerand the `timer_type` is set to
 "histogram."
 
+### Global defaults
+
 One may also set defaults for the timer type, buckets or quantiles, and match_type. These will be used
 by all mappings that do not define these.
+
+An option that can only be configured in `defaults` is `glob_disable_ordering`, which is `false` if omitted. By setting this to `true`, `glob` match type will not honor the occurance of rules in the mapping rules file and always treat `*` as lower priority than a general string.
 
 ```yaml
 defaults:
   timer_type: histogram
   buckets: [.005, .01, .025, .05, .1, .25, .5, 1, 2.5 ]
   match_type: glob
+  glob_disable_ordering: false
 mappings:
 # This will be a histogram using the buckets set in `defaults`.
 - match: test.timing.*.*.*
@@ -275,7 +286,34 @@ mappings:
     job: "${1}_server_other"
 ```
 
-You may also drop metrics by specifying a "drop" action on a match. For example:
+### Choose between glob or regex match type
+
+Despite from the missing flexibility of using regular expression in mapping and
+formatting labels, `glob` matching is optimized to have better performance than
+`regex` in certain use cases. In short, glob will have best performance if the
+rules amount is not so less and captures (using of *) is not to much in a
+single rule. Whether disabling ordering in glob or not won't have a noticable
+effect on performance in general use cases. In edge cases like the below however,
+disabling ordering will be beneficial:
+
+    a.*.*.*.*
+    a.b.*.*.*
+    a.b.c.*.*
+    a.b.c.d.*
+
+The reason is the list assignment of captures (using of *) is the most
+expensive operation in glob. Honoring ordering will result fsm to do 10
+times of list assignment at most, while disabling ordering it will need
+only 4 at most.
+
+See also [pkg/mapper/fsm/README.md](pkg/mapper/fsm/README.md).
+Also running `go test -bench .` in **pkg/mapper** directory will produce
+a detailed comparation between the two match type.
+
+### `drop` action
+
+You may also drop metrics by specifying a "drop" action on a match. For
+example:
 
 ```yaml
 mappings:
@@ -295,6 +333,8 @@ mappings:
 
 You can drop any metric using the normal match syntax.
 The default action is "map" which does the normal metrics mapping.
+
+### Explicit metric type mapping
 
 StatsD allows emitting of different metric types under the same metric name,
 but the Prometheus client library can't merge those. For this use-case the
