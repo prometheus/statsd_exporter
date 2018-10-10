@@ -1,3 +1,13 @@
+## 0.8.0-rc1 / 2018-10-11
+
+* [ENHANCEMENT] Speed up glob matching ([#157](https://github.com/prometheus/statsd_exporter/pull/157))
+
+This release replaces the implementation of the glob matching mechanism,
+speeding it up significantly. In certain sub-optimal configurations, a warning
+is logged.
+
+This major enhancement was contributed by [Wangchong Zhou](https://github.com/fffonion).
+
 ## 0.7.0 / 2018-08-22
 
 This is a breaking release, but the migration is easy: command line flags now
