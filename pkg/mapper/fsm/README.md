@@ -125,8 +125,8 @@ mappings:
 ```
 
 will be rendered as:
-![FSM](fsm.png)
 
+![FSM](fsm.png)
 
 The `dot` program is part of [Graphviz](https://www.graphviz.org/) and is
 available in most of popular operating systems.
