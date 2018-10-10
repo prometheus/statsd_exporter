@@ -286,12 +286,12 @@ mappings:
     job: "${1}_server_other"
 ```
 
-### Choose between glob or regex match type
+### Choosing between glob or regex match type
 
 Despite from the missing flexibility of using regular expression in mapping and
 formatting labels, `glob` matching is optimized to have better performance than
 `regex` in certain use cases. In short, glob will have best performance if the
-rules amount is not so less and captures (using of *) is not to much in a
+rules amount is not so less and captures (using of `*`) is not to much in a
 single rule. Whether disabling ordering in glob or not won't have a noticable
 effect on performance in general use cases. In edge cases like the below however,
 disabling ordering will be beneficial:
@@ -301,14 +301,13 @@ disabling ordering will be beneficial:
     a.b.c.*.*
     a.b.c.d.*
 
-The reason is the list assignment of captures (using of *) is the most
-expensive operation in glob. Honoring ordering will result fsm to do 10
-times of list assignment at most, while disabling ordering it will need
-only 4 at most.
+The reason is that the list assignment of captures (using of `*`) is the most
+expensive operation in glob. Honoring ordering will result in up to 10 list
+assignments, while without ordering it will need only 4 at most.
 
-See also [pkg/mapper/fsm/README.md](pkg/mapper/fsm/README.md).
-Also running `go test -bench .` in **pkg/mapper** directory will produce
-a detailed comparation between the two match type.
+For details, see [pkg/mapper/fsm/README.md](pkg/mapper/fsm/README.md).
+Running `go test -bench .` in **pkg/mapper** directory will produce
+a detailed comparison between the two match type.
 
 ### `drop` action
 
