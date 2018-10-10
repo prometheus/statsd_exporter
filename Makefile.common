@@ -66,11 +66,6 @@ test:
 	@echo ">> running all tests"
 	$(GO) test -race $(pkgs)
 
-.PHONY: bench
-bench:
-	@echo ">> running all benchmarks"
-	$(GO) test -bench . -race $(pkgs) 
-
 .PHONY: format
 format:
 	@echo ">> formatting code"

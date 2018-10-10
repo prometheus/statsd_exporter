@@ -17,3 +17,10 @@ STATICCHECK_IGNORE = \
   github.com/prometheus/statsd_exporter/main.go:SA1019 \
 
 DOCKER_IMAGE_NAME       ?= statsd-exporter
+
+.PHONY: bench
+bench:
+	@echo ">> running all benchmarks"
+	$(GO) test -bench . -race $(pkgs)
+
+all: bench
