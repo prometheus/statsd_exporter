@@ -139,6 +139,94 @@ mappings:
 				},
 			},
 		},
+		//Config with backtracking
+		{
+			config: `
+defaults:
+  glob_disable_ordering: true
+mappings:
+- match: backtrack.*.bbb
+  name: "testb"
+  labels:
+    label: "${1}_foo"
+- match: backtrack.justatest.aaa
+  name: "testa"
+  labels:
+    label: "${1}_foo"
+  `,
+			mappings: mappings{
+				"backtrack.good.bbb": {
+					name: "testb",
+					labels: map[string]string{
+						"label": "good_foo",
+					},
+				},
+				"backtrack.justatest.bbb": {
+					name: "testb",
+					labels: map[string]string{
+						"label": "justatest_foo",
+					},
+				},
+			},
+		},
+		//Config with super sets, disables ordering
+		{
+			config: `
+defaults:
+  glob_disable_ordering: true
+mappings:
+- match: noorder.*.*
+  name: "testa"
+  labels:
+    label: "${1}_foo"
+- match: noorder.*.bbb
+  name: "testb"
+  labels:
+    label: "${1}_foo"
+- match: noorder.ccc.bbb
+  name: "testc"
+  labels:
+    label: "ccc_foo"
+  `,
+			mappings: mappings{
+				"noorder.good.bbb": {
+					name: "testb",
+					labels: map[string]string{
+						"label": "good_foo",
+					},
+				},
+				"noorder.ccc.bbb": {
+					name: "testc",
+					labels: map[string]string{
+						"label": "ccc_foo",
+					},
+				},
+			},
+		},
+		//Config with super sets, keeps ordering
+		{
+			config: `
+defaults:
+  glob_disable_ordering: false
+mappings:
+- match: order.*.*
+  name: "testa"
+  labels:
+    label: "${1}_foo"
+- match: order.*.bbb
+  name: "testb"
+  labels:
+    label: "${1}_foo"
+  `,
+			mappings: mappings{
+				"order.good.bbb": {
+					name: "testa",
+					labels: map[string]string{
+						"label": "good_foo",
+					},
+				},
+			},
+		},
 		// Config with bad regex reference.
 		{
 			config: `---
@@ -483,9 +571,10 @@ mappings:
 			t.Fatalf("%d. Expected bad config, but loaded ok: %s", i, scenario.config)
 		}
 
-		var dummyMetricType MetricType = ""
 		for metric, mapping := range scenario.mappings {
-			m, labels, present := mapper.GetMapping(metric, dummyMetricType)
+			// exporter will call mapper.GetMapping with valid MetricType
+			// so we also pass a sane MetricType in testing
+			m, labels, present := mapper.GetMapping(metric, MetricTypeCounter)
 			if present && mapping.name != "" && m.Name != mapping.name {
 				t.Fatalf("%d.%q: Expected name %v, got %v", i, metric, m.Name, mapping.name)
 			}

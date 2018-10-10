@@ -17,10 +17,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"regexp"
-	"strings"
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/statsd_exporter/pkg/mapper/fsm"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -34,15 +34,19 @@ var (
 )
 
 type mapperConfigDefaults struct {
-	TimerType TimerType         `yaml:"timer_type"`
-	Buckets   []float64         `yaml:"buckets"`
-	Quantiles []metricObjective `yaml:"quantiles"`
-	MatchType MatchType         `yaml:"match_type"`
+	TimerType           TimerType         `yaml:"timer_type"`
+	Buckets             []float64         `yaml:"buckets"`
+	Quantiles           []metricObjective `yaml:"quantiles"`
+	MatchType           MatchType         `yaml:"match_type"`
+	GlobDisableOrdering bool              `yaml:"glob_disable_ordering"`
 }
 
 type MetricMapper struct {
 	Defaults mapperConfigDefaults `yaml:"defaults"`
 	Mappings []MetricMapping      `yaml:"mappings"`
+	FSM      *fsm.FSM
+	doFSM    bool
+	doRegex  bool
 	mutex    sync.Mutex
 
 	MappingsCount prometheus.Gauge
@@ -53,8 +57,11 @@ type matchMetricType string
 type MetricMapping struct {
 	Match           string `yaml:"match"`
 	Name            string `yaml:"name"`
+	nameFormatter   *fsm.TemplateFormatter
 	regex           *regexp.Regexp
 	Labels          prometheus.Labels `yaml:"labels"`
+	labelKeys       []string
+	labelFormatters []*fsm.TemplateFormatter
 	TimerType       TimerType         `yaml:"timer_type"`
 	Buckets         []float64         `yaml:"buckets"`
 	Quantiles       []metricObjective `yaml:"quantiles"`
@@ -94,7 +101,14 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 		n.Defaults.MatchType = MatchTypeGlob
 	}
 
+	remainingMappingsCount := len(n.Mappings)
+
+	n.FSM = fsm.NewFSM([]string{string(MetricTypeCounter), string(MetricTypeGauge), string(MetricTypeTimer)},
+		remainingMappingsCount, n.Defaults.GlobDisableOrdering)
+
 	for i := range n.Mappings {
+		remainingMappingsCount--
+
 		currentMapping := &n.Mappings[i]
 
 		// check that label is correct
@@ -121,24 +135,34 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 		}
 
 		if currentMapping.MatchType == MatchTypeGlob {
+			n.doFSM = true
 			if !metricLineRE.MatchString(currentMapping.Match) {
 				return fmt.Errorf("invalid match: %s", currentMapping.Match)
 			}
-			// Translate the glob-style metric match line into a proper regex that we
-			// can use to match metrics later on.
-			metricRe := strings.Replace(currentMapping.Match, ".", "\\.", -1)
-			metricRe = strings.Replace(metricRe, "*", "([^.]*)", -1)
-			if regex, err := regexp.Compile("^" + metricRe + "$"); err != nil {
-				return fmt.Errorf("invalid match %s. cannot compile regex in mapping: %v", currentMapping.Match, err)
-			} else {
-				currentMapping.regex = regex
+
+			captureCount := n.FSM.AddState(currentMapping.Match, string(currentMapping.MatchMetricType),
+				remainingMappingsCount, currentMapping)
+
+			currentMapping.nameFormatter = fsm.NewTemplateFormatter(currentMapping.Name, captureCount)
+
+			labelKeys := make([]string, len(currentMapping.Labels))
+			labelFormatters := make([]*fsm.TemplateFormatter, len(currentMapping.Labels))
+			labelIndex := 0
+			for label, valueExpr := range currentMapping.Labels {
+				labelKeys[labelIndex] = label
+				labelFormatters[labelIndex] = fsm.NewTemplateFormatter(valueExpr, captureCount)
+				labelIndex++
 			}
+			currentMapping.labelFormatters = labelFormatters
+			currentMapping.labelKeys = labelKeys
+
 		} else {
 			if regex, err := regexp.Compile(currentMapping.Match); err != nil {
 				return fmt.Errorf("invalid regex %s in mapping: %v", currentMapping.Match, err)
 			} else {
 				currentMapping.regex = regex
 			}
+			n.doRegex = true
 		}
 
 		if currentMapping.TimerType == "" {
@@ -160,6 +184,19 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 
 	m.Defaults = n.Defaults
 	m.Mappings = n.Mappings
+	if n.doFSM {
+		var mappings []string
+		for _, mapping := range n.Mappings {
+			if mapping.MatchType == MatchTypeGlob {
+				mappings = append(mappings, mapping.Match)
+			}
+		}
+		n.FSM.BacktrackingNeeded = fsm.TestIfNeedBacktracking(mappings, n.FSM.OrderingDisabled)
+
+		m.FSM = n.FSM
+		m.doRegex = n.doRegex
+	}
+	m.doFSM = n.doFSM
 
 	if m.MappingsCount != nil {
 		m.MappingsCount.Set(float64(len(n.Mappings)))
@@ -177,10 +214,33 @@ func (m *MetricMapper) InitFromFile(fileName string) error {
 }
 
 func (m *MetricMapper) GetMapping(statsdMetric string, statsdMetricType MetricType) (*MetricMapping, prometheus.Labels, bool) {
+	// glob matching
+	if m.doFSM {
+		finalState, captures := m.FSM.GetMapping(statsdMetric, string(statsdMetricType))
+		if finalState != nil && finalState.Result != nil {
+			result := finalState.Result.(*MetricMapping)
+			result.Name = result.nameFormatter.Format(captures)
+
+			labels := prometheus.Labels{}
+			for index, formatter := range result.labelFormatters {
+				labels[result.labelKeys[index]] = formatter.Format(captures)
+			}
+			return result, labels, true
+		} else if !m.doRegex {
+			// if there's no regex match type, return immediately
+			return nil, nil, false
+		}
+	}
+
+	// regex matching
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
 	for _, mapping := range m.Mappings {
+		// if a rule don't have regex matching type, the regex field is unset
+		if mapping.regex == nil {
+			continue
+		}
 		matches := mapping.regex.FindStringSubmatchIndex(statsdMetric)
 		if len(matches) == 0 {
 			continue
