@@ -30,8 +30,8 @@ type TemplateFormatter struct {
 	fmtString      string
 }
 
-// NewTemplateFormatter instantialize a TemplateFormatter
-// from given template string and the maxium amount of captures.
+// NewTemplateFormatter instantiates a TemplateFormatter
+// from given template string and the maximum amount of captures.
 func NewTemplateFormatter(template string, captureCount int) *TemplateFormatter {
 	matches := templateReplaceCaptureRE.FindAllStringSubmatch(template, -1)
 	if len(matches) == 0 {
@@ -60,8 +60,8 @@ func NewTemplateFormatter(template string, captureCount int) *TemplateFormatter 
 	}
 }
 
-// Format accepts a list containing captured strings and return the formatted string
-// using the template stored in current TemplateFormatter.
+// Format accepts a list containing captured strings and returns the formatted
+// string using the template stored in current TemplateFormatter.
 func (formatter *TemplateFormatter) Format(captures []string) string {
 	if formatter.captureCount == 0 {
 		// no label substitution, keep as it is
