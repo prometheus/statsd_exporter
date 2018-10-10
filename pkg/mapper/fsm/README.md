@@ -3,7 +3,7 @@
 ## Overview
 
 This package implements a fast and efficient algorithm for generic glob style
-string matching using finite state machine (FSM).
+string matching using a finite state machine (FSM).
 
 ### Source Hierachy
 
@@ -19,7 +19,13 @@ string matching using finite state machine (FSM).
 
 Per [Wikipedia](https://en.wikipedia.org/wiki/Finite-state_machine):
 
-    A finite-state machine (FSM) or finite-state automaton (FSA, plural: automata), finite automaton, or simply a state machine, is a mathematical model of computation. It is an abstract machine that can be in exactly one of a finite number of states at any given time. The FSM can change from one state to another in response to some external inputs; the change from one state to another is called a transition. An FSM is defined by a list of its states, its initial state, and the conditions for each transition.
+> A finite-state machine (FSM) or finite-state automaton (FSA, plural: automata),
+> finite automaton, or simply a state machine, is a mathematical model of
+> computation. It is an abstract machine that can be in exactly one of a finite
+> number of states at any given time. The FSM can change from one state to
+> another in response to some external inputs; the change from one state to
+> another is called a transition. An FSM is defined by a list of its states, its
+> initial state, and the conditions for each transition.
 
 In our use case, each *state* is a substring after the input StatsD metric name is splitted by `.`.
 
@@ -28,7 +34,7 @@ In our use case, each *state* is a substring after the input StatsD metric name 
 `func (f *FSM) AddState(match string, matchMetricType string,
 maxPossibleTransitions int, result interface{}) int`
 
-At first, the fsm only contains three states, representing three possible metric types:
+At first, the FSM only contains three states, representing three possible metric types:
 
            ____ [gauge]
           /
@@ -37,7 +43,7 @@ At first, the fsm only contains three states, representing three possible metric
            '--- [ timer ]
 
 
-Adding a rule `client.*.request.count` with type `counter` will make the fsm to be:
+Adding a rule `client.*.request.count` with type `counter` will make the FSM to be:
 
 
            ____ [gauge]
@@ -48,7 +54,7 @@ Adding a rule `client.*.request.count` with type `counter` will make the fsm to 
 
 `{R1}` is short for result 1, which is the match result for `client.*.request.count`.
 
-Adding a rule `client.*.*.size` with type `counter` will make the fsm to be:
+Adding a rule `client.*.*.size` with type `counter` will make the FSM to be:
 
            ____ [gauge]                      __ [request] -- [count] -- {R1}
           /                                 /
@@ -62,8 +68,8 @@ Adding a rule `client.*.*.size` with type `counter` will make the fsm to be:
 `func (f *FSM) GetMapping(statsdMetric string, statsdMetricType string)
 (*mappingState, []string)`
 
-For example, try to map `client.aaa.request.count` with `counter` type in the
-fsm, the `^1` to `^7` symbols indicate how fsm will traversal in its tree:
+For example, when mapping `client.aaa.request.count` with `counter` type in the
+FSM, the `^1` to `^7` symbols indicate how FSM will traversal in its tree:
 
 
            ____ [gauge]                      __ [request] -- [count] -- {R1}
@@ -73,7 +79,7 @@ fsm, the `^1` to `^7` symbols indicate how fsm will traversal in its tree:
            '--- [timer]                   ^4 
 
 
-To map `client.bbb.request.size`, fsm will do a backtracking:
+To map `client.bbb.request.size`, FSM will do a backtracking:
 
 
            ____ [gauge]                      __ [request] -- [count] -- {R1}
@@ -119,7 +125,7 @@ mappings:
 ```
 
 will be rendered as:
-![fsm](https://i.imgur.com/Wao4tsI.png)
+![FSM](fsm.png)
 
 
 The `dot` program is part of [Graphviz](https://www.graphviz.org/) and is
