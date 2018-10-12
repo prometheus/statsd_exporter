@@ -1,4 +1,4 @@
-## 0.8.0 / 2018-10-12
+## v0.8.0 / 2018-10-12
 
 * [ENHANCEMENT] Speed up glob matching ([#157](https://github.com/prometheus/statsd_exporter/pull/157))
 
@@ -8,7 +8,7 @@ is logged.
 
 This major enhancement was contributed by [Wangchong Zhou](https://github.com/fffonion).
 
-## 0.7.0 / 2018-08-22
+## v0.7.0 / 2018-08-22
 
 This is a breaking release, but the migration is easy: command line flags now
 require two dashes (`--help` instead of `-help`). The previous flag library
