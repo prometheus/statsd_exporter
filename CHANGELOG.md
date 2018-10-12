@@ -1,4 +1,4 @@
-## 0.8.0-rc1 / 2018-10-11
+## 0.8.0 / 2018-10-12
 
 * [ENHANCEMENT] Speed up glob matching ([#157](https://github.com/prometheus/statsd_exporter/pull/157))
 
