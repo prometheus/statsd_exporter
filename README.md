@@ -50,7 +50,7 @@ NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/king
     $ go build
     $ ./statsd_exporter --help
     usage: statsd_exporter [<flags>]
-
+    ```
     Flags:
       -h, --help              Show context-sensitive help (also try --help-long and
                               --help-man).
@@ -81,7 +81,7 @@ NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/king
                               "logger:syslog?appname=bob&local=7" or
                               "logger:stdout?json=true"
           --version           Show application version.
-
+    ```
 ## Tests
 
     $ go test
