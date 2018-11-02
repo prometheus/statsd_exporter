@@ -106,6 +106,7 @@ var (
 
 func init() {
 	prometheus.MustRegister(eventStats)
+	prometheus.MustRegister(eventsUnmapped)
 	prometheus.MustRegister(udpPackets)
 	prometheus.MustRegister(tcpConnections)
 	prometheus.MustRegister(tcpErrors)
