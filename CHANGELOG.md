@@ -1,3 +1,7 @@
+## Unreleased / tbd.
+
+* [BUGFIX] Expose the counter for unmapped matches ([#161](https://github.com/prometheus/statsd_exporter/pull/161))
+
 ## v0.8.0 / 2018-10-12
 
 * [ENHANCEMENT] Speed up glob matching ([#157](https://github.com/prometheus/statsd_exporter/pull/157))
