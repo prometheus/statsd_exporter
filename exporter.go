@@ -253,6 +253,8 @@ func escapeMetricName(metricName string) string {
 	return metricName
 }
 
+// Listen handles all events sent to the given channel sequentially. It
+// terminates when the channel is closed.
 func (b *Exporter) Listen(e <-chan Events) {
 	for {
 		events, ok := <-e
@@ -261,127 +263,130 @@ func (b *Exporter) Listen(e <-chan Events) {
 			return
 		}
 		for _, event := range events {
-			var help string
-			metricName := ""
-			prometheusLabels := event.Labels()
-
-			mapping, labels, present := b.mapper.GetMapping(event.MetricName(), event.MetricType())
-			if mapping == nil {
-				mapping = &mapper.MetricMapping{}
-			}
-
-			if mapping.Action == mapper.ActionTypeDrop {
-				continue
-			}
-
-			if mapping.HelpText == "" {
-				help = defaultHelp
-			} else {
-				help = mapping.HelpText
-			}
-			if present {
-				metricName = escapeMetricName(mapping.Name)
-				for label, value := range labels {
-					prometheusLabels[label] = value
-				}
-			} else {
-				eventsUnmapped.Inc()
-				metricName = escapeMetricName(event.MetricName())
-			}
-
-			switch ev := event.(type) {
-			case *CounterEvent:
-				// We don't accept negative values for counters. Incrementing the counter with a negative number
-				// will cause the exporter to panic. Instead we will warn and continue to the next event.
-				if event.Value() < 0.0 {
-					log.Debugf("Counter %q is: '%f' (counter must be non-negative value)", metricName, event.Value())
-					eventStats.WithLabelValues("illegal_negative_counter").Inc()
-					continue
-				}
-
-				counter, err := b.Counters.Get(
-					metricName,
-					prometheusLabels,
-					help,
-				)
-				if err == nil {
-					counter.Add(event.Value())
-
-					eventStats.WithLabelValues("counter").Inc()
-				} else {
-					log.Debugf(regErrF, metricName, err)
-					conflictingEventStats.WithLabelValues("counter").Inc()
-				}
-
-			case *GaugeEvent:
-				gauge, err := b.Gauges.Get(
-					metricName,
-					prometheusLabels,
-					help,
-				)
-
-				if err == nil {
-					if ev.relative {
-						gauge.Add(event.Value())
-					} else {
-						gauge.Set(event.Value())
-					}
-
-					eventStats.WithLabelValues("gauge").Inc()
-				} else {
-					log.Debugf(regErrF, metricName, err)
-					conflictingEventStats.WithLabelValues("gauge").Inc()
-				}
-
-			case *TimerEvent:
-				t := mapper.TimerTypeDefault
-				if mapping != nil {
-					t = mapping.TimerType
-				}
-				if t == mapper.TimerTypeDefault {
-					t = b.mapper.Defaults.TimerType
-				}
-
-				switch t {
-				case mapper.TimerTypeHistogram:
-					histogram, err := b.Histograms.Get(
-						metricName,
-						prometheusLabels,
-						help,
-						mapping,
-					)
-					if err == nil {
-						histogram.Observe(event.Value() / 1000) // prometheus presumes seconds, statsd millisecond
-						eventStats.WithLabelValues("timer").Inc()
-					} else {
-						log.Debugf(regErrF, metricName, err)
-						conflictingEventStats.WithLabelValues("timer").Inc()
-					}
-
-				case mapper.TimerTypeDefault, mapper.TimerTypeSummary:
-					summary, err := b.Summaries.Get(
-						metricName,
-						prometheusLabels,
-						help,
-						mapping,
-					)
-					if err == nil {
-						summary.Observe(event.Value())
-						eventStats.WithLabelValues("timer").Inc()
-					} else {
-						log.Debugf(regErrF, metricName, err)
-						conflictingEventStats.WithLabelValues("timer").Inc()
-					}
-
-				default:
-					panic(fmt.Sprintf("unknown timer type '%s'", t))
-				}
-
-			default:
-				log.Debugln("Unsupported event type")
-				eventStats.WithLabelValues("illegal").Inc()
-			}
+			b.handleEvent(event)
 		}
+	}
+}
+
+// handleEvent processes a single Event according to the configured mapping.
+func (b *Exporter) handleEvent(event Event) {
+	mapping, labels, present := b.mapper.GetMapping(event.MetricName(), event.MetricType())
+	if mapping == nil {
+		mapping = &mapper.MetricMapping{}
+	}
+
+	if mapping.Action == mapper.ActionTypeDrop {
+		return
+	}
+
+	help := defaultHelp
+	if mapping.HelpText != "" {
+		help = mapping.HelpText
+	}
+
+	metricName := ""
+	prometheusLabels := event.Labels()
+	if present {
+		metricName = escapeMetricName(mapping.Name)
+		for label, value := range labels {
+			prometheusLabels[label] = value
+		}
+	} else {
+		eventsUnmapped.Inc()
+		metricName = escapeMetricName(event.MetricName())
+	}
+
+	switch ev := event.(type) {
+	case *CounterEvent:
+		// We don't accept negative values for counters. Incrementing the counter with a negative number
+		// will cause the exporter to panic. Instead we will warn and continue to the next event.
+		if event.Value() < 0.0 {
+			log.Debugf("Counter %q is: '%f' (counter must be non-negative value)", metricName, event.Value())
+			eventStats.WithLabelValues("illegal_negative_counter").Inc()
+			return
+		}
+
+		counter, err := b.Counters.Get(
+			metricName,
+			prometheusLabels,
+			help,
+		)
+		if err == nil {
+			counter.Add(event.Value())
+
+			eventStats.WithLabelValues("counter").Inc()
+		} else {
+			log.Debugf(regErrF, metricName, err)
+			conflictingEventStats.WithLabelValues("counter").Inc()
+		}
+
+	case *GaugeEvent:
+		gauge, err := b.Gauges.Get(
+			metricName,
+			prometheusLabels,
+			help,
+		)
+
+		if err == nil {
+			if ev.relative {
+				gauge.Add(event.Value())
+			} else {
+				gauge.Set(event.Value())
+			}
+
+			eventStats.WithLabelValues("gauge").Inc()
+		} else {
+			log.Debugf(regErrF, metricName, err)
+			conflictingEventStats.WithLabelValues("gauge").Inc()
+		}
+
+	case *TimerEvent:
+		t := mapper.TimerTypeDefault
+		if mapping != nil {
+			t = mapping.TimerType
+		}
+		if t == mapper.TimerTypeDefault {
+			t = b.mapper.Defaults.TimerType
+		}
+
+		switch t {
+		case mapper.TimerTypeHistogram:
+			histogram, err := b.Histograms.Get(
+				metricName,
+				prometheusLabels,
+				help,
+				mapping,
+			)
+			if err == nil {
+				histogram.Observe(event.Value() / 1000) // prometheus presumes seconds, statsd millisecond
+				eventStats.WithLabelValues("timer").Inc()
+			} else {
+				log.Debugf(regErrF, metricName, err)
+				conflictingEventStats.WithLabelValues("timer").Inc()
+			}
+
+		case mapper.TimerTypeDefault, mapper.TimerTypeSummary:
+			summary, err := b.Summaries.Get(
+				metricName,
+				prometheusLabels,
+				help,
+				mapping,
+			)
+			if err == nil {
+				summary.Observe(event.Value())
+				eventStats.WithLabelValues("timer").Inc()
+			} else {
+				log.Debugf(regErrF, metricName, err)
+				conflictingEventStats.WithLabelValues("timer").Inc()
+			}
+
+		default:
+			panic(fmt.Sprintf("unknown timer type '%s'", t))
+		}
+
+	default:
+		log.Debugln("Unsupported event type")
+		eventStats.WithLabelValues("illegal").Inc()
 	}
 }
 
