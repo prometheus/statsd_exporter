@@ -1,5 +1,5 @@
 FROM  quay.io/prometheus/busybox:latest
-LABEL maintainer="The Prometheus Authors <prometheus-developers@googlegroups.com>"
+LABEL maintainer="The KubeVault Authors <hello@appscode.com>"
 
 COPY statsd_exporter /bin/statsd_exporter
 

@@ -1,5 +1,5 @@
 repository:
-    path: github.com/prometheus/statsd_exporter
+    path: github.com/kubevault/vault_exporter
 build:
     flags: -a -tags 'netgo static_build'
     ldflags: |

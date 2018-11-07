@@ -19,8 +19,8 @@ import (
 	"regexp"
 	"sync"
 
+	"github.com/kubevault/vault_exporter/pkg/mapper/fsm"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/statsd_exporter/pkg/mapper/fsm"
 	yaml "gopkg.in/yaml.v2"
 )
 

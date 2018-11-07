@@ -21,7 +21,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/prometheus/statsd_exporter/pkg/mapper"
+	"github.com/kubevault/vault_exporter/pkg/mapper"
 )
 
 // TestNegativeCounter validates when we send a negative

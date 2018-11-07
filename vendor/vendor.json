@@ -153,5 +153,5 @@
 			"revisionTime": "2017-08-12T16:00:11Z"
 		}
 	],
-	"rootPath": "github.com/prometheus/statsd_exporter"
+	"rootPath": "github.com/kubevault/vault_exporter"
 }

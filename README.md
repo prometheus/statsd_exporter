@@ -1,8 +1,8 @@
-# statsd exporter [![Build Status](https://travis-ci.org/prometheus/statsd_exporter.svg)][travis]
+# vault exporter
 
-[![CircleCI](https://circleci.com/gh/prometheus/statsd_exporter/tree/master.svg?style=shield)][circleci]
-[![Docker Repository on Quay](https://quay.io/repository/prometheus/statsd-exporter/status)][quay]
-[![Docker Pulls](https://img.shields.io/docker/pulls/prom/statsd-exporter.svg)][hub]
+[![Go Report Card](https://goreportcard.com/badge/github.com/kubevault/vault_exporter)](https://goreportcard.com/report/github.com/kubevault/vault_exporter)
+[![Build Status](https://travis-ci.org/kubevault/vault_exporter.svg?branch=master)](https://travis-ci.org/kubevault/vault_exporter)
+[![Docker Pulls](https://img.shields.io/docker/pulls/kubevault/vault_exporter.svg)](https://hub.docker.com/r/kubevault/vault_exporter/)
 
 `statsd_exporter` receives StatsD-style metrics and exports them as Prometheus metrics.
 
@@ -365,7 +365,7 @@ docker run -d -p 9102:9102 -p 9125:9125 -p 9125:9125/udp \
 ```
 
 
-[travis]: https://travis-ci.org/prometheus/statsd_exporter
-[circleci]: https://circleci.com/gh/prometheus/statsd_exporter
+[travis]: https://travis-ci.org/kubevault/vault_exporter
+[circleci]: https://circleci.com/gh/kubevault/vault_exporter
 [quay]: https://quay.io/repository/prometheus/statsd-exporter
 [hub]: https://hub.docker.com/r/prom/statsd-exporter/

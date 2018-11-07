@@ -14,9 +14,9 @@
 include Makefile.common
 
 STATICCHECK_IGNORE = \
-  github.com/prometheus/statsd_exporter/main.go:SA1019 \
+  github.com/kubevault/vault_exporter/main.go:SA1019 \
 
-DOCKER_IMAGE_NAME       ?= statsd-exporter
+DOCKER_IMAGE_NAME       ?= vault-exporter
 
 .PHONY: bench
 bench:
