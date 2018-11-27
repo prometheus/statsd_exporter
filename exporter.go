@@ -50,7 +50,7 @@ var (
 	intBuf = make([]byte, 8)
 )
 
-func labelsNames(labels prometheus.Labels) []string {
+func labelNames(labels prometheus.Labels) []string {
 	names := make([]string, 0, len(labels))
 	for labelName := range labels {
 		names = append(names, labelName)
@@ -91,7 +91,7 @@ func (c *CounterContainer) Get(metricName string, labels prometheus.Labels, help
 		counterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: metricName,
 			Help: help,
-		}, labelsNames(labels))
+		}, labelNames(labels))
 		if err := prometheus.Register(counterVec); err != nil {
 			return nil, err
 		}
@@ -122,7 +122,7 @@ func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels, help s
 		gaugeVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: metricName,
 			Help: help,
-		}, labelsNames(labels))
+		}, labelNames(labels))
 		if err := prometheus.Register(gaugeVec); err != nil {
 			return nil, err
 		}
@@ -165,7 +165,7 @@ func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, help
 				Name:       metricName,
 				Help:       help,
 				Objectives: objectives,
-			}, labelsNames(labels))
+			}, labelNames(labels))
 		if err := prometheus.Register(summaryVec); err != nil {
 			return nil, err
 		}
@@ -204,7 +204,7 @@ func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, he
 				Name:    metricName,
 				Help:    help,
 				Buckets: buckets,
-			}, labelsNames(labels))
+			}, labelNames(labels))
 		if err := prometheus.Register(histogramVec); err != nil {
 			return nil, err
 		}
