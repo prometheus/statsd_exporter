@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
 
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
@@ -78,16 +79,6 @@ func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
 	}
 }
 
-type MockHistogram struct {
-	prometheus.Metric
-	prometheus.Collector
-	value float64
-}
-
-func (h *MockHistogram) Observe(n float64) {
-	h.value = n
-}
-
 func TestHistogramUnits(t *testing.T) {
 	events := make(chan Events, 1)
 	name := "foo"
@@ -106,14 +97,23 @@ func TestHistogramUnits(t *testing.T) {
 		time.Sleep(time.Millisecond * 100)
 		close(events)
 	}()
-	mock := &MockHistogram{}
-	key := hashNameAndLabels(name, nil)
-	ex.Histograms.Elements[key] = mock
+
 	ex.Listen(events)
-	if mock.value == 300 {
+
+	histogram, err := ex.Histograms.Get(name, prometheus.Labels{}, "", nil)
+	if err != nil {
+		t.Fatalf("Histogram not registered")
+	}
+
+	// check the state of the histogram by
+	// (ab)using its Write method (which is usually only used by Prometheus internally).
+	metric := &dto.Metric{}
+	histogram.Write(metric)
+	value := *metric.Histogram.SampleSum
+	if value == 300 {
 		t.Fatalf("Histogram observations not scaled into Seconds")
-	} else if mock.value != .300 {
-		t.Fatalf("Received unexpected value for histogram observation %f != .300", mock.value)
+	} else if value != .300 {
+		t.Fatalf("Received unexpected value for histogram observation %f != .300", value)
 	}
 }
 
