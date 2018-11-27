@@ -42,9 +42,6 @@ const (
 		"consider the effects on your monitoring setup. Error: %s"
 )
 
-// TODO move to mapping config
-const metricTtl = time.Duration(5 * time.Second)
-
 var (
 	illegalCharsRE = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 
@@ -202,7 +199,7 @@ func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, he
 		if mapping != nil && mapping.Buckets != nil && len(mapping.Buckets) > 0 {
 			buckets = mapping.Buckets
 		}
-		histogramVec := prometheus.NewHistogramVec(
+		histogramVec = prometheus.NewHistogramVec(
 			prometheus.HistogramOpts{
 				Name:    metricName,
 				Help:    help,
@@ -268,6 +265,7 @@ type Events []Event
 type LabelValues struct {
 	lastRegisteredAt time.Time
 	labels           prometheus.Labels
+	ttl              uint64
 }
 
 type Exporter struct {
@@ -357,8 +355,7 @@ func (b *Exporter) handleEvent(event Event) {
 		)
 		if err == nil {
 			counter.Add(event.Value())
-			b.saveLabelValues(metricName, prometheusLabels)
-
+			b.saveLabelValues(metricName, prometheusLabels, mapping.Ttl)
 			eventStats.WithLabelValues("counter").Inc()
 		} else {
 			log.Debugf(regErrF, metricName, err)
@@ -378,8 +375,7 @@ func (b *Exporter) handleEvent(event Event) {
 			} else {
 				gauge.Set(event.Value())
 			}
-			b.saveLabelValues(metricName, prometheusLabels)
-
+			b.saveLabelValues(metricName, prometheusLabels, mapping.Ttl)
 			eventStats.WithLabelValues("gauge").Inc()
 		} else {
 			log.Debugf(regErrF, metricName, err)
@@ -405,7 +401,7 @@ func (b *Exporter) handleEvent(event Event) {
 			)
 			if err == nil {
 				histogram.Observe(event.Value() / 1000) // prometheus presumes seconds, statsd millisecond
-				b.saveLabelValues(metricName, prometheusLabels)
+				b.saveLabelValues(metricName, prometheusLabels, mapping.Ttl)
 				eventStats.WithLabelValues("timer").Inc()
 			} else {
 				log.Debugf(regErrF, metricName, err)
@@ -421,7 +417,7 @@ func (b *Exporter) handleEvent(event Event) {
 			)
 			if err == nil {
 				summary.Observe(event.Value())
-				b.saveLabelValues(metricName, prometheusLabels)
+				b.saveLabelValues(metricName, prometheusLabels, mapping.Ttl)
 				eventStats.WithLabelValues("timer").Inc()
 			} else {
 				log.Debugf(regErrF, metricName, err)
@@ -444,7 +440,10 @@ func (b *Exporter) removeStaleMetrics() {
 	// delete timeseries with expired ttl
 	for metricName := range b.labelValues {
 		for hash, lvs := range b.labelValues[metricName] {
-			if lvs.lastRegisteredAt.Add(metricTtl).Before(now) {
+			if lvs.ttl == 0 {
+				continue
+			}
+			if lvs.lastRegisteredAt.Add(time.Duration(lvs.ttl) * time.Second).Before(now) {
 				b.Counters.Delete(metricName, lvs.labels)
 				b.Gauges.Delete(metricName, lvs.labels)
 				b.Summaries.Delete(metricName, lvs.labels)
@@ -456,7 +455,7 @@ func (b *Exporter) removeStaleMetrics() {
 }
 
 // saveLabelValues stores label values set to labelValues and update lastRegisteredAt time
-func (b *Exporter) saveLabelValues(metricName string, labels prometheus.Labels) {
+func (b *Exporter) saveLabelValues(metricName string, labels prometheus.Labels, ttl uint64) {
 	_, hasMetric := b.labelValues[metricName]
 	if !hasMetric {
 		b.labelValues[metricName] = make(map[uint64]*LabelValues)
@@ -466,6 +465,7 @@ func (b *Exporter) saveLabelValues(metricName string, labels prometheus.Labels) 
 	if !ok {
 		b.labelValues[metricName][hash] = &LabelValues{
 			labels: labels,
+			ttl:    ttl,
 		}
 	}
 	now := time.Now()

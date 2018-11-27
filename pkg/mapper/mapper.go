@@ -39,6 +39,7 @@ type mapperConfigDefaults struct {
 	Quantiles           []metricObjective `yaml:"quantiles"`
 	MatchType           MatchType         `yaml:"match_type"`
 	GlobDisableOrdering bool              `yaml:"glob_disable_ordering"`
+	Ttl                 uint64            `yaml:"ttl"`
 }
 
 type MetricMapper struct {
@@ -69,6 +70,7 @@ type MetricMapping struct {
 	HelpText        string            `yaml:"help"`
 	Action          ActionType        `yaml:"action"`
 	MatchMetricType MetricType        `yaml:"match_metric_type"`
+	Ttl             uint64            `yaml:"ttl"`
 }
 
 type metricObjective struct {
@@ -175,6 +177,10 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 
 		if currentMapping.Quantiles == nil || len(currentMapping.Quantiles) == 0 {
 			currentMapping.Quantiles = n.Defaults.Quantiles
+		}
+
+		if currentMapping.Ttl == 0 && n.Defaults.Ttl > 0 {
+			currentMapping.Ttl = n.Defaults.Ttl
 		}
 
 	}
