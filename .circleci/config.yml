@@ -40,10 +40,6 @@ jobs:
   docker_hub_master:
     executor: golang
 
-    environment:
-      DOCKER_IMAGE_NAME: prom/statsd-exporter
-      QUAY_IMAGE_NAME: quay.io/prometheus/statsd-exporter
-
     steps:
     - checkout
     - setup_remote_docker
