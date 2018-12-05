@@ -1,6 +1,7 @@
-## Unreleased / tbd.
+## v0.8.1 / 2018-12-05
 
 * [BUGFIX] Expose the counter for unmapped matches ([#161](https://github.com/prometheus/statsd_exporter/pull/161))
+* [BUGFIX] Unsuccessful backtracking does not clobber captures ([#169](https://github.com/prometheus/statsd_exporter/pull/169), fixes [#168](https://github.com/prometheus/statsd_exporter/issues/168))
 
 ## v0.8.0 / 2018-10-12
 
