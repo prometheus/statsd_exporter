@@ -167,6 +167,50 @@ mappings:
 						"label": "justatest_foo",
 					},
 				},
+				"backtrack.justatest.aaa": {
+					name: "testa",
+					labels: map[string]string{
+						"label": "_foo",
+					},
+				},
+			},
+		},
+		//Config with backtracking, the non-matched rule has star(s)
+		// A metric like full.name.anothertest will first match full.name.* and then tries
+		// to match *.dummy.* and then failed.
+		// This test case makes sure the captures in the non-matched later rule
+		// doesn't affect the captures in the first matched rule.
+		{
+			config: `
+defaults:
+  glob_disable_ordering: false
+mappings:
+- match: '*.dummy.*'
+  name: metric_one
+  labels:
+    system: $1
+    attribute: $2
+- match: 'full.name.*'
+  name: metric_two
+  labels:
+    system: static
+    attribute: $1
+`,
+			mappings: mappings{
+				"whatever.dummy.test": {
+					name: "metric_one",
+					labels: map[string]string{
+						"system":    "whatever",
+						"attribute": "test",
+					},
+				},
+				"full.name.anothertest": {
+					name: "metric_two",
+					labels: map[string]string{
+						"system":    "static",
+						"attribute": "anothertest",
+					},
+				},
 			},
 		},
 		//Config with super sets, disables ordering
