@@ -457,7 +457,7 @@ func (b *Exporter) removeStaleMetrics() {
 	}
 }
 
-// saveLabelValues stores label values set to labelValues and update lastRegisteredAt time
+// saveLabelValues stores label values set to labelValues and update lastRegisteredAt time and ttl value
 func (b *Exporter) saveLabelValues(metricName string, labels prometheus.Labels, ttl time.Duration) {
 	_, hasMetric := b.labelValues[metricName]
 	if !hasMetric {
@@ -473,6 +473,8 @@ func (b *Exporter) saveLabelValues(metricName string, labels prometheus.Labels, 
 	}
 	now := time.Now()
 	b.labelValues[metricName][hash].lastRegisteredAt = now
+	// Update ttl from mapping
+	b.labelValues[metricName][hash].ttl = ttl
 }
 
 func NewExporter(mapper *mapper.MetricMapper) *Exporter {
