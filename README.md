@@ -268,6 +268,7 @@ defaults:
   buckets: [.005, .01, .025, .05, .1, .25, .5, 1, 2.5 ]
   match_type: glob
   glob_disable_ordering: false
+  ttl: 0 # metrics not expired
 mappings:
 # This will be a histogram using the buckets set in `defaults`.
 - match: test.timing.*.*.*
@@ -349,6 +350,18 @@ mappings:
 ```
 
 Possible values for `match_metric_type` are `gauge`, `counter` and `timer`.
+
+### Time series expiration
+
+`ttl` parameter can be used to define expiration time for stale metrics.
+Value is a time duration with valid time units: "ns", "us" (or "µs"),
+"ms", "s", "m", "h". For example, `ttl: 1m20s`. `0` value is used to indicate
+not expired metrics.
+
+Expiration is useful to gather metrics with changing label values from
+dynamic environments like Kubernetes. For example, metric
+`ingress_nginx_upstream_retries_count` with label `pod` and
+changing pod name as a value for this label.
 
 ## Using Docker
 

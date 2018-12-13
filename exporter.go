@@ -265,7 +265,7 @@ type Events []Event
 type LabelValues struct {
 	lastRegisteredAt time.Time
 	labels           prometheus.Labels
-	ttl              uint64
+	ttl              time.Duration
 }
 
 type Exporter struct {
@@ -315,6 +315,9 @@ func (b *Exporter) handleEvent(event Event) {
 	mapping, labels, present := b.mapper.GetMapping(event.MetricName(), event.MetricType())
 	if mapping == nil {
 		mapping = &mapper.MetricMapping{}
+		if b.mapper.Defaults.Ttl != 0 {
+			mapping.Ttl = b.mapper.Defaults.Ttl
+		}
 	}
 
 	if mapping.Action == mapper.ActionTypeDrop {
@@ -443,7 +446,7 @@ func (b *Exporter) removeStaleMetrics() {
 			if lvs.ttl == 0 {
 				continue
 			}
-			if lvs.lastRegisteredAt.Add(time.Duration(lvs.ttl) * time.Second).Before(now) {
+			if lvs.lastRegisteredAt.Add(lvs.ttl).Before(now) {
 				b.Counters.Delete(metricName, lvs.labels)
 				b.Gauges.Delete(metricName, lvs.labels)
 				b.Summaries.Delete(metricName, lvs.labels)
@@ -455,7 +458,7 @@ func (b *Exporter) removeStaleMetrics() {
 }
 
 // saveLabelValues stores label values set to labelValues and update lastRegisteredAt time
-func (b *Exporter) saveLabelValues(metricName string, labels prometheus.Labels, ttl uint64) {
+func (b *Exporter) saveLabelValues(metricName string, labels prometheus.Labels, ttl time.Duration) {
 	_, hasMetric := b.labelValues[metricName]
 	if !hasMetric {
 		b.labelValues[metricName] = make(map[uint64]*LabelValues)

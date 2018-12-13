@@ -22,6 +22,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/statsd_exporter/pkg/mapper/fsm"
 	yaml "gopkg.in/yaml.v2"
+	"time"
 )
 
 var (
@@ -39,7 +40,7 @@ type mapperConfigDefaults struct {
 	Quantiles           []metricObjective `yaml:"quantiles"`
 	MatchType           MatchType         `yaml:"match_type"`
 	GlobDisableOrdering bool              `yaml:"glob_disable_ordering"`
-	Ttl                 uint64            `yaml:"ttl"`
+	Ttl                 time.Duration     `yaml:"ttl"`
 }
 
 type MetricMapper struct {
@@ -70,7 +71,7 @@ type MetricMapping struct {
 	HelpText        string            `yaml:"help"`
 	Action          ActionType        `yaml:"action"`
 	MatchMetricType MetricType        `yaml:"match_metric_type"`
-	Ttl             uint64            `yaml:"ttl"`
+	Ttl             time.Duration     `yaml:"ttl"`
 }
 
 type metricObjective struct {
