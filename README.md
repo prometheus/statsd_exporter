@@ -232,7 +232,7 @@ mappings:
 Another capability when using YAML configuration is the ability to define matches
 using raw regular expressions as opposed to the default globbing style of match.
 This may allow for pulling structured data from otherwise poorly named statsd
-metrics AND allow for more precise targetting of match rules. When no `match_type`
+metrics AND allow for more precise targeting of match rules. When no `match_type`
 paramter is specified the default value of `glob` will be assumed:
 
 ```yaml
@@ -260,7 +260,7 @@ only used when the statsd metric type is a timerand the `timer_type` is set to
 One may also set defaults for the timer type, buckets or quantiles, and match_type. These will be used
 by all mappings that do not define these.
 
-An option that can only be configured in `defaults` is `glob_disable_ordering`, which is `false` if omitted. By setting this to `true`, `glob` match type will not honor the occurance of rules in the mapping rules file and always treat `*` as lower priority than a general string.
+An option that can only be configured in `defaults` is `glob_disable_ordering`, which is `false` if omitted. By setting this to `true`, `glob` match type will not honor the occurrence of rules in the mapping rules file and always treat `*` as lower priority than a general string.
 
 ```yaml
 defaults:
@@ -292,7 +292,7 @@ Despite from the missing flexibility of using regular expression in mapping and
 formatting labels, `glob` matching is optimized to have better performance than
 `regex` in certain use cases. In short, glob will have best performance if the
 rules amount is not so less and captures (using of `*`) is not to much in a
-single rule. Whether disabling ordering in glob or not won't have a noticable
+single rule. Whether disabling ordering in glob or not won't have a noticeable
 effect on performance in general use cases. In edge cases like the below however,
 disabling ordering will be beneficial:
 
