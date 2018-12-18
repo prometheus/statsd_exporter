@@ -149,7 +149,7 @@ func NewSummaryContainer(mapper *mapper.MetricMapper) *SummaryContainer {
 	}
 }
 
-func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping) (prometheus.Summary, error) {
+func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping) (prometheus.Observer, error) {
 	summaryVec, ok := c.Elements[metricName]
 	if !ok {
 		quantiles := c.mapper.Defaults.Quantiles
@@ -192,7 +192,7 @@ func NewHistogramContainer(mapper *mapper.MetricMapper) *HistogramContainer {
 	}
 }
 
-func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping) (prometheus.Histogram, error) {
+func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping) (prometheus.Observer, error) {
 	histogramVec, ok := c.Elements[metricName]
 	if !ok {
 		buckets := c.mapper.Defaults.Buckets
@@ -459,22 +459,24 @@ func (b *Exporter) removeStaleMetrics() {
 
 // saveLabelValues stores label values set to labelValues and update lastRegisteredAt time and ttl value
 func (b *Exporter) saveLabelValues(metricName string, labels prometheus.Labels, ttl time.Duration) {
-	_, hasMetric := b.labelValues[metricName]
+	metric, hasMetric := b.labelValues[metricName]
 	if !hasMetric {
-		b.labelValues[metricName] = make(map[uint64]*LabelValues)
+		metric = make(map[uint64]*LabelValues)
+		b.labelValues[metricName] = metric
 	}
 	hash := hashNameAndLabels(metricName, labels)
-	_, ok := b.labelValues[metricName][hash]
+	metricLabelValues, ok := metric[hash]
 	if !ok {
-		b.labelValues[metricName][hash] = &LabelValues{
+		metricLabelValues = &LabelValues{
 			labels: labels,
 			ttl:    ttl,
 		}
+		b.labelValues[metricName][hash] = metricLabelValues
 	}
 	now := time.Now()
-	b.labelValues[metricName][hash].lastRegisteredAt = now
+	metricLabelValues.lastRegisteredAt = now
 	// Update ttl from mapping
-	b.labelValues[metricName][hash].ttl = ttl
+	metricLabelValues.ttl = ttl
 }
 
 func NewExporter(mapper *mapper.MetricMapper) *Exporter {
