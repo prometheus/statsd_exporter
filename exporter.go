@@ -32,6 +32,7 @@ import (
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
 
+	"github.com/prometheus/statsd_exporter/pkg/clock"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
 
@@ -291,7 +292,7 @@ func escapeMetricName(metricName string) string {
 // Listen handles all events sent to the given channel sequentially. It
 // terminates when the channel is closed.
 func (b *Exporter) Listen(e <-chan Events) {
-	removeStaleMetricsTicker := time.NewTicker(time.Second)
+	removeStaleMetricsTicker := clock.NewTicker(time.Second)
 
 	for {
 		select {
@@ -439,7 +440,7 @@ func (b *Exporter) handleEvent(event Event) {
 
 // removeStaleMetrics removes label values set from metric with stale values
 func (b *Exporter) removeStaleMetrics() {
-	now := time.Now()
+	now := clock.Now()
 	// delete timeseries with expired ttl
 	for metricName := range b.labelValues {
 		for hash, lvs := range b.labelValues[metricName] {
@@ -473,7 +474,7 @@ func (b *Exporter) saveLabelValues(metricName string, labels prometheus.Labels, 
 		}
 		b.labelValues[metricName][hash] = metricLabelValues
 	}
-	now := time.Now()
+	now := clock.Now()
 	metricLabelValues.lastRegisteredAt = now
 	// Update ttl from mapping
 	metricLabelValues.ttl = ttl

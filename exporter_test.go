@@ -22,6 +22,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 
+	"github.com/prometheus/statsd_exporter/pkg/clock"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
 
@@ -39,22 +40,19 @@ func TestNegativeCounter(t *testing.T) {
 		}
 	}()
 
-	events := make(chan Events, 1)
-	c := Events{
-		&CounterEvent{
-			metricName: "foo",
-			value:      -1,
-		},
-	}
-	events <- c
-	ex := NewExporter(&mapper.MetricMapper{})
-
-	// Close channel to signify we are done with the listener after a short period.
+	events := make(chan Events, 0)
 	go func() {
-		time.Sleep(time.Millisecond * 100)
+		c := Events{
+			&CounterEvent{
+				metricName: "foo",
+				value:      -1,
+			},
+		}
+		events <- c
 		close(events)
 	}()
 
+	ex := NewExporter(&mapper.MetricMapper{})
 	ex.Listen(events)
 }
 
@@ -63,24 +61,37 @@ func TestNegativeCounter(t *testing.T) {
 // It sends the same tags first with a valid value, then with an invalid one.
 // The exporter should not panic, but drop the invalid event
 func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
+	defer func() {
+		if e := recover(); e != nil {
+			err := e.(error)
+			t.Fatalf("Exporter listener should not panic on bad utf8: %q", err.Error())
+		}
+	}()
+
+	events := make(chan Events, 0)
+
+	go func() {
+		for _, l := range []statsDPacketHandler{&StatsDUDPListener{}, &mockStatsDTCPListener{}} {
+			l.handlePacket([]byte("bar:200|c|#tag:value\nbar:200|c|#tag:\xc3\x28invalid"), events)
+		}
+		close(events)
+	}()
+
 	ex := NewExporter(&mapper.MetricMapper{})
-	for _, l := range []statsDPacketHandler{&StatsDUDPListener{}, &mockStatsDTCPListener{}} {
-		events := make(chan Events, 2)
-
-		l.handlePacket([]byte("bar:200|c|#tag:value\nbar:200|c|#tag:\xc3\x28invalid"), events)
-
-		// Close channel to signify we are done with the listener after a short period.
-		go func() {
-			time.Sleep(time.Millisecond * 100)
-			close(events)
-		}()
-
-		ex.Listen(events)
-	}
+	ex.Listen(events)
 }
 
 func TestHistogramUnits(t *testing.T) {
-	events := make(chan Events, 1)
+	// Start exporter with a synchronous channel
+	events := make(chan Events, 0)
+	go func() {
+		ex := NewExporter(&mapper.MetricMapper{})
+		ex.mapper.Defaults.TimerType = mapper.TimerTypeHistogram
+		ex.Listen(events)
+	}()
+
+	// Synchronously send a statsd event to wait for handleEvent execution.
+	// Then close events channel to stop a listener.
 	name := "foo"
 	c := Events{
 		&TimerEvent{
@@ -89,22 +100,18 @@ func TestHistogramUnits(t *testing.T) {
 		},
 	}
 	events <- c
-	ex := NewExporter(&mapper.MetricMapper{})
-	ex.mapper.Defaults.TimerType = mapper.TimerTypeHistogram
+	events <- Events{}
+	close(events)
 
-	// Close channel to signify we are done with the listener after a short period.
-	go func() {
-		time.Sleep(time.Millisecond * 100)
-		close(events)
-	}()
-
-	ex.Listen(events)
-
+	// Check histogram value
 	metrics, err := prometheus.DefaultGatherer.Gather()
 	if err != nil {
 		t.Fatalf("Cannot gather from DefaultGatherer: %v", err)
 	}
 	value := getFloat64(metrics, name, prometheus.Labels{})
+	if value == nil {
+		t.Fatal("Histogram value should not be nil")
+	}
 	if *value == 300 {
 		t.Fatalf("Histogram observations not scaled into Seconds")
 	} else if *value != .300 {
@@ -173,141 +180,113 @@ func TestEscapeMetricName(t *testing.T) {
 // foobar metric without mapping should expire with default ttl of 1s
 // bazqux metric should expire with ttl of 2s
 func TestTtlExpiration(t *testing.T) {
+	// Mock a time.NewTicker
+	tickerCh := make(chan time.Time, 0)
+	clock.ClockInstance = &clock.Clock{
+		TickerCh: tickerCh,
+	}
+
 	config := `
 defaults:
   ttl: 1s
 mappings:
 - match: bazqux.*
   name: bazqux
-  labels:
-    first: baz
-    second: qux
-    third: $1
   ttl: 2s
 `
-
-	bazquxLabels := prometheus.Labels{
-		"third":  "main",
-		"first":  "baz",
-		"second": "qux",
-	}
-
+	// Create mapper from config and start an Exporter with a synchronous channel
 	testMapper := &mapper.MetricMapper{}
 	err := testMapper.InitFromYAMLString(config)
 	if err != nil {
 		t.Fatalf("Config load error: %s %s", config, err)
 	}
+	events := make(chan Events, 0)
+	defer close(events)
+	go func() {
+		ex := NewExporter(testMapper)
+		ex.Listen(events)
+	}()
 
-	ex := NewExporter(testMapper)
-	for _, l := range []statsDPacketHandler{&StatsDUDPListener{}, &mockStatsDTCPListener{}} {
-		events := make(chan Events, 2)
-		fatal := make(chan error, 1) // t.Fatal must not be called in goroutines (SA2002)
-		stop := make(chan bool, 1)
+	ev := Events{
+		// event with default ttl = 1s
+		&GaugeEvent{
+			metricName: "foobar",
+			value:      200,
+		},
+		// event with ttl = 2s from a mapping
+		&TimerEvent{
+			metricName: "bazqux.main",
+			value:      42,
+		},
+	}
 
-		l.handlePacket([]byte("foobar:200|g"), events)
-		l.handlePacket([]byte("bazqux.main:42|ms"), events)
+	var metrics []*dto.MetricFamily
+	var foobarValue *float64
+	var bazquxValue *float64
 
-		// Close channel to signify we are done with the listener after a short period.
-		go func() {
-			defer close(events)
+	// Step 1. Send events with statsd metrics.
+	// Send empty Events to wait for events are handled.
+	// saveLabelValues will use fake instant as a lastRegisteredAt time.
+	clock.ClockInstance.Instant = time.Unix(0, 0)
+	events <- ev
+	events <- Events{}
 
-			time.Sleep(time.Millisecond * 100)
+	// Check values
+	metrics, err = prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Fatal("Gather should not fail")
+	}
+	foobarValue = getFloat64(metrics, "foobar", prometheus.Labels{})
+	bazquxValue = getFloat64(metrics, "bazqux", prometheus.Labels{})
+	if foobarValue == nil || bazquxValue == nil {
+		t.Fatalf("Gauge `foobar` and Summary `bazqux` should be gathered")
+	}
+	if *foobarValue != 200 {
+		t.Fatalf("Gauge `foobar` observation %f is not expected. Should be 200", *foobarValue)
+	}
+	if *bazquxValue != 42 {
+		t.Fatalf("Summary `bazqux` observation %f is not expected. Should be 42", *bazquxValue)
+	}
 
-			var metrics []*dto.MetricFamily
-			var foobarValue *float64
-			var bazquxValue *float64
+	// Step 2. Increase Instant to emulate metrics expiration after 1s
+	clock.ClockInstance.Instant = time.Unix(1, 10)
+	clock.ClockInstance.TickerCh <- time.Unix(0, 0)
+	events <- Events{}
 
-			// Wait to gather both metrics
-			var tries = 7
-			for {
-				metrics, err = prometheus.DefaultGatherer.Gather()
+	// Check values
+	metrics, err = prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Fatal("Gather should not fail")
+	}
+	foobarValue = getFloat64(metrics, "foobar", prometheus.Labels{})
+	bazquxValue = getFloat64(metrics, "bazqux", prometheus.Labels{})
+	if foobarValue != nil {
+		t.Fatalf("Gauge `foobar` should be expired")
+	}
+	if bazquxValue == nil {
+		t.Fatalf("Summary `bazqux` should be gathered")
+	}
+	if *bazquxValue != 42 {
+		t.Fatalf("Summary `bazqux` observation %f is not expected. Should be 42", *bazquxValue)
+	}
 
-				foobarValue = getFloat64(metrics, "foobar", prometheus.Labels{})
-				bazquxValue = getFloat64(metrics, "bazqux", bazquxLabels)
-				if foobarValue != nil && bazquxValue != nil {
-					break
-				}
+	// Step 3. Increase Instant to emulate metrics expiration after 2s
+	clock.ClockInstance.Instant = time.Unix(2, 200)
+	clock.ClockInstance.TickerCh <- time.Unix(0, 0)
+	events <- Events{}
 
-				tries--
-				if tries == 0 {
-					fatal <- fmt.Errorf("Gauge `foobar` and Summary `bazqux` should be gathered")
-					return
-				}
-				time.Sleep(time.Millisecond * 100)
-			}
-
-			// Check values
-			if *foobarValue != 200 {
-				fatal <- fmt.Errorf("Gauge `foobar` observation %f is not expected. Should be 200", *foobarValue)
-				return
-			}
-			if *bazquxValue != 42 {
-				fatal <- fmt.Errorf("Summary `bazqux` observation %f is not expected. Should be 42", *bazquxValue)
-				return
-			}
-
-			// Wait for expiration of foobar
-			tries = 20 // 20*100 = 2s
-			for {
-				time.Sleep(time.Millisecond * 100)
-				metrics, err = prometheus.DefaultGatherer.Gather()
-
-				foobarValue = getFloat64(metrics, "foobar", prometheus.Labels{})
-				bazquxValue = getFloat64(metrics, "bazqux", bazquxLabels)
-				if foobarValue == nil {
-					break
-				}
-
-				tries--
-				if tries == 0 {
-					fatal <- fmt.Errorf("Gauge `foobar` should be expired")
-					return
-				}
-			}
-
-			if *bazquxValue != 42 {
-				fatal <- fmt.Errorf("Summary `bazqux` observation %f is not expected. Should be 42", *bazquxValue)
-				return
-			}
-
-			// Wait for expiration of bazqux
-			tries = 20 // 20*100 = 2s
-			for {
-				time.Sleep(time.Millisecond * 100)
-				metrics, err = prometheus.DefaultGatherer.Gather()
-
-				foobarValue = getFloat64(metrics, "foobar", prometheus.Labels{})
-				bazquxValue = getFloat64(metrics, "bazqux", bazquxLabels)
-				if bazquxValue == nil {
-					break
-				}
-				if foobarValue != nil {
-					fatal <- fmt.Errorf("Gauge `foobar` should not be gathered after expiration")
-					return
-				}
-
-				tries--
-				if tries == 0 {
-					fatal <- fmt.Errorf("Summary `bazqux` should be expired")
-					return
-				}
-			}
-		}()
-
-		go func() {
-			ex.Listen(events)
-			stop <- true
-		}()
-
-		for {
-			select {
-			case err := <-fatal:
-				t.Fatalf("%v", err)
-			case <-stop:
-				return
-			}
-		}
-
+	// Check values
+	metrics, err = prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Fatal("Gather should not fail")
+	}
+	foobarValue = getFloat64(metrics, "foobar", prometheus.Labels{})
+	bazquxValue = getFloat64(metrics, "bazqux", prometheus.Labels{})
+	if bazquxValue != nil {
+		t.Fatalf("Summary `bazqux` should be expired")
+	}
+	if foobarValue != nil {
+		t.Fatalf("Gauge `foobar` should not be gathered after expiration")
 	}
 }
 
