@@ -268,6 +268,7 @@ defaults:
   buckets: [.005, .01, .025, .05, .1, .25, .5, 1, 2.5 ]
   match_type: glob
   glob_disable_ordering: false
+  ttl: 0 # metrics do not expire
 mappings:
 # This will be a histogram using the buckets set in `defaults`.
 - match: test.timing.*.*.*
@@ -349,6 +350,18 @@ mappings:
 ```
 
 Possible values for `match_metric_type` are `gauge`, `counter` and `timer`.
+
+### Time series expiration
+
+The `ttl` parameter can be used to define the expiration time for stale metrics.
+The value is a time duration with valid time units: "ns", "us" (or "µs"),
+"ms", "s", "m", "h". For example, `ttl: 1m20s`. `0` value is used to indicate
+metrics that do not expire.
+
+ TTLs are applied to each mapped metric name/labels combination whenever
+ new samples are received. This means that you cannot immediately expire a
+ metric only by changing the mapping configuration. At least one sample must
+ be received for updated mappings to take effect.
 
 ## Using Docker
 

@@ -15,6 +15,7 @@ package mapper
 
 import (
 	"testing"
+	"time"
 )
 
 type mappings map[string]struct {
@@ -22,6 +23,7 @@ type mappings map[string]struct {
 	labels     map[string]string
 	quantiles  []metricObjective
 	notPresent bool
+	ttl        time.Duration
 }
 
 func TestMetricMapperYAML(t *testing.T) {
@@ -603,6 +605,66 @@ mappings:
 				},
 			},
 		},
+		// Config that has a ttl.
+		{
+			config: `mappings:
+- match: web.*
+  name: "web"
+  ttl: 10s
+  labels:
+    site: "$1"`,
+			mappings: mappings{
+				"test.a": {},
+				"web.localhost": {
+					name: "web",
+					labels: map[string]string{
+						"site": "localhost",
+					},
+					ttl: time.Second * 10,
+				},
+			},
+		},
+		// Config that has a default ttl.
+		{
+			config: `defaults:
+  ttl: 1m2s
+mappings:
+- match: web.*
+  name: "web"
+  labels:
+    site: "$1"`,
+			mappings: mappings{
+				"test.a": {},
+				"web.localhost": {
+					name: "web",
+					labels: map[string]string{
+						"site": "localhost",
+					},
+					ttl: time.Minute + time.Second*2,
+				},
+			},
+		},
+		// Config that override a default ttl.
+		{
+			config: `defaults:
+  ttl: 1m2s
+mappings:
+- match: web.*
+  name: "web"
+  ttl: 5s
+  labels:
+    site: "$1"`,
+			mappings: mappings{
+				"test.a": {},
+				"web.localhost": {
+					name: "web",
+					labels: map[string]string{
+						"site": "localhost",
+					},
+					ttl: time.Second * 5,
+				},
+			},
+		},
 	}
 
 	mapper := MetricMapper{}
@@ -632,6 +694,9 @@ mappings:
 				if mapping.labels[label] != value {
 					t.Fatalf("%d.%q: Expected labels %v, got %v", i, metric, mapping, labels)
 				}
+			}
+			if mapping.ttl > 0 && mapping.ttl != m.Ttl {
+				t.Fatalf("%d.%q: Expected ttl of %s, got %s", i, metric, mapping.ttl.String(), m.Ttl.String())
 			}
 
 			if len(mapping.quantiles) != 0 {
