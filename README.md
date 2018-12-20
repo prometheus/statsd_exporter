@@ -358,10 +358,10 @@ The value is a time duration with valid time units: "ns", "us" (or "µs"),
 "ms", "s", "m", "h". For example, `ttl: 1m20s`. `0` value is used to indicate
 metrics that do not expire.
 
- TTLs are applied to each mapped metric name/labels combination whenever
- new samples are received. This means that you cannot immediately expire a
- metric only by changing the mapping configuration. At least one sample must
- be received for updated mappings to take effect.
+ TTL configuration is stored for each mapped metric name/labels combination
+ whenever new samples are received. This means that you cannot immediately
+ expire a metric only by changing the mapping configuration. At least one
+ sample must be received for updated mappings to take effect.
 
 ## Using Docker
 
