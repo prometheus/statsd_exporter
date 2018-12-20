@@ -11,6 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# by being first, this takes over plain `make`. It cuts out `staticcheck`
+# because in the circleci/golang:1.11 image it chokes on the go module cache.
+default: precheck style staticcheck unused build test
+
 include Makefile.common
 
 STATICCHECK_IGNORE = \
