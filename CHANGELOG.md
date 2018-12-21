@@ -1,4 +1,4 @@
-## v0.9.0-rc1 / 2018-12-20
+## v0.9.0-rc2 / 2018-12-21
 
 * [ENHANCEMENT] Update the Prometheus client library to 0.9.2 ([#171](https://github.com/prometheus/statsd_exporter/pull/171))
 * [FEATURE] Metrics can now be expired with a per-mapping TTL ([#164](https://github.com/prometheus/statsd_exporter/pull/164))
