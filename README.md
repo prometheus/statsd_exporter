@@ -47,6 +47,7 @@ NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/king
 * multiple short flags can be combined (but there currently is only one)
 * flag processing stops at the first `--`
 
+    ```
     $ go build
     $ ./statsd_exporter --help
     usage: statsd_exporter [<flags>]
@@ -81,6 +82,7 @@ NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/king
                               "logger:syslog?appname=bob&local=7" or
                               "logger:stdout?json=true"
           --version           Show application version.
+    ```
 
 ## Tests
 
