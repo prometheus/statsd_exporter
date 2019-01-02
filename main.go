@@ -34,6 +34,7 @@ func init() {
 }
 
 func serveHTTP(listenAddress, metricsEndpoint string) {
+	//lint:ignore SA1019 prometheus.Handler() is deprecated.
 	http.Handle(metricsEndpoint, prometheus.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>

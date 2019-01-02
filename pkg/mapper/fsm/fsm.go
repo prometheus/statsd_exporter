@@ -262,7 +262,7 @@ func TestIfNeedBacktracking(mappings []string, orderingDisabled bool) bool {
 		for i1, r1 := range rules {
 			currentRuleNeedBacktrack := false
 			re1 := rulesRE[i1]
-			if re1 == nil || strings.Index(r1, "*") == -1 {
+			if re1 == nil || !strings.Contains(r1, "*") {
 				continue
 			}
 			// if rule r1 is A.B.C.*.E.*, is there a rule r2 is A.B.C.D.x.x or A.B.C.*.E.F ? (x is any string or *)

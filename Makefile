@@ -11,14 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# By being first, this takes over plain `make`. It cuts out `staticcheck`
-# because in the circleci/golang:1.11 image it chokes on the go module cache.
-default: precheck style unused build test
-
 include Makefile.common
 
-STATICCHECK_IGNORE = \
-  github.com/prometheus/statsd_exporter/main.go:SA1019 \
+STATICCHECK_IGNORE =
 
 DOCKER_IMAGE_NAME       ?= statsd-exporter
 

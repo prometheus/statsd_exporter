@@ -40,7 +40,7 @@ func TestNegativeCounter(t *testing.T) {
 		}
 	}()
 
-	events := make(chan Events, 0)
+	events := make(chan Events)
 	go func() {
 		c := Events{
 			&CounterEvent{
@@ -68,7 +68,7 @@ func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
 		}
 	}()
 
-	events := make(chan Events, 0)
+	events := make(chan Events)
 
 	go func() {
 		for _, l := range []statsDPacketHandler{&StatsDUDPListener{}, &mockStatsDTCPListener{}} {
@@ -83,7 +83,7 @@ func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
 
 func TestHistogramUnits(t *testing.T) {
 	// Start exporter with a synchronous channel
-	events := make(chan Events, 0)
+	events := make(chan Events)
 	go func() {
 		ex := NewExporter(&mapper.MetricMapper{})
 		ex.mapper.Defaults.TimerType = mapper.TimerTypeHistogram
@@ -181,7 +181,7 @@ func TestEscapeMetricName(t *testing.T) {
 // bazqux metric should expire with ttl of 2s
 func TestTtlExpiration(t *testing.T) {
 	// Mock a time.NewTicker
-	tickerCh := make(chan time.Time, 0)
+	tickerCh := make(chan time.Time)
 	clock.ClockInstance = &clock.Clock{
 		TickerCh: tickerCh,
 	}
@@ -200,7 +200,7 @@ mappings:
 	if err != nil {
 		t.Fatalf("Config load error: %s %s", config, err)
 	}
-	events := make(chan Events, 0)
+	events := make(chan Events)
 	defer close(events)
 	go func() {
 		ex := NewExporter(testMapper)

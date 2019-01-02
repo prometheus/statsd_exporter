@@ -487,7 +487,7 @@ func NewExporter(mapper *mapper.MetricMapper) *Exporter {
 		Summaries:   NewSummaryContainer(mapper),
 		Histograms:  NewHistogramContainer(mapper),
 		mapper:      mapper,
-		labelValues: make(map[string]map[uint64]*LabelValues, 0),
+		labelValues: make(map[string]map[uint64]*LabelValues),
 	}
 }
 
@@ -513,9 +513,9 @@ func buildEvent(statType, metric string, value float64, relative bool, labels ma
 			labels:     labels,
 		}, nil
 	case "s":
-		return nil, fmt.Errorf("No support for StatsD sets")
+		return nil, fmt.Errorf("no support for StatsD sets")
 	default:
-		return nil, fmt.Errorf("Bad stat type %s", statType)
+		return nil, fmt.Errorf("bad stat type %s", statType)
 	}
 }
 
