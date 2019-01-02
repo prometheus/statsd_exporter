@@ -15,7 +15,7 @@ jobs:
     steps:
     - checkout
     - run: make promu
-    - run: make
+    - run: make all
     - run: git diff --exit-code
     - store_artifacts:
         path: statsd_exporter
