@@ -54,8 +54,6 @@ type MetricMapper struct {
 	MappingsCount prometheus.Gauge
 }
 
-type matchMetricType string
-
 type MetricMapping struct {
 	Match           string `yaml:"match"`
 	Name            string `yaml:"name"`
