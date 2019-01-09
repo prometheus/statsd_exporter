@@ -216,7 +216,7 @@ mappings:
 		// event with ttl = 2s from a mapping
 		&TimerEvent{
 			metricName: "bazqux.main",
-			value:      42,
+			value:      42000,
 		},
 	}
 

@@ -420,7 +420,7 @@ func (b *Exporter) handleEvent(event Event) {
 				mapping,
 			)
 			if err == nil {
-				summary.Observe(event.Value())
+				summary.Observe(event.Value() / 1000) // prometheus presumes seconds, statsd millisecond
 				b.saveLabelValues(metricName, prometheusLabels, mapping.Ttl)
 				eventStats.WithLabelValues("timer").Inc()
 			} else {
