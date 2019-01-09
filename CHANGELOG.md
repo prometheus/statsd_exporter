@@ -1,7 +1,11 @@
-## v0.9.0-rc2 / 2018-12-21
+## v0.9.0-rc3 / 2019-01-09
 
 * [ENHANCEMENT] Update the Prometheus client library to 0.9.2 ([#171](https://github.com/prometheus/statsd_exporter/pull/171))
 * [FEATURE] Metrics can now be expired with a per-mapping TTL ([#164](https://github.com/prometheus/statsd_exporter/pull/164))
+* [CHANGE] Timers that mapped to a summary are scaled to seconds, just like histograms ([#178](https://github.com/prometheus/statsd_exporter/pull/178))
+
+If you are using summaries, all your quantiles and `_total` will change by a factor of 1000.
+Adjust your queries and dashboards, or consider switching to histograms altogether.
 
 ## v0.8.1 / 2018-12-05
 
