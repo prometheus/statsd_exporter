@@ -639,7 +639,8 @@ samples:
 }
 
 type StatsDUDPListener struct {
-	conn *net.UDPConn
+	conn        *net.UDPConn
+	passthrough []net.Conn
 }
 
 func (l *StatsDUDPListener) Listen(e chan<- Events) {
@@ -649,6 +650,11 @@ func (l *StatsDUDPListener) Listen(e chan<- Events) {
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		for _, c := range l.passthrough {
+			fmt.Fprint(c, string(buf[0:n]))
+		}
+
 		l.handlePacket(buf[0:n], e)
 	}
 }
