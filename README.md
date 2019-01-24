@@ -91,8 +91,10 @@ NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/king
 ## Metric Mapping and Configuration
 
 The `statsd_exporter` can be configured to translate specific dot-separated StatsD
-metrics into labeled Prometheus metrics via a simple mapping language. A
-mapping definition starts with a line matching the StatsD metric in question,
+metrics into labeled Prometheus metrics via a simple mapping language. The config
+file is watched for changes and automatically reloaded.
+
+A mapping definition starts with a line matching the StatsD metric in question,
 with `*`s acting as wildcards for each dot-separated metric component. The
 lines following the matching expression must contain one `label="value"` pair
 each, and at least define the metric name (label name `name`). The Prometheus
