@@ -23,3 +23,7 @@ bench:
 	$(GO) test -bench . -race $(pkgs)
 
 all: bench
+
+build-typeform:
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build
+	docker build -t quay.io/typeform/statsd_exporter .
