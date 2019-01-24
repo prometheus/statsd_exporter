@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/howeyc/fsnotify"
 	"github.com/prometheus/client_golang/prometheus"
@@ -137,13 +138,14 @@ func dumpFSM(mapper *mapper.MetricMapper, dumpFilename string) error {
 
 func main() {
 	var (
-		listenAddress   = kingpin.Flag("web.listen-address", "The address on which to expose the web interface and generated Prometheus metrics.").Default(":9102").String()
-		metricsEndpoint = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
-		statsdListenUDP = kingpin.Flag("statsd.listen-udp", "The UDP address on which to receive statsd metric lines. \"\" disables it.").Default(":9125").String()
-		statsdListenTCP = kingpin.Flag("statsd.listen-tcp", "The TCP address on which to receive statsd metric lines. \"\" disables it.").Default(":9125").String()
-		mappingConfig   = kingpin.Flag("statsd.mapping-config", "Metric mapping configuration file name.").String()
-		readBuffer      = kingpin.Flag("statsd.read-buffer", "Size (in bytes) of the operating system's transmit read buffer associated with the UDP connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.").Int()
-		dumpFSMPath     = kingpin.Flag("debug.dump-fsm", "The path to dump internal FSM generated for glob matching as Dot file.").Default("").String()
+		listenAddress         = kingpin.Flag("web.listen-address", "The address on which to expose the web interface and generated Prometheus metrics.").Default(":9102").String()
+		metricsEndpoint       = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
+		passthroughUDPAddress = kingpin.Flag("passthrough.udp-address", "The UDP address to pass metrics through").String()
+		statsdListenUDP       = kingpin.Flag("statsd.listen-udp", "The UDP address on which to receive statsd metric lines. \"\" disables it.").Default(":9125").String()
+		statsdListenTCP       = kingpin.Flag("statsd.listen-tcp", "The TCP address on which to receive statsd metric lines. \"\" disables it.").Default(":9125").String()
+		mappingConfig         = kingpin.Flag("statsd.mapping-config", "Metric mapping configuration file name.").String()
+		readBuffer            = kingpin.Flag("statsd.read-buffer", "Size (in bytes) of the operating system's transmit read buffer associated with the UDP connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.").Int()
+		dumpFSMPath           = kingpin.Flag("debug.dump-fsm", "The path to dump internal FSM generated for glob matching as Dot file.").Default("").String()
 	)
 
 	log.AddFlags(kingpin.CommandLine)
@@ -159,6 +161,10 @@ func main() {
 	log.Infoln("Build context", version.BuildContext())
 	log.Infof("Accepting StatsD Traffic: UDP %v, TCP %v", *statsdListenUDP, *statsdListenTCP)
 	log.Infoln("Accepting Prometheus Requests on", *listenAddress)
+
+	if *passthroughUDPAddress != "" {
+		log.Infoln("Forwarding UDP packets to ", *passthroughUDPAddress)
+	}
 
 	go serveHTTP(*listenAddress, *metricsEndpoint)
 
@@ -179,7 +185,7 @@ func main() {
 			}
 		}
 
-		ul := &StatsDUDPListener{conn: uconn}
+		ul := &StatsDUDPListener{conn: uconn, passthrough: passthroughUdpConn(*passthroughUDPAddress)}
 		go ul.Listen(events)
 	}
 
@@ -211,4 +217,16 @@ func main() {
 	}
 	exporter := NewExporter(mapper)
 	exporter.Listen(events)
+}
+
+func passthroughUdpConn(addr string) []net.Conn {
+	var out []net.Conn
+	addrs := strings.Split(addr, ",")
+
+	for _, a := range addrs {
+		conn, _ := net.Dial("udp", a)
+		out = append(out, conn)
+	}
+
+	return out
 }
