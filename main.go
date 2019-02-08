@@ -210,5 +210,6 @@ func main() {
 		go watchConfig(*mappingConfig, mapper)
 	}
 	exporter := NewExporter(mapper)
+	exporter.Ticker(events)
 	exporter.Listen(events)
 }

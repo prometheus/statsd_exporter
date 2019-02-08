@@ -261,6 +261,25 @@ func (t *TimerEvent) Value() float64                { return t.value }
 func (c *TimerEvent) Labels() map[string]string     { return c.labels }
 func (c *TimerEvent) MetricType() mapper.MetricType { return mapper.MetricTypeTimer }
 
+type SetEvent struct {
+	metricName string
+	value      float64
+	labels     map[string]string
+}
+
+func (t *SetEvent) MetricName() string            { return t.metricName }
+func (t *SetEvent) Value() float64                { return t.value }
+func (c *SetEvent) Labels() map[string]string     { return c.labels }
+func (c *SetEvent) MetricType() mapper.MetricType { return mapper.MetricTypeGauge }
+
+type FlushEvent struct {
+}
+
+func (t *FlushEvent) MetricName() string            { return "flush" }
+func (t *FlushEvent) Value() float64                { return 0.0 }
+func (c *FlushEvent) Labels() map[string]string     { return map[string]string{} }
+func (c *FlushEvent) MetricType() mapper.MetricType { return mapper.MetricTypeGauge }
+
 type Events []Event
 
 type LabelValues struct {
@@ -269,12 +288,25 @@ type LabelValues struct {
 	ttl              time.Duration
 }
 
+type SetStore struct {
+	store  map[string]map[float64]bool
+	events map[string]*SetEvent
+}
+
+func NewSetStore() *SetStore {
+	return &SetStore{
+		store:  make(map[string]map[float64]bool),
+		events: make(map[string]*SetEvent),
+	}
+}
+
 type Exporter struct {
 	Counters    *CounterContainer
 	Gauges      *GaugeContainer
 	Summaries   *SummaryContainer
 	Histograms  *HistogramContainer
 	mapper      *mapper.MetricMapper
+	Sets        *SetStore
 	labelValues map[string]map[uint64]*LabelValues
 }
 
@@ -364,6 +396,35 @@ func (b *Exporter) handleEvent(event Event) {
 		} else {
 			log.Debugf(regErrF, metricName, err)
 			conflictingEventStats.WithLabelValues("counter").Inc()
+		}
+
+	case *FlushEvent:
+		log.Debugf("FlushEvent")
+		for k, v := range b.Sets.store {
+			setevent := b.Sets.events[k]
+
+			b.handleEvent(&GaugeEvent{
+				relative:   false,
+				metricName: setevent.MetricName(),
+				value:      float64(len(v)),
+				labels:     setevent.labels,
+			})
+
+			b.Sets.store[k] = map[float64]bool{}
+		}
+
+	case *SetEvent:
+		store, found := b.Sets.store[metricName]
+		if found {
+			_, have := store[event.Value()]
+			if !have {
+				store[event.Value()] = true
+			}
+		} else {
+			b.Sets.store[metricName] = map[float64]bool{
+				event.Value(): true,
+			}
+			b.Sets.events[metricName] = ev
 		}
 
 	case *GaugeEvent:
@@ -486,6 +547,7 @@ func NewExporter(mapper *mapper.MetricMapper) *Exporter {
 		Gauges:      NewGaugeContainer(),
 		Summaries:   NewSummaryContainer(mapper),
 		Histograms:  NewHistogramContainer(mapper),
+		Sets:        NewSetStore(),
 		mapper:      mapper,
 		labelValues: make(map[string]map[uint64]*LabelValues),
 	}
@@ -513,7 +575,11 @@ func buildEvent(statType, metric string, value float64, relative bool, labels ma
 			labels:     labels,
 		}, nil
 	case "s":
-		return nil, fmt.Errorf("no support for StatsD sets")
+		return &SetEvent{
+			metricName: metric,
+			value:      float64(value),
+			labels:     labels,
+		}, nil
 	default:
 		return nil, fmt.Errorf("bad stat type %s", statType)
 	}
@@ -640,6 +706,15 @@ samples:
 
 type StatsDUDPListener struct {
 	conn *net.UDPConn
+}
+
+func (b *Exporter) Ticker(e chan<- Events) {
+	ticker := time.NewTicker(10000 * time.Millisecond)
+	go func() {
+		for range ticker.C {
+			e <- []Event{&FlushEvent{}}
+		}
+	}()
 }
 
 func (l *StatsDUDPListener) Listen(e chan<- Events) {
