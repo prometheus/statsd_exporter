@@ -14,7 +14,15 @@
 package main
 
 import (
+	"bufio"
+	"os"
+	"runtime"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/log"
 )
 
 var (
@@ -102,6 +110,20 @@ var (
 		},
 		[]string{"type"},
 	)
+	udpBufferQueued = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "statsd_exporter_udp_buffer_queued",
+			Help: "The number of queued UDP messages in the linux buffer.",
+		},
+		[]string{"protocol"},
+	)
+	udpBufferDropped = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_udp_buffer_dropped",
+			Help: "The number of dropped UDP messages in the linux buffer",
+		},
+		[]string{"protocol"},
+	)
 )
 
 func init() {
@@ -119,4 +141,86 @@ func init() {
 	prometheus.MustRegister(configLoads)
 	prometheus.MustRegister(mappingsCount)
 	prometheus.MustRegister(conflictingEventStats)
+	if runtime.GOOS == "linux" {
+		prometheus.MustRegister(udpBufferQueued)
+		prometheus.MustRegister(udpBufferDropped)
+	}
+}
+
+func watchUDPBuffers(lastDropped int, lastDropped6 int) {
+	myPid := strconv.Itoa(os.Getpid())
+
+	queuedUDP, droppedUDP, err := parseProcfsNetFile("/proc/" + myPid + "/net/udp")
+	if err != nil {
+		log.Info("Encountered error while scraping UDP stats. Will not continue scraping stats.", err)
+		return
+	}
+
+	label := "udp"
+
+	udpBufferQueued.WithLabelValues(label).Set(float64(queuedUDP))
+
+	diff := droppedUDP - lastDropped
+	if diff < 0 {
+		log.Info("Dropped count went negative! Abandoning UDP buffer parsing")
+		diff = 0
+		droppedUDP = lastDropped
+	}
+	udpBufferDropped.WithLabelValues(label).Add(float64(diff))
+
+	queuedUDP6, droppedUDP6, err := parseProcfsNetFile("/proc/" + myPid + "/net/udp6")
+	if err != nil {
+		log.Info("Encountered error while scraping UDP stats. Will not continue scraping stats.", err)
+		return
+	}
+	label = "udp6"
+
+	udpBufferQueued.WithLabelValues(label).Set(float64(queuedUDP6))
+
+	diff = droppedUDP6 - lastDropped6
+	if diff < 0 {
+		log.Info("Dropped count went negative! Abandoning UDP buffer parsing")
+		diff = 0
+		droppedUDP6 = lastDropped6
+	}
+	udpBufferDropped.WithLabelValues(label).Add(float64(diff))
+
+	time.Sleep(10 * time.Second)
+	watchUDPBuffers(droppedUDP, droppedUDP6)
+}
+
+func parseProcfsNetFile(filename string) (int, int, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer f.Close()
+
+	queued := 0
+	dropped := 0
+	s := bufio.NewScanner(f)
+	for n := 0; s.Scan(); n++ {
+		// Skip the header lines.
+		if n < 1 {
+			continue
+		}
+
+		fields := strings.Fields(s.Text())
+
+		queuedLine, err := strconv.ParseInt(strings.Split(fields[4], ":")[1], 16, 32)
+		queued = queued + int(queuedLine)
+		if err != nil {
+			log.Info("Unable to parse queued UDP buffers:", err)
+			return 0, 0, err
+		}
+
+		droppedLine, err := strconv.Atoi(fields[12])
+		dropped = dropped + droppedLine
+		if err != nil {
+			log.Info("Unable to parse dropped UDP buffers:", err)
+			return 0, 0, err
+		}
+	}
+
+	return queued, dropped, nil
 }

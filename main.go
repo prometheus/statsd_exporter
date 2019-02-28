@@ -18,6 +18,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime"
 	"strconv"
 
 	"github.com/howeyc/fsnotify"
@@ -181,6 +182,10 @@ func main() {
 
 		ul := &StatsDUDPListener{conn: uconn}
 		go ul.Listen(events)
+
+		if runtime.GOOS == "linux" {
+			go watchUDPBuffers(0, 0)
+		}
 	}
 
 	if *statsdListenTCP != "" {
