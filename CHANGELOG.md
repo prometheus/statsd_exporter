@@ -1,3 +1,7 @@
+## Unreleased / ????-??-??
+
+* [ENHANCEMENT] Add a health check to the Docker container ([#182](https://github.com/prometheus/statsd_exporter/pull/182))
+
 ## v0.9.0 / 2019-03-11
 
 * [ENHANCEMENT] Update the Prometheus client library to 0.9.2 ([#171](https://github.com/prometheus/statsd_exporter/pull/171))
