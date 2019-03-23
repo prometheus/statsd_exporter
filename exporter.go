@@ -280,7 +280,7 @@ type Exporter struct {
 
 func escapeMetricName(metricName string) string {
 	// If a metric starts with a digit, prepend an underscore.
-	if metricName[0] >= '0' && metricName[0] <= '9' {
+	if len(metricName) > 0 && metricName[0] >= '0' && metricName[0] <= '9' {
 		metricName = "_" + metricName
 	}
 
@@ -333,6 +333,10 @@ func (b *Exporter) handleEvent(event Event) {
 	metricName := ""
 	prometheusLabels := event.Labels()
 	if present {
+		if mapping.Name == "" {
+			log.Debugf("The mapping for match \"%v\" generates an empty metric name.", mapping.Match)
+			return
+		}
 		metricName = escapeMetricName(mapping.Name)
 		for label, value := range labels {
 			prometheusLabels[label] = value

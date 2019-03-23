@@ -56,6 +56,38 @@ func TestNegativeCounter(t *testing.T) {
 	ex.Listen(events)
 }
 
+// TestEmptyStringMetric validates when a metric name ends up
+// being the empty string after applying the match replacements
+// tha we don't panic the Exporter Listener.
+func TestEmptyStringMetric(t *testing.T) {
+	events := make(chan Events)
+	go func() {
+		c := Events{
+			&CounterEvent{
+				metricName: "foo_bar",
+				value:      1,
+			},
+		}
+		events <- c
+		close(events)
+	}()
+
+	config := `
+mappings:
+- match: .*_bar
+  match_type: regex
+  name: "${1}"
+`
+	testMapper := &mapper.MetricMapper{}
+	err := testMapper.InitFromYAMLString(config)
+	if err != nil {
+		t.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	ex := NewExporter(testMapper)
+	ex.Listen(events)
+}
+
 // TestInvalidUtf8InDatadogTagValue validates robustness of exporter listener
 // against datadog tags with invalid tag values.
 // It sends the same tags first with a valid value, then with an invalid one.
@@ -167,6 +199,7 @@ func TestEscapeMetricName(t *testing.T) {
 		"with😱emoji":              "with_emoji",
 		"with.*.multiple":         "with___multiple",
 		"test.web-server.foo.bar": "test_web_server_foo_bar",
+		"": "",
 	}
 
 	for in, want := range scenarios {
