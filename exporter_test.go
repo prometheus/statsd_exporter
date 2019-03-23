@@ -199,7 +199,7 @@ func TestEscapeMetricName(t *testing.T) {
 		"with😱emoji":              "with_emoji",
 		"with.*.multiple":         "with___multiple",
 		"test.web-server.foo.bar": "test_web_server_foo_bar",
-		"": "",
+		"":                        "",
 	}
 
 	for in, want := range scenarios {
