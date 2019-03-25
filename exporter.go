@@ -322,6 +322,7 @@ func (b *Exporter) handleEvent(event Event) {
 	}
 
 	if mapping.Action == mapper.ActionTypeDrop {
+		eventsActions.WithLabelValues("drop").Inc()
 		return
 	}
 
@@ -342,6 +343,7 @@ func (b *Exporter) handleEvent(event Event) {
 		for label, value := range labels {
 			prometheusLabels[label] = value
 		}
+		eventsActions.WithLabelValues(string(mapping.Action)).Inc()
 	} else {
 		eventsUnmapped.Inc()
 		metricName = escapeMetricName(event.MetricName())
