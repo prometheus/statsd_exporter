@@ -52,8 +52,16 @@ func TestNegativeCounter(t *testing.T) {
 		close(events)
 	}()
 
+	errorCounter := errorEventStats.WithLabelValues("illegal_negative_counter")
+	prev := getTelemetryCounterValue(errorCounter)
+
 	ex := NewExporter(&mapper.MetricMapper{})
 	ex.Listen(events)
+
+	updated := getTelemetryCounterValue(errorCounter)
+	if updated-prev != 1 {
+		t.Fatal("Empty metric name error event not counted")
+	}
 }
 
 // TestEmptyStringMetric validates when a metric name ends up
@@ -84,8 +92,16 @@ mappings:
 		t.Fatalf("Config load error: %s %s", config, err)
 	}
 
+	errorCounter := errorEventStats.WithLabelValues("empty_metric_name")
+	prev := getTelemetryCounterValue(errorCounter)
+
 	ex := NewExporter(testMapper)
 	ex.Listen(events)
+
+	updated := getTelemetryCounterValue(errorCounter)
+	if updated-prev != 1 {
+		t.Fatal("Empty metric name error event not counted")
+	}
 }
 
 // TestInvalidUtf8InDatadogTagValue validates robustness of exporter listener
@@ -387,4 +403,13 @@ func labelPairsAsLabels(pairs []*dto.LabelPair) (labels prometheus.Labels) {
 		labels[*pair.Name] = value
 	}
 	return
+}
+
+func getTelemetryCounterValue(counter prometheus.Counter) float64 {
+	var metric dto.Metric
+	err := counter.Write(&metric)
+	if err != nil {
+		return 0.0
+	}
+	return metric.Counter.GetValue()
 }

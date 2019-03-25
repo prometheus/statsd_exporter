@@ -334,7 +334,8 @@ func (b *Exporter) handleEvent(event Event) {
 	prometheusLabels := event.Labels()
 	if present {
 		if mapping.Name == "" {
-			log.Debugf("The mapping for match \"%v\" generates an empty metric name.", mapping.Match)
+			log.Debugf("The mapping of '%s' for match '%s' generates an empty metric name", event.MetricName(), mapping.Match)
+			errorEventStats.WithLabelValues("empty_metric_name").Inc()
 			return
 		}
 		metricName = escapeMetricName(mapping.Name)
@@ -352,7 +353,7 @@ func (b *Exporter) handleEvent(event Event) {
 		// will cause the exporter to panic. Instead we will warn and continue to the next event.
 		if event.Value() < 0.0 {
 			log.Debugf("Counter %q is: '%f' (counter must be non-negative value)", metricName, event.Value())
-			eventStats.WithLabelValues("illegal_negative_counter").Inc()
+			errorEventStats.WithLabelValues("illegal_negative_counter").Inc()
 			return
 		}
 

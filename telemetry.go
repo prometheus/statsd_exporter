@@ -102,6 +102,13 @@ var (
 		},
 		[]string{"type"},
 	)
+	errorEventStats = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_events_error_total",
+			Help: "The total number of StatsD events discarded due to errors.",
+		},
+		[]string{"reason"},
+	)
 )
 
 func init() {
@@ -119,4 +126,5 @@ func init() {
 	prometheus.MustRegister(configLoads)
 	prometheus.MustRegister(mappingsCount)
 	prometheus.MustRegister(conflictingEventStats)
+	prometheus.MustRegister(errorEventStats)
 }
