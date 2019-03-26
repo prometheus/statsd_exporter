@@ -60,7 +60,7 @@ func TestNegativeCounter(t *testing.T) {
 
 	updated := getTelemetryCounterValue(errorCounter)
 	if updated-prev != 1 {
-		t.Fatal("Empty metric name error event not counted")
+		t.Fatal("Illegal negative counter error not counted")
 	}
 }
 
