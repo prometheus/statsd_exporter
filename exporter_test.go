@@ -52,8 +52,56 @@ func TestNegativeCounter(t *testing.T) {
 		close(events)
 	}()
 
+	errorCounter := errorEventStats.WithLabelValues("illegal_negative_counter")
+	prev := getTelemetryCounterValue(errorCounter)
+
 	ex := NewExporter(&mapper.MetricMapper{})
 	ex.Listen(events)
+
+	updated := getTelemetryCounterValue(errorCounter)
+	if updated-prev != 1 {
+		t.Fatal("Illegal negative counter error not counted")
+	}
+}
+
+// TestEmptyStringMetric validates when a metric name ends up
+// being the empty string after applying the match replacements
+// tha we don't panic the Exporter Listener.
+func TestEmptyStringMetric(t *testing.T) {
+	events := make(chan Events)
+	go func() {
+		c := Events{
+			&CounterEvent{
+				metricName: "foo_bar",
+				value:      1,
+			},
+		}
+		events <- c
+		close(events)
+	}()
+
+	config := `
+mappings:
+- match: .*_bar
+  match_type: regex
+  name: "${1}"
+`
+	testMapper := &mapper.MetricMapper{}
+	err := testMapper.InitFromYAMLString(config)
+	if err != nil {
+		t.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	errorCounter := errorEventStats.WithLabelValues("empty_metric_name")
+	prev := getTelemetryCounterValue(errorCounter)
+
+	ex := NewExporter(testMapper)
+	ex.Listen(events)
+
+	updated := getTelemetryCounterValue(errorCounter)
+	if updated-prev != 1 {
+		t.Fatal("Empty metric name error event not counted")
+	}
 }
 
 // TestInvalidUtf8InDatadogTagValue validates robustness of exporter listener
@@ -167,6 +215,7 @@ func TestEscapeMetricName(t *testing.T) {
 		"with😱emoji":              "with_emoji",
 		"with.*.multiple":         "with___multiple",
 		"test.web-server.foo.bar": "test_web_server_foo_bar",
+		"":                        "",
 	}
 
 	for in, want := range scenarios {
@@ -354,4 +403,13 @@ func labelPairsAsLabels(pairs []*dto.LabelPair) (labels prometheus.Labels) {
 		labels[*pair.Name] = value
 	}
 	return
+}
+
+func getTelemetryCounterValue(counter prometheus.Counter) float64 {
+	var metric dto.Metric
+	err := counter.Write(&metric)
+	if err != nil {
+		return 0.0
+	}
+	return metric.Counter.GetValue()
 }
