@@ -69,6 +69,10 @@ func getLabelNames(labels prometheus.Labels) []string {
 	return names
 }
 
+func getContainerMapKey(metricName string, labelNames []string) string {
+	return metricName + "," + strings.Join(labelNames, ",")
+}
+
 // hashNameAndLabels returns a hash value of the provided name string and all
 // the label names and values in the provided labels map.
 //
@@ -97,7 +101,7 @@ func NewCounterContainer() *CounterContainer {
 
 func (c *CounterContainer) Get(metricName string, labels prometheus.Labels, help string) (prometheus.Counter, error) {
 	labelNames := getLabelNames(labels)
-	mapKey := metricName + "," + strings.Join(labelNames, ",")
+	mapKey := getContainerMapKey(metricName, labelNames)
 
 	counterVec, ok := c.Elements[mapKey]
 	if !ok {
@@ -115,7 +119,7 @@ func (c *CounterContainer) Get(metricName string, labels prometheus.Labels, help
 
 func (c *CounterContainer) Delete(metricName string, labels prometheus.Labels) {
 	labelNames := getLabelNames(labels)
-	mapKey := metricName + "," + strings.Join(labelNames, ",")
+	mapKey := getContainerMapKey(metricName, labelNames)
 	if _, ok := c.Elements[mapKey]; ok {
 		c.Elements[mapKey].Delete(labels)
 	}
@@ -133,7 +137,7 @@ func NewGaugeContainer() *GaugeContainer {
 
 func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels, help string) (prometheus.Gauge, error) {
 	labelNames := getLabelNames(labels)
-	mapKey := metricName + "," + strings.Join(labelNames, ",")
+	mapKey := getContainerMapKey(metricName, labelNames)
 
 	gaugeVec, ok := c.Elements[mapKey]
 	if !ok {
@@ -151,7 +155,7 @@ func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels, help s
 
 func (c *GaugeContainer) Delete(metricName string, labels prometheus.Labels) {
 	labelNames := getLabelNames(labels)
-	mapKey := metricName + "," + strings.Join(labelNames, ",")
+	mapKey := getContainerMapKey(metricName, labelNames)
 	if _, ok := c.Elements[mapKey]; ok {
 		c.Elements[mapKey].Delete(labels)
 	}
@@ -171,7 +175,7 @@ func NewSummaryContainer(mapper *mapper.MetricMapper) *SummaryContainer {
 
 func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping) (prometheus.Observer, error) {
 	labelNames := getLabelNames(labels)
-	mapKey := metricName + "," + strings.Join(labelNames, ",")
+	mapKey := getContainerMapKey(metricName, labelNames)
 
 	summaryVec, ok := c.Elements[mapKey]
 	if !ok {
@@ -199,7 +203,7 @@ func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, help
 
 func (c *SummaryContainer) Delete(metricName string, labels prometheus.Labels) {
 	labelNames := getLabelNames(labels)
-	mapKey := metricName + "," + strings.Join(labelNames, ",")
+	mapKey := getContainerMapKey(metricName, labelNames)
 	if _, ok := c.Elements[mapKey]; ok {
 		c.Elements[mapKey].Delete(labels)
 	}
@@ -219,7 +223,7 @@ func NewHistogramContainer(mapper *mapper.MetricMapper) *HistogramContainer {
 
 func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping) (prometheus.Observer, error) {
 	labelNames := getLabelNames(labels)
-	mapKey := metricName + "," + strings.Join(labelNames, ",")
+	mapKey := getContainerMapKey(metricName, labelNames)
 
 	histogramVec, ok := c.Elements[mapKey]
 	if !ok {
@@ -243,7 +247,7 @@ func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, he
 
 func (c *HistogramContainer) Delete(metricName string, labels prometheus.Labels) {
 	labelNames := getLabelNames(labels)
-	mapKey := metricName + "," + strings.Join(labelNames, ",")
+	mapKey := getContainerMapKey(metricName, labelNames)
 	if _, ok := c.Elements[mapKey]; ok {
 		c.Elements[mapKey].Delete(labels)
 	}
