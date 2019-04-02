@@ -25,6 +25,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -34,6 +35,7 @@ import (
 
 	"github.com/prometheus/statsd_exporter/pkg/clock"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
+	"github.com/prometheus/statsd_exporter/pkg/telemetry"
 )
 
 const (
@@ -639,17 +641,42 @@ samples:
 }
 
 type StatsDUDPListener struct {
-	conn *net.UDPConn
+	conn          *net.UDPConn
+	bufferWarning uint32
 }
 
 func (l *StatsDUDPListener) Listen(e chan<- Events) {
+	bufferWatcher, err := telemetry.NewBufferWatcher(l.conn)
+	l.bufferWarning = 0
+	watchBuffer := true
+
+	if err != nil {
+		watchBuffer = false
+		log.Debugf("Unable to watch UDP buffer size due to: %v", err)
+	}
+
 	buf := make([]byte, 65535)
 	for {
 		n, _, err := l.conn.ReadFromUDP(buf)
 		if err != nil {
 			log.Fatal(err)
 		}
+		if watchBuffer && atomic.LoadUint32(&l.bufferWarning) != 1 {
+			go l.watchBufferSize(bufferWatcher)
+		}
 		l.handlePacket(buf[0:n], e)
+	}
+}
+
+func (l *StatsDUDPListener) watchBufferSize(bufferWatcher *telemetry.BufferWatcher) {
+	readBufferSize, err := bufferWatcher.GetSocketQueue()
+	if err != nil {
+		log.Debugf("Failed to watch UDP buffer size due to: %v", err)
+	} else {
+		if readBufferSize+65535 > bufferWatcher.ReadBuffer {
+			atomic.StoreUint32(&l.bufferWarning, 1)
+			log.Info("UDP buffer size is high enough that packet drops may have occurred. You may need to allocate more resources for the exporter, or increase the statsd.read-buffer parameter and the kernel parameter net.core.rmem_max")
+		}
 	}
 }
 
