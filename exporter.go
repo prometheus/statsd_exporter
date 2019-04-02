@@ -642,38 +642,63 @@ samples:
 
 type StatsDUDPListener struct {
 	conn          *net.UDPConn
+	bufferWatcher *telemetry.BufferWatcher
 	bufferWarning uint32
 }
 
-func (l *StatsDUDPListener) Listen(e chan<- Events) {
+func (l *StatsDUDPListener) Listen(threadCount int, packetHandlers int, e chan<- Events) {
 	bufferWatcher, err := telemetry.NewBufferWatcher(l.conn)
-	l.bufferWarning = 0
-	watchBuffer := true
+	l.bufferWatcher = bufferWatcher
+	shouldWatchBuffer := true
 
 	if err != nil {
-		watchBuffer = false
+		shouldWatchBuffer = false
 		log.Debugf("Unable to watch UDP buffer size due to: %v", err)
 	}
 
+	l.bufferWarning = 0
+
+	concurrentHandlersPerThread := packetHandlers / threadCount
+
+	for i := 0; i < threadCount; i++ {
+		go l.Listener(e, concurrentHandlersPerThread, shouldWatchBuffer)
+	}
+}
+
+func (l *StatsDUDPListener) Listener(e chan<- Events, concurrentPacketHandlers int, shouldWatchBuffer bool) {
+	var sem = make(chan struct{}, concurrentPacketHandlers)
 	buf := make([]byte, 65535)
 	for {
 		n, _, err := l.conn.ReadFromUDP(buf)
 		if err != nil {
 			log.Fatal(err)
 		}
-		if watchBuffer && atomic.LoadUint32(&l.bufferWarning) != 1 {
-			go l.watchBufferSize(bufferWatcher)
+		if shouldWatchBuffer && atomic.LoadUint32(&l.bufferWarning) != 1 {
+			go l.watchBufferSize()
 		}
-		l.handlePacket(buf[0:n], e)
+
+		data := append([]byte(nil), buf[0:n]...)
+		select {
+		case sem <- struct{}{}:
+			{
+				go func() {
+					l.handlePacket(data[0:n], e)
+					<-sem
+				}()
+			}
+
+		default:
+			l.handlePacket(data[0:n], e)
+		}
 	}
 }
 
-func (l *StatsDUDPListener) watchBufferSize(bufferWatcher *telemetry.BufferWatcher) {
-	readBufferSize, err := bufferWatcher.GetSocketQueue()
+func (l *StatsDUDPListener) watchBufferSize() {
+	readBufferSize, err := l.bufferWatcher.GetSocketQueue()
 	if err != nil {
 		log.Debugf("Failed to watch UDP buffer size due to: %v", err)
 	} else {
-		if readBufferSize+65535 > bufferWatcher.ReadBuffer {
+		if readBufferSize+65535 > l.bufferWatcher.ReadBuffer {
 			atomic.StoreUint32(&l.bufferWarning, 1)
 			log.Info("UDP buffer size is high enough that packet drops may have occurred. You may need to allocate more resources for the exporter, or increase the statsd.read-buffer parameter and the kernel parameter net.core.rmem_max")
 		}

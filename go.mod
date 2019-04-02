@@ -10,6 +10,7 @@ require (
 	github.com/howeyc/fsnotify v0.0.0-20151003194602-f0c08ee9c607
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/mattn/go-isatty v0.0.4 // indirect
+	github.com/mdlayher/netlink v0.0.0-20190313131330-258ea9dff42c
 	github.com/onsi/ginkgo v1.7.0 // indirect
 	github.com/onsi/gomega v1.4.3 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -19,7 +20,7 @@ require (
 	github.com/sergi/go-diff v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.0.3 // indirect
 	github.com/stretchr/testify v1.2.2 // indirect
-	golang.org/x/crypto v0.0.0-20170825220121-81e90905daef // indirect
+	golang.org/x/sys v0.0.0-20190312061237-fead79001313
 	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.5
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
