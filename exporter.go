@@ -21,7 +21,6 @@ import (
 	"hash/fnv"
 	"io"
 	"net"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -44,8 +43,6 @@ const (
 )
 
 var (
-	illegalCharsRE = regexp.MustCompile(`[^a-zA-Z0-9_]`)
-
 	hash   = fnv.New64a()
 	strBuf bytes.Buffer // Used for hashing.
 	intBuf = make([]byte, 8)
@@ -284,9 +281,21 @@ func escapeMetricName(metricName string) string {
 		metricName = "_" + metricName
 	}
 
-	// Replace all illegal metric chars with underscores.
-	metricName = illegalCharsRE.ReplaceAllString(metricName, "_")
-	return metricName
+	out := make([]byte, len(metricName))
+	j := 0
+	for _, c := range metricName {
+		if (c >= 'a' && c <= 'z') ||
+			(c >= 'A' && c <= 'Z') ||
+			(c >= '0' && c <= '9') {
+			out[j] = byte(c)
+		} else {
+			out[j] = byte('_')
+		}
+		j++
+	}
+
+	return string(out[:j])
+
 }
 
 // Listen handles all events sent to the given channel sequentially. It
