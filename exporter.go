@@ -707,3 +707,29 @@ func (l *StatsDTCPListener) handleConn(c *net.TCPConn, e chan<- Events) {
 		e <- lineToEvents(string(line))
 	}
 }
+
+type StatsDUnixgramListener struct {
+	conn *net.UnixConn
+}
+
+func (l *StatsDUnixgramListener) Listen(e chan<- Events) {
+	buf := make([]byte, 65535)
+	for {
+		n, _, err := l.conn.ReadFromUnix(buf)
+		if err != nil {
+			log.Fatal(err)
+		}
+		l.handlePacket(buf[:n], e)
+	}
+}
+
+func (l *StatsDUnixgramListener) handlePacket(packet []byte, e chan<- Events) {
+	unixgramPackets.Inc()
+	lines := strings.Split(string(packet), "\n")
+	events := Events{}
+	for _, line := range lines {
+		linesReceived.Inc()
+		events = append(events, lineToEvents(line)...)
+	}
+	e <- events
+}
