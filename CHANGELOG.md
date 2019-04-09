@@ -1,6 +1,8 @@
 ## Unreleased / ????-??-??
 
 * [ENHANCEMENT] Add a health check to the Docker container ([#182](https://github.com/prometheus/statsd_exporter/pull/182))
+* [ENHANCEMENT] Allow inconsistent label sets ([#194](https://github.com/prometheus/statsd_exporter/pull/194))
+* [ENHANCEMENT] Add metric for count of events by action ([#193](https://github.com/prometheus/statsd_exporter/pull/193))
 * [BUGFIX] Fix panic if a mapping resulted in an empty name ([#192](https://github.com/prometheus/statsd_exporter/pull/192))
 
 With #192, the count of events rejected because of negative counter increments has moved into the `statsd_exporter_events_error_total` metric, instead of being lumped in with the different kinds of successful events.
