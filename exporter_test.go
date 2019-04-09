@@ -64,6 +64,99 @@ func TestNegativeCounter(t *testing.T) {
 	}
 }
 
+// TestInconsistentLabelSets validates that the exporter will register
+// and record metrics with the same metric name but inconsistent label
+// sets e.g foo{a="1"} and foo{b="1"}
+func TestInconsistentLabelSets(t *testing.T) {
+	firstLabelSet := make(map[string]string)
+	secondLabelSet := make(map[string]string)
+	metricNames := [4]string{"counter_test", "gauge_test", "histogram_test", "summary_test"}
+
+	firstLabelSet["foo"] = "1"
+	secondLabelSet["foo"] = "1"
+	secondLabelSet["bar"] = "2"
+
+	events := make(chan Events)
+	go func() {
+		c := Events{
+			&CounterEvent{
+				metricName: "counter_test",
+				value:      1,
+				labels:     firstLabelSet,
+			},
+			&CounterEvent{
+				metricName: "counter_test",
+				value:      1,
+				labels:     secondLabelSet,
+			},
+			&GaugeEvent{
+				metricName: "gauge_test",
+				value:      1,
+				labels:     firstLabelSet,
+			},
+			&GaugeEvent{
+				metricName: "gauge_test",
+				value:      1,
+				labels:     secondLabelSet,
+			},
+			&TimerEvent{
+				metricName: "histogram.test",
+				value:      1,
+				labels:     firstLabelSet,
+			},
+			&TimerEvent{
+				metricName: "histogram.test",
+				value:      1,
+				labels:     secondLabelSet,
+			},
+			&TimerEvent{
+				metricName: "summary_test",
+				value:      1,
+				labels:     firstLabelSet,
+			},
+			&TimerEvent{
+				metricName: "summary_test",
+				value:      1,
+				labels:     secondLabelSet,
+			},
+		}
+		events <- c
+		close(events)
+	}()
+
+	config := `
+mappings:
+- match: histogram.test
+  timer_type: histogram
+  name: "histogram_test"
+`
+	testMapper := &mapper.MetricMapper{}
+	err := testMapper.InitFromYAMLString(config)
+	if err != nil {
+		t.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	ex := NewExporter(testMapper)
+	ex.Listen(events)
+
+	metrics, err := prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Fatalf("Cannot gather from DefaultGatherer: %v", err)
+	}
+
+	for _, metricName := range metricNames {
+		firstMetric := getFloat64(metrics, metricName, firstLabelSet)
+		secondMetric := getFloat64(metrics, metricName, secondLabelSet)
+
+		if firstMetric == nil {
+			t.Fatalf("Could not find time series with first label set for metric: %s", metricName)
+		}
+		if secondMetric == nil {
+			t.Fatalf("Could not find time series with second label set for metric: %s", metricName)
+		}
+	}
+}
+
 // TestEmptyStringMetric validates when a metric name ends up
 // being the empty string after applying the match replacements
 // tha we don't panic the Exporter Listener.
