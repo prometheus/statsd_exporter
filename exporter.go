@@ -288,6 +288,10 @@ func escapeMetricName(metricName string) string {
 	out := make([]byte, len(metricName))
 	j := 0
 	for _, c := range metricName {
+		// check if the rune is valid for a metric name
+		// and replace it if it is not.
+		// As only certain ASCII characters are valid in metric names,
+		// we can use a byte.
 		if (c >= 'a' && c <= 'z') ||
 			(c >= 'A' && c <= 'Z') ||
 			(c >= '0' && c <= '9') {
