@@ -116,6 +116,12 @@ var (
 		},
 		[]string{"action"},
 	)
+	metricsCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_metrics_total",
+			Help: "The total number of metrics.",
+		},
+	)
 )
 
 func init() {
@@ -135,4 +141,5 @@ func init() {
 	prometheus.MustRegister(conflictingEventStats)
 	prometheus.MustRegister(errorEventStats)
 	prometheus.MustRegister(eventsActions)
+	prometheus.MustRegister(metricsCount)
 }
