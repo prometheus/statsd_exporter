@@ -506,3 +506,24 @@ func getTelemetryCounterValue(counter prometheus.Counter) float64 {
 	}
 	return metric.Counter.GetValue()
 }
+
+func BenchmarkEscapeMetricName(b *testing.B) {
+	scenarios := []string{
+		"clean",
+		"0starts_with_digit",
+		"with_underscore",
+		"with.dot",
+		"with😱emoji",
+		"with.*.multiple",
+		"test.web-server.foo.bar",
+		"",
+	}
+
+	for _, s := range scenarios {
+		b.Run(s, func(b *testing.B) {
+			for n := 0; n < b.N; n++ {
+				escapeMetricName(s)
+			}
+		})
+	}
+}

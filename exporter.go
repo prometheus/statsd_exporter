@@ -21,7 +21,6 @@ import (
 	"hash/fnv"
 	"io"
 	"net"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -42,8 +41,6 @@ const (
 )
 
 var (
-	illegalCharsRE = regexp.MustCompile(`[^a-zA-Z0-9_]`)
-
 	hash   = fnv.New64a()
 	strBuf bytes.Buffer // Used for hashing.
 	intBuf = make([]byte, 8)
@@ -311,15 +308,35 @@ type Exporter struct {
 	labelValues map[string]map[uint64]*LabelValues
 }
 
+// Replace invalid characters in the metric name with "_"
+// Valid characters are a-z, A-Z, 0-9, and _
 func escapeMetricName(metricName string) string {
 	// If a metric starts with a digit, prepend an underscore.
 	if len(metricName) > 0 && metricName[0] >= '0' && metricName[0] <= '9' {
 		metricName = "_" + metricName
 	}
 
-	// Replace all illegal metric chars with underscores.
-	metricName = illegalCharsRE.ReplaceAllString(metricName, "_")
-	return metricName
+	// this is an character replacement method optimized for this limited
+	// use case.  It is much faster than using a regex.
+	out := make([]byte, len(metricName))
+	j := 0
+	for _, c := range metricName {
+		// check if the rune is valid for a metric name
+		// and replace it if it is not.
+		// As only certain ASCII characters are valid in metric names,
+		// we can use a byte.
+		if (c >= 'a' && c <= 'z') ||
+			(c >= 'A' && c <= 'Z') ||
+			(c >= '0' && c <= '9') {
+			out[j] = byte(c)
+		} else {
+			out[j] = byte('_')
+		}
+		j++
+	}
+
+	return string(out[:j])
+
 }
 
 // Listen handles all events sent to the given channel sequentially. It
