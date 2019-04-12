@@ -116,11 +116,12 @@ var (
 		},
 		[]string{"action"},
 	)
-	metricsCount = prometheus.NewCounter(
-		prometheus.CounterOpts{
+	metricsCount = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
 			Name: "statsd_exporter_metrics_total",
 			Help: "The total number of metrics.",
 		},
+		[]string{"type"},
 	)
 )
 
