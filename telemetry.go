@@ -116,6 +116,13 @@ var (
 		},
 		[]string{"action"},
 	)
+	metricsCount = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "statsd_exporter_metrics_total",
+			Help: "The total number of metrics.",
+		},
+		[]string{"type"},
+	)
 )
 
 func init() {
@@ -135,4 +142,5 @@ func init() {
 	prometheus.MustRegister(conflictingEventStats)
 	prometheus.MustRegister(errorEventStats)
 	prometheus.MustRegister(eventsActions)
+	prometheus.MustRegister(metricsCount)
 }

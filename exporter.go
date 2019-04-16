@@ -102,6 +102,7 @@ func (c *CounterContainer) Get(metricName string, labels prometheus.Labels, help
 
 	counterVec, ok := c.Elements[mapKey]
 	if !ok {
+		metricsCount.WithLabelValues("counter").Inc()
 		counterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: metricName,
 			Help: help,
@@ -119,6 +120,7 @@ func (c *CounterContainer) Delete(metricName string, labels prometheus.Labels) {
 	mapKey := getContainerMapKey(metricName, labelNames)
 	if _, ok := c.Elements[mapKey]; ok {
 		c.Elements[mapKey].Delete(labels)
+		metricsCount.WithLabelValues("counter").Dec()
 	}
 }
 
@@ -138,6 +140,7 @@ func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels, help s
 
 	gaugeVec, ok := c.Elements[mapKey]
 	if !ok {
+		metricsCount.WithLabelValues("gauge").Inc()
 		gaugeVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: metricName,
 			Help: help,
@@ -155,6 +158,7 @@ func (c *GaugeContainer) Delete(metricName string, labels prometheus.Labels) {
 	mapKey := getContainerMapKey(metricName, labelNames)
 	if _, ok := c.Elements[mapKey]; ok {
 		c.Elements[mapKey].Delete(labels)
+		metricsCount.WithLabelValues("gauge").Dec()
 	}
 }
 
@@ -176,6 +180,7 @@ func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, help
 
 	summaryVec, ok := c.Elements[mapKey]
 	if !ok {
+		metricsCount.WithLabelValues("summary").Inc()
 		quantiles := c.mapper.Defaults.Quantiles
 		if mapping != nil && mapping.Quantiles != nil && len(mapping.Quantiles) > 0 {
 			quantiles = mapping.Quantiles
@@ -203,6 +208,7 @@ func (c *SummaryContainer) Delete(metricName string, labels prometheus.Labels) {
 	mapKey := getContainerMapKey(metricName, labelNames)
 	if _, ok := c.Elements[mapKey]; ok {
 		c.Elements[mapKey].Delete(labels)
+		metricsCount.WithLabelValues("summary").Dec()
 	}
 }
 
@@ -224,6 +230,7 @@ func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, he
 
 	histogramVec, ok := c.Elements[mapKey]
 	if !ok {
+		metricsCount.WithLabelValues("histogram").Inc()
 		buckets := c.mapper.Defaults.Buckets
 		if mapping != nil && mapping.Buckets != nil && len(mapping.Buckets) > 0 {
 			buckets = mapping.Buckets
@@ -247,6 +254,7 @@ func (c *HistogramContainer) Delete(metricName string, labels prometheus.Labels)
 	mapKey := getContainerMapKey(metricName, labelNames)
 	if _, ok := c.Elements[mapKey]; ok {
 		c.Elements[mapKey].Delete(labels)
+		metricsCount.WithLabelValues("histogram").Dec()
 	}
 }
 
