@@ -1,5 +1,6 @@
 ## Unreleased / ????-??-??
 
+* [CHANGE] Do not run as root in the Docker container by default ([#202](https://github.com/prometheus/statsd_exporter/pull/202))
 * [FEATURE] Add metric for count of events by action ([#193](https://github.com/prometheus/statsd_exporter/pull/193))
 * [FEATURE] Add metric for count of distinct metric names ([#200](https://github.com/prometheus/statsd_exporter/pull/200))
 * [ENHANCEMENT] Add a health check to the Docker container ([#182](https://github.com/prometheus/statsd_exporter/pull/182))
