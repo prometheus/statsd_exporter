@@ -18,7 +18,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 
 	"github.com/howeyc/fsnotify"
 	"github.com/prometheus/client_golang/prometheus"
@@ -199,7 +201,8 @@ func main() {
 	}
 
 	if *statsdListenUnixgram != "" {
-		if _, err := os.Stat(*statsdListenUnixgram); !os.IsNotExist(err) {
+		var err error
+		if _, err = os.Stat(*statsdListenUnixgram); !os.IsNotExist(err) {
 			log.Fatalf("Unixgram socket \"%s\" already exists", *statsdListenUnixgram)
 		}
 		uxgconn, err := net.ListenUnixgram("unixgram", &net.UnixAddr{
@@ -225,6 +228,8 @@ func main() {
 		// if it's an abstract unix domain socket, it won't exist on fs
 		// so we can't chmod it either
 		if _, err := os.Stat(*statsdListenUnixgram); !os.IsNotExist(err) {
+			defer os.Remove(*statsdListenUnixgram)
+
 			// convert the string to octet
 			perm, err := strconv.ParseInt("0"+string(*statsdUnixSocketMode), 8, 32)
 			if err != nil {
@@ -254,5 +259,11 @@ func main() {
 		go watchConfig(*mappingConfig, mapper)
 	}
 	exporter := NewExporter(mapper)
-	exporter.Listen(events)
+
+	signals := make(chan os.Signal)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+
+	go exporter.Listen(events)
+
+	<-signals
 }
