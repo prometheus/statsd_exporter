@@ -17,6 +17,7 @@ import (
 	"bufio"
 	"net"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"strconv"
 
