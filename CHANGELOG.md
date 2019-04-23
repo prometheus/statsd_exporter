@@ -3,6 +3,7 @@
 * [CHANGE] Do not run as root in the Docker container by default ([#202](https://github.com/prometheus/statsd_exporter/pull/202))
 * [FEATURE] Add metric for count of events by action ([#193](https://github.com/prometheus/statsd_exporter/pull/193))
 * [FEATURE] Add metric for count of distinct metric names ([#200](https://github.com/prometheus/statsd_exporter/pull/200))
+* [FEATURE] Add UNIX socket listener support ([#199](https://github.com/prometheus/statsd_exporter/pull/199))
 * [ENHANCEMENT] Add a health check to the Docker container ([#182](https://github.com/prometheus/statsd_exporter/pull/182))
 * [ENHANCEMENT] Allow inconsistent label sets ([#194](https://github.com/prometheus/statsd_exporter/pull/194))
 * [ENHANCEMENT] Speed up sanitization of metric names ([#197](https://github.com/prometheus/statsd_exporter/pull/197))

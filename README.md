@@ -53,35 +53,28 @@ NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/king
     usage: statsd_exporter [<flags>]
 
     Flags:
-      -h, --help              Show context-sensitive help (also try --help-long and
-                              --help-man).
-          --web.listen-address=":9102"  
-                              The address on which to expose the web interface and
-                              generated Prometheus metrics.
-          --web.telemetry-path="/metrics"  
-                              Path under which to expose metrics.
-          --statsd.listen-udp=":9125"  
-                              The UDP address on which to receive statsd metric
-                              lines. "" disables it.
-          --statsd.listen-tcp=":9125"  
-                              The TCP address on which to receive statsd metric
-                              lines. "" disables it.
-          --statsd.mapping-config=STATSD.MAPPING-CONFIG  
-                              Metric mapping configuration file name.
-          --statsd.read-buffer=STATSD.READ-BUFFER  
-                              Size (in bytes) of the operating system's transmit
-                              read buffer associated with the UDP connection. Please
-                              make sure the kernel parameters net.core.rmem_max is
-                              set to a value greater than the value specified.
-          --debug.dump-fsm="" The path to dump internal FSM generated for glob
-                              matching as Dot file.
-          --log.level="info"  Only log messages with the given severity or above.
-                              Valid levels: [debug, info, warn, error, fatal]
-          --log.format="logger:stderr"  
-                              Set the log target and format. Example:
-                              "logger:syslog?appname=bob&local=7" or
-                              "logger:stdout?json=true"
-          --version           Show application version.
+      -h, --help               Show context-sensitive help (also try --help-long and --help-man).
+          --web.listen-address=":9102"
+                               The address on which to expose the web interface and generated Prometheus metrics.
+          --web.telemetry-path="/metrics"
+                               Path under which to expose metrics.
+          --statsd.listen-udp=":9125"
+                               The UDP address on which to receive statsd metric lines. "" disables it.
+          --statsd.listen-tcp=":9125"
+                               The TCP address on which to receive statsd metric lines. "" disables it.
+          --statsd.listen-unixgram=""
+                               The Unixgram socket path to receive statsd metric lines in datagram. "" disables it.
+          --statsd.unixsocket-mode="755"
+                               The permission mode of the unix socket.
+          --statsd.mapping-config=STATSD.MAPPING-CONFIG
+                               Metric mapping configuration file name.
+          --statsd.read-buffer=STATSD.READ-BUFFER
+                               Size (in bytes) of the operating system's transmit read buffer associated with the UDP or Unixgram connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.
+          --debug.dump-fsm=""  The path to dump internal FSM generated for glob matching as Dot file.
+          --log.level="info"   Only log messages with the given severity or above. Valid levels: [debug, info, warn, error, fatal]
+          --log.format="logger:stderr"
+                               Set the log target and format. Example: "logger:syslog?appname=bob&local=7" or "logger:stdout?json=true"
+          --version            Show application version.
     ```
 
 ## Tests
