@@ -712,7 +712,13 @@ func (l *StatsDUDPListener) Listen(e chan<- Events) {
 	for {
 		n, _, err := l.conn.ReadFromUDP(buf)
 		if err != nil {
-			log.Fatal(err)
+			// https://github.com/golang/go/issues/4373
+			// ignore net: errClosing error as it will occur during shutdown
+			if strings.HasSuffix(err.Error(), "use of closed network connection") {
+				return
+			}
+			log.Error(err)
+			return
 		}
 		l.handlePacket(buf[0:n], e)
 	}
@@ -737,6 +743,11 @@ func (l *StatsDTCPListener) Listen(e chan<- Events) {
 	for {
 		c, err := l.conn.AcceptTCP()
 		if err != nil {
+			// https://github.com/golang/go/issues/4373
+			// ignore net: errClosing error as it will occur during shutdown
+			if strings.HasSuffix(err.Error(), "use of closed network connection") {
+				return
+			}
 			log.Fatalf("AcceptTCP failed: %v", err)
 		}
 		go l.handleConn(c, e)
@@ -766,4 +777,35 @@ func (l *StatsDTCPListener) handleConn(c *net.TCPConn, e chan<- Events) {
 		linesReceived.Inc()
 		e <- lineToEvents(string(line))
 	}
+}
+
+type StatsDUnixgramListener struct {
+	conn *net.UnixConn
+}
+
+func (l *StatsDUnixgramListener) Listen(e chan<- Events) {
+	buf := make([]byte, 65535)
+	for {
+		n, _, err := l.conn.ReadFromUnix(buf)
+		if err != nil {
+			// https://github.com/golang/go/issues/4373
+			// ignore net: errClosing error as it will occur during shutdown
+			if strings.HasSuffix(err.Error(), "use of closed network connection") {
+				return
+			}
+			log.Fatal(err)
+		}
+		l.handlePacket(buf[:n], e)
+	}
+}
+
+func (l *StatsDUnixgramListener) handlePacket(packet []byte, e chan<- Events) {
+	unixgramPackets.Inc()
+	lines := strings.Split(string(packet), "\n")
+	events := Events{}
+	for _, line := range lines {
+		linesReceived.Inc()
+		events = append(events, lineToEvents(line)...)
+	}
+	e <- events
 }

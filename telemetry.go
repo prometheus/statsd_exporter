@@ -53,6 +53,12 @@ var (
 			Help: "The number of lines discarded due to being too long.",
 		},
 	)
+	unixgramPackets = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_unixgram_packets_total",
+			Help: "The total number of StatsD packets received over Unixgram.",
+		},
+	)
 	linesReceived = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_lines_total",
@@ -132,6 +138,7 @@ func init() {
 	prometheus.MustRegister(tcpConnections)
 	prometheus.MustRegister(tcpErrors)
 	prometheus.MustRegister(tcpLineTooLong)
+	prometheus.MustRegister(unixgramPackets)
 	prometheus.MustRegister(linesReceived)
 	prometheus.MustRegister(samplesReceived)
 	prometheus.MustRegister(sampleErrors)
