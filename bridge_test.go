@@ -68,6 +68,26 @@ func TestHandlePacket(t *testing.T) {
 				},
 			},
 		}, {
+			name: "simple histogram",
+			in:   "foo:200|h",
+			out: Events{
+				&TimerEvent{
+					metricName: "foo",
+					value:      200,
+					labels:     map[string]string{},
+				},
+			},
+		}, {
+			name: "simple distribution",
+			in:   "foo:200|d",
+			out: Events{
+				&TimerEvent{
+					metricName: "foo",
+					value:      200,
+					labels:     map[string]string{},
+				},
+			},
+		}, {
 			name: "datadog tag extension",
 			in:   "foo:100|c|#tag1:bar,tag2:baz",
 			out: Events{

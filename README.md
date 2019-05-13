@@ -224,6 +224,8 @@ mappings:
     job: "${1}_server"
 ```
 
+Note that timers will be accepted with the `ms`, `h`, and `d` statsd types.  The first two are timers and histograms and the `d` type is for DataDog's "distribution" type.  The distribution type is treated identically to timers and histograms.
+
 ### Regular expression matching
 
 Another capability when using YAML configuration is the ability to define matches
