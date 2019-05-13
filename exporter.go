@@ -584,9 +584,11 @@ func buildEvent(statType, metric string, value float64, relative bool, labels ma
 	}
 }
 
-func parseDogStatsDTagToKeyValue(tag string) (k, v string) {
+func handleDogStatsDTagToKeyValue(labels map[string]string, component, tag string) {
 	// Bail early if the tag is empty
 	if len(tag) == 0 {
+		tagErrors.Inc()
+		log.Debugf("Malformed or empty DogStatsD tag %s in component %s", tag, component)
 		return
 	}
 	// Skip hash if found.
@@ -595,6 +597,7 @@ func parseDogStatsDTagToKeyValue(tag string) (k, v string) {
 	}
 
 	// find the first comma and split the tag into key and value.
+	var k, v string
 	for i, c := range tag {
 		if c == ':' {
 			k = tag[0:i]
@@ -602,6 +605,15 @@ func parseDogStatsDTagToKeyValue(tag string) (k, v string) {
 			break
 		}
 	}
+	// If either of them is empty, then either the k or v is empty, or we
+	// didn't find a colon, either way, throw an error and skip ahead.
+	if len(k) == 0 || len(v) == 0 {
+		tagErrors.Inc()
+		log.Debugf("Malformed or empty DogStatsD tag %s in component %s", tag, component)
+		return
+	}
+
+	labels[escapeMetricName(k)] = v
 
 	return
 }
@@ -609,19 +621,22 @@ func parseDogStatsDTagToKeyValue(tag string) (k, v string) {
 func parseDogStatsDTagsToLabels(component string) map[string]string {
 	labels := map[string]string{}
 	tagsReceived.Inc()
-	tags := strings.Split(component, ",")
-	for _, t := range tags {
-		k, v := parseDogStatsDTagToKeyValue(t)
-		// If either of them is empty, then either the k or v is empty, or we
-		// didn't find a colon, either way, throw an error and skip ahead.
-		if len(k) == 0 || len(v) == 0 {
-			tagErrors.Inc()
-			log.Debugf("Malformed or empty DogStatsD tag %s in component %s", t, component)
-			continue
-		}
 
-		labels[escapeMetricName(k)] = v
+	lastTagEndIndex := 0
+	for i, c := range component {
+		if c == ',' {
+			tag := component[lastTagEndIndex:i]
+			lastTagEndIndex = i + 1
+			handleDogStatsDTagToKeyValue(labels, component, tag)
+		}
 	}
+
+	// If we're not off the end of the string, add the last tag
+	if lastTagEndIndex < len(component) {
+		tag := component[lastTagEndIndex:]
+		handleDogStatsDTagToKeyValue(labels, component, tag)
+	}
+
 	return labels
 }
 
@@ -703,7 +718,7 @@ samples:
 						multiplyEvents = int(1 / samplingFactor)
 					}
 				case '#':
-					labels = parseDogStatsDTagsToLabels(component)
+					labels = parseDogStatsDTagsToLabels(component[1:])
 				default:
 					log.Debugf("Invalid sampling factor or tag section %s on line %s", components[2], line)
 					sampleErrors.WithLabelValues("invalid_sample_factor").Inc()
