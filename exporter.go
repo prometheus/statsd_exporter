@@ -584,32 +584,34 @@ func buildEvent(statType, metric string, value float64, relative bool, labels ma
 	}
 }
 
+func parseDogStatsDTagToKeyValue(tag string) (k, v string) {
+	// Bail early if the tag is empty
+	if len(tag) == 0 {
+		return
+	}
+	// Skip hash if found.
+	if tag[0] == '#' {
+		tag = tag[1:]
+	}
+
+	// find the first comma and split the tag into key and value.
+	for i, c := range tag {
+		if c == ':' {
+			k = tag[0:i]
+			v = tag[(i + 1):]
+			break
+		}
+	}
+
+	return
+}
+
 func parseDogStatsDTagsToLabels(component string) map[string]string {
 	labels := map[string]string{}
 	tagsReceived.Inc()
 	tags := strings.Split(component, ",")
 	for _, t := range tags {
-		// Bail early if the tag is empty
-		if len(t) == 0 {
-			tagErrors.Inc()
-			log.Debugf("Empty tag found in '%s'", component)
-			continue
-		}
-		// Skip hash if found.
-		if t[0] == '#' {
-			t = t[1:]
-		}
-
-		// find the first comma and split the tag into key and value.
-		var k, v string
-		for i, c := range t {
-			if c == ':' {
-				k = t[0:i]
-				v = t[(i + 1):]
-				break
-			}
-		}
-
+		k, v := parseDogStatsDTagToKeyValue(t)
 		// If either of them is empty, then either the k or v is empty, or we
 		// didn't find a colon, either way, throw an error and skip ahead.
 		if len(k) == 0 || len(v) == 0 {
