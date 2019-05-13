@@ -589,9 +589,18 @@ func parseDogStatsDTagsToLabels(component string) map[string]string {
 	tagsReceived.Inc()
 	tags := strings.Split(component, ",")
 	for _, t := range tags {
-		t = strings.TrimPrefix(t, "#")
-		kv := strings.SplitN(t, ":", 2)
+		// Bail early if the tag is empty
+		if len(t) == 0 {
+			tagErrors.Inc()
+			log.Debugf("Empty tag found in '%s'", component)
+			continue
+		}
+		// Skip hash if found.
+		if t[0] == '#' {
+			t = t[1:]
+		}
 
+		kv := strings.SplitN(t, ":", 2)
 		if len(kv) < 2 || len(kv[1]) == 0 {
 			tagErrors.Inc()
 			log.Debugf("Malformed or empty DogStatsD tag %s in component %s", t, component)
