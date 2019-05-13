@@ -600,14 +600,25 @@ func parseDogStatsDTagsToLabels(component string) map[string]string {
 			t = t[1:]
 		}
 
-		kv := strings.SplitN(t, ":", 2)
-		if len(kv) < 2 || len(kv[1]) == 0 {
+		// find the first comma and split the tag into key and value.
+		var k, v string
+		for i, c := range t {
+			if c == ':' {
+				k = t[0:i]
+				v = t[(i + 1):]
+				break
+			}
+		}
+
+		// If either of them is empty, then either the k or v is empty, or we
+		// didn't find a colon, either way, throw an error and skip ahead.
+		if len(k) == 0 || len(v) == 0 {
 			tagErrors.Inc()
 			log.Debugf("Malformed or empty DogStatsD tag %s in component %s", t, component)
 			continue
 		}
 
-		labels[escapeMetricName(kv[0])] = kv[1]
+		labels[escapeMetricName(k)] = v
 	}
 	return labels
 }
