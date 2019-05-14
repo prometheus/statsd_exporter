@@ -575,7 +575,7 @@ func buildEvent(statType, metric string, value float64, relative bool, labels ma
 			relative:   relative,
 			labels:     labels,
 		}, nil
-	case "ms", "h":
+	case "ms", "h", "d":
 		return &TimerEvent{
 			metricName: metric,
 			value:      float64(value),
