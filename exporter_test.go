@@ -222,6 +222,51 @@ func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
 	ex.Listen(events)
 }
 
+// In the case of someone starting the statsd exporter with no mapping file specified
+// which is valid, we want to make sure that the default quantile metrics are generated
+// as well as the sum/count metrics
+func TestSummaryWithQuantilesEmptyMapping(t *testing.T) {
+	// Start exporter with a synchronous channel
+	events := make(chan Events)
+	go func() {
+		ex := NewExporter(&mapper.MetricMapper{})
+		ex.Listen(events)
+	}()
+
+	name := "default_foo"
+	c := Events{
+		&TimerEvent{
+			metricName: name,
+			value:      300,
+		},
+	}
+	events <- c
+	events <- Events{}
+	close(events)
+
+	metrics, err := prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Fatal("Gather should not fail")
+	}
+
+	var metricFamily *dto.MetricFamily
+	for _, m := range metrics {
+		if *m.Name == name {
+			metricFamily = m
+			break
+		}
+	}
+
+	if metricFamily == nil {
+		t.Fatal("Metric could not be found")
+	}
+
+	quantiles := metricFamily.Metric[0].Summary.Quantile
+	if len(quantiles) == 0 {
+		t.Fatal("Summary has no quantiles available")
+	}
+}
+
 func TestHistogramUnits(t *testing.T) {
 	// Start exporter with a synchronous channel
 	events := make(chan Events)

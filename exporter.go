@@ -189,6 +189,10 @@ func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, help
 		for _, q := range quantiles {
 			objectives[q.Quantile] = q.Error
 		}
+		// In the case of no mapping file, explicitly define the default quantiles
+		if len(objectives) == 0 {
+			objectives = map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001}
+		}
 		summaryVec = prometheus.NewSummaryVec(
 			prometheus.SummaryOpts{
 				Name:       metricName,
