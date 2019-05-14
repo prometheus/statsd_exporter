@@ -157,6 +157,169 @@ mappings:
 	}
 }
 
+// TestConflictingMetrics validates that the exporter will not register metrics
+// of different types that have overlapping names.
+func TestConflictingMetrics(t *testing.T) {
+	scenarios := []struct {
+		name     string
+		expected float64
+		in       Events
+	}{
+		{
+			name:     "counter vs gauge",
+			expected: 1,
+			in: Events{
+				&CounterEvent{
+					metricName: "cvg_test",
+					value:      1,
+				},
+				&GaugeEvent{
+					metricName: "cvg_test",
+					value:      2,
+				},
+			},
+		},
+		{
+			name:     "gauge vs counter",
+			expected: 2,
+			in: Events{
+				&GaugeEvent{
+					metricName: "gvc_test",
+					value:      2,
+				},
+				&CounterEvent{
+					metricName: "gvc_test",
+					value:      1,
+				},
+			},
+		},
+		{
+			name:     "counter vs histogram sum",
+			expected: 1,
+			in: Events{
+				&CounterEvent{
+					metricName: "histogram_test1_sum",
+					value:      1,
+				},
+				&TimerEvent{
+					metricName: "histogram.test1",
+					value:      2,
+				},
+			},
+		},
+		{
+			name:     "counter vs histogram count",
+			expected: 1,
+			in: Events{
+				&CounterEvent{
+					metricName: "histogram_test2_count",
+					value:      1,
+				},
+				&TimerEvent{
+					metricName: "histogram.test2",
+					value:      2,
+				},
+			},
+		},
+		{
+			name:     "counter vs histogram bucket",
+			expected: 1,
+			in: Events{
+				&CounterEvent{
+					metricName: "histogram_test3_bucket",
+					value:      1,
+				},
+				&TimerEvent{
+					metricName: "histogram.test3",
+					value:      2,
+				},
+			},
+		},
+		{
+			name:     "counter vs summary quantile",
+			expected: 1,
+			in: Events{
+				&CounterEvent{
+					metricName: "cvsq_test",
+					value:      1,
+				},
+				&TimerEvent{
+					metricName: "cvsq_test",
+					value:      2,
+				},
+			},
+		},
+		{
+			name:     "counter vs summary count",
+			expected: 1,
+			in: Events{
+				&CounterEvent{
+					metricName: "cvsc_count",
+					value:      1,
+				},
+				&TimerEvent{
+					metricName: "cvsc",
+					value:      2,
+				},
+			},
+		},
+		{
+			name:     "counter vs summary sum",
+			expected: 1,
+			in: Events{
+				&CounterEvent{
+					metricName: "cvss_sum",
+					value:      1,
+				},
+				&TimerEvent{
+					metricName: "cvss",
+					value:      2,
+				},
+			},
+		},
+	}
+
+	config := `
+mappings:
+- match: histogram.*
+  timer_type: histogram
+  name: "histogram_${1}"
+`
+	for _, s := range scenarios {
+		t.Run(s.name, func(t *testing.T) {
+			testMapper := &mapper.MetricMapper{}
+			err := testMapper.InitFromYAMLString(config)
+			if err != nil {
+				t.Fatalf("Config load error: %s %s", config, err)
+			}
+
+			events := make(chan Events)
+			go func() {
+				events <- s.in
+				close(events)
+			}()
+			ex := NewExporter(testMapper)
+			ex.Listen(events)
+
+			metrics, err := prometheus.DefaultGatherer.Gather()
+			if err != nil {
+				t.Fatalf("Cannot gather from DefaultGatherer: %v", err)
+			}
+
+			mn := s.in[0].MetricName()
+			m := getFloat64(metrics, mn, map[string]string{})
+
+			if m == nil {
+				t.Fatalf("Could not find time series with metric name '%v'", mn)
+			}
+
+			if *m != s.expected {
+				t.Fatalf("Expected to get %v, but got %v instead", s.expected, *m)
+			}
+		})
+	}
+}
+
 // TestEmptyStringMetric validates when a metric name ends up
 // being the empty string after applying the match replacements
 // tha we don't panic the Exporter Listener.
