@@ -572,3 +572,21 @@ func BenchmarkEscapeMetricName(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkParseDogStatsDTagsToLabels(b *testing.B) {
+	scenarios := map[string]string{
+		"1 tag w/hash":         "#test:tag",
+		"1 tag w/o hash":       "test:tag",
+		"2 tags, mixed hashes": "tag1:test,#tag2:test",
+		"3 long tags":          "tag1:reallylongtagthisisreallylong,tag2:anotherreallylongtag,tag3:thisisyetanotherextraordinarilylongtag",
+		"a-z tags":             "a:0,b:1,c:2,d:3,e:4,f:5,g:6,h:7,i:8,j:9,k:0,l:1,m:2,n:3,o:4,p:5,q:6,r:7,s:8,t:9,u:0,v:1,w:2,x:3,y:4,z:5",
+	}
+
+	for name, tags := range scenarios {
+		b.Run(name, func(b *testing.B) {
+			for n := 0; n < b.N; n++ {
+				parseDogStatsDTagsToLabels(tags)
+			}
+		})
+	}
+}

@@ -588,22 +588,59 @@ func buildEvent(statType, metric string, value float64, relative bool, labels ma
 	}
 }
 
+func handleDogStatsDTagToKeyValue(labels map[string]string, component, tag string) {
+	// Bail early if the tag is empty
+	if len(tag) == 0 {
+		tagErrors.Inc()
+		log.Debugf("Malformed or empty DogStatsD tag %s in component %s", tag, component)
+		return
+	}
+	// Skip hash if found.
+	if tag[0] == '#' {
+		tag = tag[1:]
+	}
+
+	// find the first comma and split the tag into key and value.
+	var k, v string
+	for i, c := range tag {
+		if c == ':' {
+			k = tag[0:i]
+			v = tag[(i + 1):]
+			break
+		}
+	}
+	// If either of them is empty, then either the k or v is empty, or we
+	// didn't find a colon, either way, throw an error and skip ahead.
+	if len(k) == 0 || len(v) == 0 {
+		tagErrors.Inc()
+		log.Debugf("Malformed or empty DogStatsD tag %s in component %s", tag, component)
+		return
+	}
+
+	labels[escapeMetricName(k)] = v
+
+	return
+}
+
 func parseDogStatsDTagsToLabels(component string) map[string]string {
 	labels := map[string]string{}
 	tagsReceived.Inc()
-	tags := strings.Split(component, ",")
-	for _, t := range tags {
-		t = strings.TrimPrefix(t, "#")
-		kv := strings.SplitN(t, ":", 2)
 
-		if len(kv) < 2 || len(kv[1]) == 0 {
-			tagErrors.Inc()
-			log.Debugf("Malformed or empty DogStatsD tag %s in component %s", t, component)
-			continue
+	lastTagEndIndex := 0
+	for i, c := range component {
+		if c == ',' {
+			tag := component[lastTagEndIndex:i]
+			lastTagEndIndex = i + 1
+			handleDogStatsDTagToKeyValue(labels, component, tag)
 		}
-
-		labels[escapeMetricName(kv[0])] = kv[1]
 	}
+
+	// If we're not off the end of the string, add the last tag
+	if lastTagEndIndex < len(component) {
+		tag := component[lastTagEndIndex:]
+		handleDogStatsDTagToKeyValue(labels, component, tag)
+	}
+
 	return labels
 }
 
@@ -685,7 +722,7 @@ samples:
 						multiplyEvents = int(1 / samplingFactor)
 					}
 				case '#':
-					labels = parseDogStatsDTagsToLabels(component)
+					labels = parseDogStatsDTagsToLabels(component[1:])
 				default:
 					log.Debugf("Invalid sampling factor or tag section %s on line %s", components[2], line)
 					sampleErrors.WithLabelValues("invalid_sample_factor").Inc()
