@@ -236,6 +236,20 @@ func TestConflictingMetrics(t *testing.T) {
 			},
 		},
 		{
+			name:     "counter vs histogram",
+			expected: []float64{1},
+			in: Events{
+				&CounterEvent{
+					metricName: "histogram_test1",
+					value:      1,
+				},
+				&TimerEvent{
+					metricName: "histogram.test1",
+					value:      2,
+				},
+			},
+		},
+		{
 			name:     "counter vs histogram sum",
 			expected: []float64{1},
 			in: Events{

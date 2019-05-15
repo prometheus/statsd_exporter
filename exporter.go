@@ -262,6 +262,9 @@ func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, mc
 
 	histogramVec, ok := c.Elements[mapKey]
 	if !ok {
+		if mc.metricConflicts(metricName, HistogramMetricType) {
+			return nil, fmt.Errorf("metric with name %s is already registered", metricName)
+		}
 		if mc.metricConflicts(metricName+"_sum", HistogramMetricType) {
 			return nil, fmt.Errorf("metric with name %s is already registered", metricName)
 		}
