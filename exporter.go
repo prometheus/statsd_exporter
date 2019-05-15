@@ -57,6 +57,19 @@ func (u uncheckedCollector) Collect(c chan<- prometheus.Metric) {
 	u.c.Collect(c)
 }
 
+type metricType int
+
+const (
+	CounterMetricType metricType = iota
+	GaugeMetricType
+	SummaryMetricType
+	HistogramMetricType
+)
+
+type metricChecker interface {
+	metricConflicts(string, metricType) bool
+}
+
 func getLabelNames(labels prometheus.Labels) []string {
 	names := make([]string, 0, len(labels))
 	for labelName := range labels {
@@ -96,12 +109,15 @@ func NewCounterContainer() *CounterContainer {
 	}
 }
 
-func (c *CounterContainer) Get(metricName string, labels prometheus.Labels, help string) (prometheus.Counter, error) {
+func (c *CounterContainer) Get(metricName string, labels prometheus.Labels, mc metricChecker, help string) (prometheus.Counter, error) {
 	labelNames := getLabelNames(labels)
 	mapKey := getContainerMapKey(metricName, labelNames)
 
 	counterVec, ok := c.Elements[mapKey]
 	if !ok {
+		if mc.metricConflicts(metricName, CounterMetricType) {
+			return nil, fmt.Errorf("metric with name %s is already registered", metricName)
+		}
 		metricsCount.WithLabelValues("counter").Inc()
 		counterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: metricName,
@@ -134,12 +150,15 @@ func NewGaugeContainer() *GaugeContainer {
 	}
 }
 
-func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels, help string) (prometheus.Gauge, error) {
+func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels, mc metricChecker, help string) (prometheus.Gauge, error) {
 	labelNames := getLabelNames(labels)
 	mapKey := getContainerMapKey(metricName, labelNames)
 
 	gaugeVec, ok := c.Elements[mapKey]
 	if !ok {
+		if mc.metricConflicts(metricName, GaugeMetricType) {
+			return nil, fmt.Errorf("metric with name %s is already registered", metricName)
+		}
 		metricsCount.WithLabelValues("gauge").Inc()
 		gaugeVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: metricName,
@@ -174,12 +193,21 @@ func NewSummaryContainer(mapper *mapper.MetricMapper) *SummaryContainer {
 	}
 }
 
-func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping) (prometheus.Observer, error) {
+func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, mc metricChecker, help string, mapping *mapper.MetricMapping) (prometheus.Observer, error) {
 	labelNames := getLabelNames(labels)
 	mapKey := getContainerMapKey(metricName, labelNames)
 
 	summaryVec, ok := c.Elements[mapKey]
 	if !ok {
+		if mc.metricConflicts(metricName, SummaryMetricType) {
+			return nil, fmt.Errorf("metric with name %s is already registered", metricName)
+		}
+		if mc.metricConflicts(metricName+"_sum", SummaryMetricType) {
+			return nil, fmt.Errorf("metric with name %s is already registered", metricName)
+		}
+		if mc.metricConflicts(metricName+"_count", SummaryMetricType) {
+			return nil, fmt.Errorf("metric with name %s is already registered", metricName)
+		}
 		metricsCount.WithLabelValues("summary").Inc()
 		quantiles := c.mapper.Defaults.Quantiles
 		if mapping != nil && mapping.Quantiles != nil && len(mapping.Quantiles) > 0 {
@@ -228,12 +256,21 @@ func NewHistogramContainer(mapper *mapper.MetricMapper) *HistogramContainer {
 	}
 }
 
-func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping) (prometheus.Observer, error) {
+func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, mc metricChecker, help string, mapping *mapper.MetricMapping) (prometheus.Observer, error) {
 	labelNames := getLabelNames(labels)
 	mapKey := getContainerMapKey(metricName, labelNames)
 
 	histogramVec, ok := c.Elements[mapKey]
 	if !ok {
+		if mc.metricConflicts(metricName+"_sum", HistogramMetricType) {
+			return nil, fmt.Errorf("metric with name %s is already registered", metricName)
+		}
+		if mc.metricConflicts(metricName+"_count", HistogramMetricType) {
+			return nil, fmt.Errorf("metric with name %s is already registered", metricName)
+		}
+		if mc.metricConflicts(metricName+"_bucket", HistogramMetricType) {
+			return nil, fmt.Errorf("metric with name %s is already registered", metricName)
+		}
 		metricsCount.WithLabelValues("histogram").Inc()
 		buckets := c.mapper.Defaults.Buckets
 		if mapping != nil && mapping.Buckets != nil && len(mapping.Buckets) > 0 {
@@ -309,6 +346,7 @@ type LabelValues struct {
 	lastRegisteredAt time.Time
 	labels           prometheus.Labels
 	ttl              time.Duration
+	metricType       metricType
 }
 
 type Exporter struct {
@@ -424,11 +462,12 @@ func (b *Exporter) handleEvent(event Event) {
 		counter, err := b.Counters.Get(
 			metricName,
 			prometheusLabels,
+			b,
 			help,
 		)
 		if err == nil {
 			counter.Add(event.Value())
-			b.saveLabelValues(metricName, prometheusLabels, mapping.Ttl)
+			b.saveLabelValues(metricName, CounterMetricType, prometheusLabels, mapping.Ttl)
 			eventStats.WithLabelValues("counter").Inc()
 		} else {
 			log.Debugf(regErrF, metricName, err)
@@ -439,6 +478,7 @@ func (b *Exporter) handleEvent(event Event) {
 		gauge, err := b.Gauges.Get(
 			metricName,
 			prometheusLabels,
+			b,
 			help,
 		)
 
@@ -448,7 +488,7 @@ func (b *Exporter) handleEvent(event Event) {
 			} else {
 				gauge.Set(event.Value())
 			}
-			b.saveLabelValues(metricName, prometheusLabels, mapping.Ttl)
+			b.saveLabelValues(metricName, GaugeMetricType, prometheusLabels, mapping.Ttl)
 			eventStats.WithLabelValues("gauge").Inc()
 		} else {
 			log.Debugf(regErrF, metricName, err)
@@ -469,12 +509,13 @@ func (b *Exporter) handleEvent(event Event) {
 			histogram, err := b.Histograms.Get(
 				metricName,
 				prometheusLabels,
+				b,
 				help,
 				mapping,
 			)
 			if err == nil {
 				histogram.Observe(event.Value() / 1000) // prometheus presumes seconds, statsd millisecond
-				b.saveLabelValues(metricName, prometheusLabels, mapping.Ttl)
+				b.saveLabelValues(metricName, HistogramMetricType, prometheusLabels, mapping.Ttl)
 				eventStats.WithLabelValues("timer").Inc()
 			} else {
 				log.Debugf(regErrF, metricName, err)
@@ -485,12 +526,13 @@ func (b *Exporter) handleEvent(event Event) {
 			summary, err := b.Summaries.Get(
 				metricName,
 				prometheusLabels,
+				b,
 				help,
 				mapping,
 			)
 			if err == nil {
 				summary.Observe(event.Value() / 1000) // prometheus presumes seconds, statsd millisecond
-				b.saveLabelValues(metricName, prometheusLabels, mapping.Ttl)
+				b.saveLabelValues(metricName, SummaryMetricType, prometheusLabels, mapping.Ttl)
 				eventStats.WithLabelValues("timer").Inc()
 			} else {
 				log.Debugf(regErrF, metricName, err)
@@ -528,7 +570,7 @@ func (b *Exporter) removeStaleMetrics() {
 }
 
 // saveLabelValues stores label values set to labelValues and update lastRegisteredAt time and ttl value
-func (b *Exporter) saveLabelValues(metricName string, labels prometheus.Labels, ttl time.Duration) {
+func (b *Exporter) saveLabelValues(metricName string, metricType metricType, labels prometheus.Labels, ttl time.Duration) {
 	metric, hasMetric := b.labelValues[metricName]
 	if !hasMetric {
 		metric = make(map[uint64]*LabelValues)
@@ -538,8 +580,9 @@ func (b *Exporter) saveLabelValues(metricName string, labels prometheus.Labels, 
 	metricLabelValues, ok := metric[hash]
 	if !ok {
 		metricLabelValues = &LabelValues{
-			labels: labels,
-			ttl:    ttl,
+			labels:     labels,
+			ttl:        ttl,
+			metricType: metricType,
 		}
 		b.labelValues[metricName][hash] = metricLabelValues
 	}
@@ -547,6 +590,29 @@ func (b *Exporter) saveLabelValues(metricName string, labels prometheus.Labels, 
 	metricLabelValues.lastRegisteredAt = now
 	// Update ttl from mapping
 	metricLabelValues.ttl = ttl
+}
+
+func (b *Exporter) metricConflicts(metricName string, metricType metricType) bool {
+	metric, hasMetric := b.labelValues[metricName]
+	if !hasMetric {
+		// No metric with this name exists
+		return false
+	}
+
+	// The metric does exist.  All metrics in the hash should be of the same
+	// type, so we pick check the first one we find in the hash to check the
+	// type.
+	for _, lvs := range metric {
+		if lvs.metricType == metricType {
+			// We've found a copy of this metric with this type, but different
+			// labels, so it's safe to create a new one.
+			return false
+		}
+	}
+
+	// The metric exists, but it's of a different type than we're trying to
+	// create.
+	return true
 }
 
 func NewExporter(mapper *mapper.MetricMapper) *Exporter {
