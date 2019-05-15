@@ -12,6 +12,7 @@
 * [ENHANCEMENT] DogStatsD tag parsing is faster ([#210](https://github.com/prometheus/statsd_exporter/pull/210))
 * [BUGFIX] Fix panic if a mapping resulted in an empty name ([#192](https://github.com/prometheus/statsd_exporter/pull/192))
 * [BUGFIX] Ensure that there are always default quantiles if using summaries ([#212](https://github.com/prometheus/statsd_exporter/pull/212))
+* [BUGFIX] Prevent ingesting conflicting metric types that would make scraping fail ([#213](https://github.com/prometheus/statsd_exporter/pull/213))
 
 With #192, the count of events rejected because of negative counter increments has moved into the `statsd_exporter_events_error_total` metric, instead of being lumped in with the different kinds of successful events.
 
