@@ -162,12 +162,12 @@ mappings:
 func TestConflictingMetrics(t *testing.T) {
 	scenarios := []struct {
 		name     string
-		expected float64
+		expected []float64
 		in       Events
 	}{
 		{
 			name:     "counter vs gauge",
-			expected: 1,
+			expected: []float64{1},
 			in: Events{
 				&CounterEvent{
 					metricName: "cvg_test",
@@ -180,8 +180,50 @@ func TestConflictingMetrics(t *testing.T) {
 			},
 		},
 		{
+			name:     "counter vs gauge with different labels",
+			expected: []float64{1, 2},
+			in: Events{
+				&CounterEvent{
+					metricName: "cvgl_test",
+					value:      1,
+					labels:     map[string]string{"tag": "1"},
+				},
+				&CounterEvent{
+					metricName: "cvgl_test",
+					value:      2,
+					labels:     map[string]string{"tag": "2"},
+				},
+				&GaugeEvent{
+					metricName: "cvgl_test",
+					value:      3,
+					labels:     map[string]string{"tag": "1"},
+				},
+			},
+		},
+		{
+			name:     "counter vs gauge with same labels",
+			expected: []float64{3},
+			in: Events{
+				&CounterEvent{
+					metricName: "cvgsl_test",
+					value:      1,
+					labels:     map[string]string{"tag": "1"},
+				},
+				&CounterEvent{
+					metricName: "cvgsl_test",
+					value:      2,
+					labels:     map[string]string{"tag": "1"},
+				},
+				&GaugeEvent{
+					metricName: "cvgsl_test",
+					value:      3,
+					labels:     map[string]string{"tag": "1"},
+				},
+			},
+		},
+		{
 			name:     "gauge vs counter",
-			expected: 2,
+			expected: []float64{2},
 			in: Events{
 				&GaugeEvent{
 					metricName: "gvc_test",
@@ -195,7 +237,7 @@ func TestConflictingMetrics(t *testing.T) {
 		},
 		{
 			name:     "counter vs histogram sum",
-			expected: 1,
+			expected: []float64{1},
 			in: Events{
 				&CounterEvent{
 					metricName: "histogram_test1_sum",
@@ -209,7 +251,7 @@ func TestConflictingMetrics(t *testing.T) {
 		},
 		{
 			name:     "counter vs histogram count",
-			expected: 1,
+			expected: []float64{1},
 			in: Events{
 				&CounterEvent{
 					metricName: "histogram_test2_count",
@@ -223,7 +265,7 @@ func TestConflictingMetrics(t *testing.T) {
 		},
 		{
 			name:     "counter vs histogram bucket",
-			expected: 1,
+			expected: []float64{1},
 			in: Events{
 				&CounterEvent{
 					metricName: "histogram_test3_bucket",
@@ -237,7 +279,7 @@ func TestConflictingMetrics(t *testing.T) {
 		},
 		{
 			name:     "counter vs summary quantile",
-			expected: 1,
+			expected: []float64{1},
 			in: Events{
 				&CounterEvent{
 					metricName: "cvsq_test",
@@ -251,7 +293,7 @@ func TestConflictingMetrics(t *testing.T) {
 		},
 		{
 			name:     "counter vs summary count",
-			expected: 1,
+			expected: []float64{1},
 			in: Events{
 				&CounterEvent{
 					metricName: "cvsc_count",
@@ -265,7 +307,7 @@ func TestConflictingMetrics(t *testing.T) {
 		},
 		{
 			name:     "counter vs summary sum",
-			expected: 1,
+			expected: []float64{1},
 			in: Events{
 				&CounterEvent{
 					metricName: "cvss_sum",
@@ -306,15 +348,17 @@ mappings:
 				t.Fatalf("Cannot gather from DefaultGatherer: %v", err)
 			}
 
-			mn := s.in[0].MetricName()
-			m := getFloat64(metrics, mn, map[string]string{})
+			for i, e := range s.expected {
+				mn := s.in[i].MetricName()
+				m := getFloat64(metrics, mn, s.in[i].Labels())
 
-			if m == nil {
-				t.Fatalf("Could not find time series with metric name '%v'", mn)
-			}
+				if m == nil {
+					t.Fatalf("Could not find time series with metric name '%v'", mn)
+				}
 
-			if *m != s.expected {
-				t.Fatalf("Expected to get %v, but got %v instead", s.expected, *m)
+				if *m != e {
+					t.Fatalf("Expected to get %v, but got %v instead", e, *m)
+				}
 			}
 		})
 	}
