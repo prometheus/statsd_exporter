@@ -669,7 +669,7 @@ mappings:
 
 	mapper := MetricMapper{}
 	for i, scenario := range scenarios {
-		err := mapper.InitFromYAMLString(scenario.config)
+		err := mapper.InitFromYAMLString(scenario.config, 0)
 		if err != nil && !scenario.configBad {
 			t.Fatalf("%d. Config load error: %s %s", i, scenario.config, err)
 		}
@@ -769,7 +769,7 @@ mappings:
 
 	for i, scenario := range scenarios {
 		mapper := MetricMapper{}
-		err := mapper.InitFromYAMLString(scenario.config)
+		err := mapper.InitFromYAMLString(scenario.config, 0)
 		if err != nil && !scenario.configBad {
 			t.Fatalf("%d. Config load error: %s %s", i, scenario.config, err)
 		}

@@ -350,6 +350,17 @@ mappings:
 
 Possible values for `match_metric_type` are `gauge`, `counter` and `timer`.
 
+### Mapping cache size and cache replacement polixy
+
+There is a cache used to improve the performance of the metric mapping, that can greatly improvement performance.
+The cache has a default maximum of 1000 unique statsd metric names -> prometheus metrics mappings that it can store.
+This maximum can be adjust using the `statsd.cache-size` flag.
+
+If the maximum is reached, entries are rotated using the [least recently used replacement policy](https://en.wikipedia.org/wiki/Cache_replacement_policies#Least_recently_used_(LRU)).
+
+If you are using this exporter to reduce the cardinality of your data, a high maximum cache size can be a costly use of memory.
+
+
 ### Time series expiration
 
 The `ttl` parameter can be used to define the expiration time for stale metrics.

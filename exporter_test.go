@@ -55,7 +55,10 @@ func TestNegativeCounter(t *testing.T) {
 	errorCounter := errorEventStats.WithLabelValues("illegal_negative_counter")
 	prev := getTelemetryCounterValue(errorCounter)
 
-	ex := NewExporter(&mapper.MetricMapper{})
+	testMapper := mapper.MetricMapper{}
+	testMapper.InitCache(0)
+
+	ex := NewExporter(&testMapper)
 	ex.Listen(events)
 
 	updated := getTelemetryCounterValue(errorCounter)
@@ -131,7 +134,7 @@ mappings:
   name: "histogram_test"
 `
 	testMapper := &mapper.MetricMapper{}
-	err := testMapper.InitFromYAMLString(config)
+	err := testMapper.InitFromYAMLString(config, 0)
 	if err != nil {
 		t.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -387,7 +390,7 @@ mappings:
   name: "${1}"
 `
 	testMapper := &mapper.MetricMapper{}
-	err := testMapper.InitFromYAMLString(config)
+	err := testMapper.InitFromYAMLString(config, 0)
 	if err != nil {
 		t.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -425,7 +428,10 @@ func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
 		close(events)
 	}()
 
-	ex := NewExporter(&mapper.MetricMapper{})
+	testMapper := mapper.MetricMapper{}
+	testMapper.InitCache(0)
+
+	ex := NewExporter(&testMapper)
 	ex.Listen(events)
 }
 
@@ -478,7 +484,9 @@ func TestHistogramUnits(t *testing.T) {
 	// Start exporter with a synchronous channel
 	events := make(chan Events)
 	go func() {
-		ex := NewExporter(&mapper.MetricMapper{})
+		testMapper := mapper.MetricMapper{}
+		testMapper.InitCache(0)
+		ex := NewExporter(&testMapper)
 		ex.mapper.Defaults.TimerType = mapper.TimerTypeHistogram
 		ex.Listen(events)
 	}()
@@ -590,7 +598,7 @@ mappings:
 `
 	// Create mapper from config and start an Exporter with a synchronous channel
 	testMapper := &mapper.MetricMapper{}
-	err := testMapper.InitFromYAMLString(config)
+	err := testMapper.InitFromYAMLString(config, 0)
 	if err != nil {
 		t.Fatalf("Config load error: %s %s", config, err)
 	}
