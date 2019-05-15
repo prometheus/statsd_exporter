@@ -10,6 +10,7 @@
 * [ENHANCEMENT] Speed up sanitization of metric names ([#197](https://github.com/prometheus/statsd_exporter/pull/197))
 * [ENHANCEMENT] Enable pprof endpoints ([#205](https://github.com/prometheus/statsd_exporter/pull/205))
 * [ENHANCEMENT] DogStatsD tag parsing is faster ([#210](https://github.com/prometheus/statsd_exporter/pull/210))
+* [ENHANCEMENT] Cache mapped metrics ([#198](https://github.com/prometheus/statsd_exporter/pull/198))
 * [BUGFIX] Fix panic if a mapping resulted in an empty name ([#192](https://github.com/prometheus/statsd_exporter/pull/192))
 * [BUGFIX] Ensure that there are always default quantiles if using summaries ([#212](https://github.com/prometheus/statsd_exporter/pull/212))
 * [BUGFIX] Prevent ingesting conflicting metric types that would make scraping fail ([#213](https://github.com/prometheus/statsd_exporter/pull/213))
