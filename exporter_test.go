@@ -347,7 +347,7 @@ mappings:
 	for _, s := range scenarios {
 		t.Run(s.name, func(t *testing.T) {
 			testMapper := &mapper.MetricMapper{}
-			err := testMapper.InitFromYAMLString(config)
+			err := testMapper.InitFromYAMLString(config, 0)
 			if err != nil {
 				t.Fatalf("Config load error: %s %s", config, err)
 			}
@@ -456,7 +456,10 @@ func TestSummaryWithQuantilesEmptyMapping(t *testing.T) {
 	// Start exporter with a synchronous channel
 	events := make(chan Events)
 	go func() {
-		ex := NewExporter(&mapper.MetricMapper{})
+		testMapper := mapper.MetricMapper{}
+		testMapper.InitCache(0)
+
+		ex := NewExporter(&testMapper)
 		ex.Listen(events)
 	}()
 
