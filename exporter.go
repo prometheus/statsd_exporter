@@ -16,7 +16,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"hash/fnv"
 	"io"
@@ -70,7 +69,7 @@ type metricChecker interface {
 	metricConflicts(string, metricType) bool
 }
 
-func getLabelNames(labels prometheus.Labels) []string {
+func getSortedLabelNames(labels prometheus.Labels) []string {
 	names := make([]string, 0, len(labels))
 	for labelName := range labels {
 		names = append(names, labelName)
@@ -88,13 +87,20 @@ func getContainerMapKey(metricName string, labelNames []string) string {
 //
 // Not safe for concurrent use! (Uses a shared buffer and hasher to save on
 // allocations.)
-func hashNameAndLabels(name string, labels prometheus.Labels) uint64 {
+func hashNameAndLabels(name string, labelNames []string, labels prometheus.Labels) uint64 {
 	hash.Reset()
 	strBuf.Reset()
 	strBuf.WriteString(name)
+	strBuf.WriteByte(model.SeparatorByte)
+
+	for _, labelName := range labelNames {
+		strBuf.WriteString(labelName)
+		strBuf.WriteByte(model.SeparatorByte)
+		strBuf.WriteString(labels[labelName])
+		strBuf.WriteByte(model.SeparatorByte)
+	}
+
 	hash.Write(strBuf.Bytes())
-	binary.BigEndian.PutUint64(intBuf, model.LabelsToSignature(labels))
-	hash.Write(intBuf)
 	return hash.Sum64()
 }
 
@@ -109,8 +115,7 @@ func NewCounterContainer() *CounterContainer {
 	}
 }
 
-func (c *CounterContainer) Get(metricName string, labels prometheus.Labels, mc metricChecker, help string) (prometheus.Counter, error) {
-	labelNames := getLabelNames(labels)
+func (c *CounterContainer) Get(metricName string, labelNames []string, labels prometheus.Labels, mc metricChecker, help string) (prometheus.Counter, error) {
 	mapKey := getContainerMapKey(metricName, labelNames)
 
 	counterVec, ok := c.Elements[mapKey]
@@ -131,8 +136,7 @@ func (c *CounterContainer) Get(metricName string, labels prometheus.Labels, mc m
 	return counterVec.GetMetricWith(labels)
 }
 
-func (c *CounterContainer) Delete(metricName string, labels prometheus.Labels) {
-	labelNames := getLabelNames(labels)
+func (c *CounterContainer) Delete(metricName string, labelNames []string, labels prometheus.Labels) {
 	mapKey := getContainerMapKey(metricName, labelNames)
 	if _, ok := c.Elements[mapKey]; ok {
 		c.Elements[mapKey].Delete(labels)
@@ -150,8 +154,7 @@ func NewGaugeContainer() *GaugeContainer {
 	}
 }
 
-func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels, mc metricChecker, help string) (prometheus.Gauge, error) {
-	labelNames := getLabelNames(labels)
+func (c *GaugeContainer) Get(metricName string, labelNames []string, labels prometheus.Labels, mc metricChecker, help string) (prometheus.Gauge, error) {
 	mapKey := getContainerMapKey(metricName, labelNames)
 
 	gaugeVec, ok := c.Elements[mapKey]
@@ -172,8 +175,7 @@ func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels, mc met
 	return gaugeVec.GetMetricWith(labels)
 }
 
-func (c *GaugeContainer) Delete(metricName string, labels prometheus.Labels) {
-	labelNames := getLabelNames(labels)
+func (c *GaugeContainer) Delete(metricName string, labelNames []string, labels prometheus.Labels) {
 	mapKey := getContainerMapKey(metricName, labelNames)
 	if _, ok := c.Elements[mapKey]; ok {
 		c.Elements[mapKey].Delete(labels)
@@ -193,8 +195,7 @@ func NewSummaryContainer(mapper *mapper.MetricMapper) *SummaryContainer {
 	}
 }
 
-func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, mc metricChecker, help string, mapping *mapper.MetricMapping) (prometheus.Observer, error) {
-	labelNames := getLabelNames(labels)
+func (c *SummaryContainer) Get(metricName string, labelNames []string, labels prometheus.Labels, mc metricChecker, help string, mapping *mapper.MetricMapping) (prometheus.Observer, error) {
 	mapKey := getContainerMapKey(metricName, labelNames)
 
 	summaryVec, ok := c.Elements[mapKey]
@@ -226,7 +227,7 @@ func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, mc m
 				Name:       metricName,
 				Help:       help,
 				Objectives: objectives,
-			}, getLabelNames(labels))
+			}, labelNames)
 		if err := prometheus.Register(uncheckedCollector{summaryVec}); err != nil {
 			return nil, err
 		}
@@ -235,8 +236,7 @@ func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, mc m
 	return summaryVec.GetMetricWith(labels)
 }
 
-func (c *SummaryContainer) Delete(metricName string, labels prometheus.Labels) {
-	labelNames := getLabelNames(labels)
+func (c *SummaryContainer) Delete(metricName string, labelNames []string, labels prometheus.Labels) {
 	mapKey := getContainerMapKey(metricName, labelNames)
 	if _, ok := c.Elements[mapKey]; ok {
 		c.Elements[mapKey].Delete(labels)
@@ -256,8 +256,7 @@ func NewHistogramContainer(mapper *mapper.MetricMapper) *HistogramContainer {
 	}
 }
 
-func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, mc metricChecker, help string, mapping *mapper.MetricMapping) (prometheus.Observer, error) {
-	labelNames := getLabelNames(labels)
+func (c *HistogramContainer) Get(metricName string, labelNames []string, labels prometheus.Labels, mc metricChecker, help string, mapping *mapper.MetricMapping) (prometheus.Observer, error) {
 	mapKey := getContainerMapKey(metricName, labelNames)
 
 	histogramVec, ok := c.Elements[mapKey]
@@ -293,8 +292,7 @@ func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, mc
 	return histogramVec.GetMetricWith(labels)
 }
 
-func (c *HistogramContainer) Delete(metricName string, labels prometheus.Labels) {
-	labelNames := getLabelNames(labels)
+func (c *HistogramContainer) Delete(metricName string, labelNames []string, labels prometheus.Labels) {
 	mapKey := getContainerMapKey(metricName, labelNames)
 	if _, ok := c.Elements[mapKey]; ok {
 		c.Elements[mapKey].Delete(labels)
@@ -436,6 +434,7 @@ func (b *Exporter) handleEvent(event Event) {
 
 	metricName := ""
 	prometheusLabels := event.Labels()
+	sortedLabelNames := getSortedLabelNames(prometheusLabels)
 	if present {
 		if mapping.Name == "" {
 			log.Debugf("The mapping of '%s' for match '%s' generates an empty metric name", event.MetricName(), mapping.Match)
@@ -464,13 +463,14 @@ func (b *Exporter) handleEvent(event Event) {
 
 		counter, err := b.Counters.Get(
 			metricName,
+			sortedLabelNames,
 			prometheusLabels,
 			b,
 			help,
 		)
 		if err == nil {
 			counter.Add(event.Value())
-			b.saveLabelValues(metricName, CounterMetricType, prometheusLabels, mapping.Ttl)
+			b.saveLabelValues(metricName, CounterMetricType, sortedLabelNames, prometheusLabels, mapping.Ttl)
 			eventStats.WithLabelValues("counter").Inc()
 		} else {
 			log.Debugf(regErrF, metricName, err)
@@ -480,6 +480,7 @@ func (b *Exporter) handleEvent(event Event) {
 	case *GaugeEvent:
 		gauge, err := b.Gauges.Get(
 			metricName,
+			sortedLabelNames,
 			prometheusLabels,
 			b,
 			help,
@@ -491,7 +492,7 @@ func (b *Exporter) handleEvent(event Event) {
 			} else {
 				gauge.Set(event.Value())
 			}
-			b.saveLabelValues(metricName, GaugeMetricType, prometheusLabels, mapping.Ttl)
+			b.saveLabelValues(metricName, GaugeMetricType, sortedLabelNames, prometheusLabels, mapping.Ttl)
 			eventStats.WithLabelValues("gauge").Inc()
 		} else {
 			log.Debugf(regErrF, metricName, err)
@@ -511,6 +512,7 @@ func (b *Exporter) handleEvent(event Event) {
 		case mapper.TimerTypeHistogram:
 			histogram, err := b.Histograms.Get(
 				metricName,
+				sortedLabelNames,
 				prometheusLabels,
 				b,
 				help,
@@ -518,7 +520,7 @@ func (b *Exporter) handleEvent(event Event) {
 			)
 			if err == nil {
 				histogram.Observe(event.Value() / 1000) // prometheus presumes seconds, statsd millisecond
-				b.saveLabelValues(metricName, HistogramMetricType, prometheusLabels, mapping.Ttl)
+				b.saveLabelValues(metricName, HistogramMetricType, sortedLabelNames, prometheusLabels, mapping.Ttl)
 				eventStats.WithLabelValues("timer").Inc()
 			} else {
 				log.Debugf(regErrF, metricName, err)
@@ -528,6 +530,7 @@ func (b *Exporter) handleEvent(event Event) {
 		case mapper.TimerTypeDefault, mapper.TimerTypeSummary:
 			summary, err := b.Summaries.Get(
 				metricName,
+				sortedLabelNames,
 				prometheusLabels,
 				b,
 				help,
@@ -535,7 +538,7 @@ func (b *Exporter) handleEvent(event Event) {
 			)
 			if err == nil {
 				summary.Observe(event.Value() / 1000) // prometheus presumes seconds, statsd millisecond
-				b.saveLabelValues(metricName, SummaryMetricType, prometheusLabels, mapping.Ttl)
+				b.saveLabelValues(metricName, SummaryMetricType, sortedLabelNames, prometheusLabels, mapping.Ttl)
 				eventStats.WithLabelValues("timer").Inc()
 			} else {
 				log.Debugf(regErrF, metricName, err)
@@ -562,10 +565,11 @@ func (b *Exporter) removeStaleMetrics() {
 				continue
 			}
 			if lvs.lastRegisteredAt.Add(lvs.ttl).Before(now) {
-				b.Counters.Delete(metricName, lvs.labels)
-				b.Gauges.Delete(metricName, lvs.labels)
-				b.Summaries.Delete(metricName, lvs.labels)
-				b.Histograms.Delete(metricName, lvs.labels)
+				sortedLabelNames := getSortedLabelNames(lvs.labels)
+				b.Counters.Delete(metricName, sortedLabelNames, lvs.labels)
+				b.Gauges.Delete(metricName, sortedLabelNames, lvs.labels)
+				b.Summaries.Delete(metricName, sortedLabelNames, lvs.labels)
+				b.Histograms.Delete(metricName, sortedLabelNames, lvs.labels)
 				delete(b.labelValues[metricName], hash)
 			}
 		}
@@ -573,13 +577,13 @@ func (b *Exporter) removeStaleMetrics() {
 }
 
 // saveLabelValues stores label values set to labelValues and update lastRegisteredAt time and ttl value
-func (b *Exporter) saveLabelValues(metricName string, metricType metricType, labels prometheus.Labels, ttl time.Duration) {
+func (b *Exporter) saveLabelValues(metricName string, metricType metricType, labelNames []string, labels prometheus.Labels, ttl time.Duration) {
 	metric, hasMetric := b.labelValues[metricName]
 	if !hasMetric {
 		metric = make(map[uint64]*LabelValues)
 		b.labelValues[metricName] = metric
 	}
-	hash := hashNameAndLabels(metricName, labels)
+	hash := hashNameAndLabels(metricName, labelNames, labels)
 	metricLabelValues, ok := metric[hash]
 	if !ok {
 		metricLabelValues = &LabelValues{

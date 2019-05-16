@@ -724,9 +724,12 @@ func getFloat64(metrics []*dto.MetricFamily, name string, labels prometheus.Labe
 	}
 
 	var metric *dto.Metric
-	labelsHash := hashNameAndLabels(name, labels)
+	sortedLabelNames := getSortedLabelNames(labels)
+	labelsHash := hashNameAndLabels(name, sortedLabelNames, labels)
 	for _, m := range metricFamily.Metric {
-		h := hashNameAndLabels(name, labelPairsAsLabels(m.GetLabel()))
+		l := labelPairsAsLabels(m.GetLabel())
+		sln := getSortedLabelNames(l)
+		h := hashNameAndLabels(name, sln, l)
 		if h == labelsHash {
 			metric = m
 			break
@@ -858,9 +861,10 @@ func BenchmarkHashNameAndLabels(b *testing.B) {
 	}
 
 	for _, s := range scenarios {
+		sortedLabelNames := getSortedLabelNames(s.labels)
 		b.Run(s.name, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
-				hashNameAndLabels(s.metric, s.labels)
+				hashNameAndLabels(s.metric, sortedLabelNames, s.labels)
 			}
 		})
 	}
