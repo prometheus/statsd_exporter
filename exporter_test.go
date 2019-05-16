@@ -822,3 +822,46 @@ func BenchmarkParseDogStatsDTagsToLabels(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkHashNameAndLabels(b *testing.B) {
+	scenarios := []struct {
+		name   string
+		metric string
+		labels map[string]string
+	}{
+		{
+			name:   "no labels",
+			metric: "counter",
+			labels: map[string]string{},
+		}, {
+			name:   "one label",
+			metric: "counter",
+			labels: map[string]string{
+				"label": "value",
+			},
+		}, {
+			name:   "many labels",
+			metric: "counter",
+			labels: map[string]string{
+				"label0": "value",
+				"label1": "value",
+				"label2": "value",
+				"label3": "value",
+				"label4": "value",
+				"label5": "value",
+				"label6": "value",
+				"label7": "value",
+				"label8": "value",
+				"label9": "value",
+			},
+		},
+	}
+
+	for _, s := range scenarios {
+		b.Run(s.name, func(b *testing.B) {
+			for n := 0; n < b.N; n++ {
+				hashNameAndLabels(s.metric, s.labels)
+			}
+		})
+	}
+}
