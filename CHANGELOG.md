@@ -1,3 +1,11 @@
+## v0.10.3 / 2019-05-17
+
+* [ENHANCEMENT] Reduce allocations when escaping metric names ([#217](https://github.com/prometheus/statsd_exporter/pull/217))
+* [ENHANCEMENT] Reduce allocations when handling packets ([#218](https://github.com/prometheus/statsd_exporter/pull/218))
+* [ENHANCEMENT] Optimize label sorting ([#219](https://github.com/prometheus/statsd_exporter/pull/219))
+
+This release is entirely powered by @claytono. Kudos!
+
 ## v0.10.2 / 2019-05-17
 
 * [CHANGE] Do not run as root in the Docker container by default ([#202](https://github.com/prometheus/statsd_exporter/pull/202))
