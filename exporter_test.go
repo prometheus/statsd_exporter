@@ -724,9 +724,12 @@ func getFloat64(metrics []*dto.MetricFamily, name string, labels prometheus.Labe
 	}
 
 	var metric *dto.Metric
-	labelsHash := hashNameAndLabels(name, labels)
+	sortedLabelNames := getSortedLabelNames(labels)
+	labelsHash := hashNameAndLabels(name, sortedLabelNames, labels)
 	for _, m := range metricFamily.Metric {
-		h := hashNameAndLabels(name, labelPairsAsLabels(m.GetLabel()))
+		l := labelPairsAsLabels(m.GetLabel())
+		sln := getSortedLabelNames(l)
+		h := hashNameAndLabels(name, sln, l)
 		if h == labelsHash {
 			metric = m
 			break
@@ -818,6 +821,50 @@ func BenchmarkParseDogStatsDTagsToLabels(b *testing.B) {
 		b.Run(name, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				parseDogStatsDTagsToLabels(tags)
+			}
+		})
+	}
+}
+
+func BenchmarkHashNameAndLabels(b *testing.B) {
+	scenarios := []struct {
+		name   string
+		metric string
+		labels map[string]string
+	}{
+		{
+			name:   "no labels",
+			metric: "counter",
+			labels: map[string]string{},
+		}, {
+			name:   "one label",
+			metric: "counter",
+			labels: map[string]string{
+				"label": "value",
+			},
+		}, {
+			name:   "many labels",
+			metric: "counter",
+			labels: map[string]string{
+				"label0": "value",
+				"label1": "value",
+				"label2": "value",
+				"label3": "value",
+				"label4": "value",
+				"label5": "value",
+				"label6": "value",
+				"label7": "value",
+				"label8": "value",
+				"label9": "value",
+			},
+		},
+	}
+
+	for _, s := range scenarios {
+		sortedLabelNames := getSortedLabelNames(s.labels)
+		b.Run(s.name, func(b *testing.B) {
+			for n := 0; n < b.N; n++ {
+				hashNameAndLabels(s.metric, sortedLabelNames, s.labels)
 			}
 		})
 	}
