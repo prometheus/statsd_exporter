@@ -364,32 +364,56 @@ type Exporter struct {
 // Replace invalid characters in the metric name with "_"
 // Valid characters are a-z, A-Z, 0-9, and _
 func escapeMetricName(metricName string) string {
-	// If a metric starts with a digit, prepend an underscore.
-	if len(metricName) > 0 && metricName[0] >= '0' && metricName[0] <= '9' {
-		metricName = "_" + metricName
+	metricLen := len(metricName)
+	if metricLen == 0 {
+		return ""
 	}
 
-	// this is an character replacement method optimized for this limited
+	escaped := false
+	var sb strings.Builder
+	// If a metric starts with a digit, allocate the memory and prepend an
+	// underscore.
+	if metricName[0] >= '0' && metricName[0] <= '9' {
+		escaped = true
+		sb.Grow(metricLen + 1)
+		sb.WriteByte('_')
+	}
+
+	// This is an character replacement method optimized for this limited
 	// use case.  It is much faster than using a regex.
-	out := make([]byte, len(metricName))
-	j := 0
-	for _, c := range metricName {
-		// check if the rune is valid for a metric name
-		// and replace it if it is not.
-		// As only certain ASCII characters are valid in metric names,
-		// we can use a byte.
-		if (c >= 'a' && c <= 'z') ||
-			(c >= 'A' && c <= 'Z') ||
-			(c >= '0' && c <= '9') {
-			out[j] = byte(c)
+	offset := 0
+	for i, c := range metricName {
+		// Seek forward, skipping valid characters until we find one that needs
+		// to be replaced, then add all the characters we've seen so far to the
+		// string.Builder.
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+			(c >= '0' && c <= '9') || (c == '_') {
+			// Character is valid, so skip over it without doing anything.
 		} else {
-			out[j] = byte('_')
+			if !escaped {
+				// Up until now we've been lazy and avoided actually allocating
+				// memory.  Unfortunately we've now determined this string needs
+				// escaping, so allocate the buffer for the whole string.
+				escaped = true
+				sb.Grow(metricLen)
+			}
+			sb.WriteString(metricName[offset:i])
+			offset = i + utf8.RuneLen(c)
+			sb.WriteByte('_')
 		}
-		j++
 	}
 
-	return string(out[:j])
+	if !escaped {
+		// This is the happy path where nothing had to be escaped, so we can
+		// avoid doing anything.
+		return metricName
+	}
 
+	if offset < metricLen {
+		sb.WriteString(metricName[offset:])
+	}
+
+	return sb.String()
 }
 
 // Listen handles all events sent to the given channel sequentially. It
