@@ -26,6 +26,7 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+	"unsafe"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
@@ -738,6 +739,7 @@ func parseDogStatsDTagsToLabels(component string) map[string]string {
 }
 
 func lineToEvents(line string) Events {
+	linesReceived.Inc()
 	events := Events{}
 	if line == "" {
 		return events
@@ -860,12 +862,26 @@ func (l *StatsDUDPListener) Listen(e chan<- Events) {
 
 func (l *StatsDUDPListener) handlePacket(packet []byte, e chan<- Events) {
 	udpPackets.Inc()
-	lines := strings.Split(string(packet), "\n")
+
 	events := Events{}
-	for _, line := range lines {
-		linesReceived.Inc()
+	// Convert the []byte array into a string w/o copying or allocating new
+	// memory, then walk the string looking for newlines to avoid memory
+	// allocation from Split.
+	p := *(*string)(unsafe.Pointer(&packet))
+	offset := 0
+	for i, c := range p {
+		if c == '\n' {
+			line := p[offset:i]
+			events = append(events, lineToEvents(line)...)
+			offset = i + 1
+		}
+	}
+
+	if offset < len(p) {
+		line := p[offset:]
 		events = append(events, lineToEvents(line)...)
 	}
+
 	e <- events
 }
 
@@ -908,7 +924,6 @@ func (l *StatsDTCPListener) handleConn(c *net.TCPConn, e chan<- Events) {
 			log.Debugf("Read %s failed: line too long", c.RemoteAddr())
 			break
 		}
-		linesReceived.Inc()
 		e <- lineToEvents(string(line))
 	}
 }
@@ -938,7 +953,6 @@ func (l *StatsDUnixgramListener) handlePacket(packet []byte, e chan<- Events) {
 	lines := strings.Split(string(packet), "\n")
 	events := Events{}
 	for _, line := range lines {
-		linesReceived.Inc()
 		events = append(events, lineToEvents(line)...)
 	}
 	e <- events

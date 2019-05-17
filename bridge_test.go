@@ -315,3 +315,54 @@ func TestHandlePacket(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkUDPListener(b *testing.B) {
+	scenarios := []struct {
+		name    string
+		metrics [][]byte
+	}{
+		{
+			name:    "simple counter",
+			metrics: [][]byte{[]byte("counter:2|c")},
+		}, {
+			name:    "simple gauge",
+			metrics: [][]byte{[]byte("gauge:10|g")},
+		}, {
+			name:    "simple timing",
+			metrics: [][]byte{[]byte("timing:200|ms")},
+		}, {
+			name:    "simple histogram",
+			metrics: [][]byte{[]byte("histogram:200|h")},
+		}, {
+			name:    "simple distribution",
+			metrics: [][]byte{[]byte("distribution:200|d")},
+		}, {
+			name:    "simple_tags",
+			metrics: [][]byte{[]byte("simple_tags:100|c|#tag1:bar,tag2:baz")},
+		}, {
+			name:    "datadog tag extension with complex tags",
+			metrics: [][]byte{[]byte("foo:100|c|#09digits:0,tag.with.dots:1")},
+		}, {
+			name:    "datadog many tags",
+			metrics: [][]byte{[]byte("cpu_throttle_time_ms:1.1|ms|#action:test,application:testapp,application_component:testcomp,application_role:test_role,category:category,controller:controller,deployed_to:production,kube_deployment:deploy,kube_namespace:kube-production,method:get,version:rails5_2,status:200,status_range:2xx)}")},
+		}, {
+			name:    "datadog tag extension with sampling",
+			metrics: [][]byte{[]byte("foo:100|c|@0.1|#tag1:bar,#tag2:baz")},
+		}, {
+			name:    "combined multiline metrics",
+			metrics: [][]byte{[]byte("foo:200|ms:300|ms:5|c|@0.1:6|g\nbar:1|c:5|ms")},
+		},
+	}
+	for _, s := range scenarios {
+		l := &StatsDUDPListener{}
+		b.Run(s.name, func(b *testing.B) {
+			events := make(chan Events, len(s.metrics)*b.N)
+			defer close(events)
+			for i := 1; i <= b.N; i++ {
+				for _, m := range s.metrics {
+					l.handlePacket(m, events)
+				}
+			}
+		})
+	}
+}
