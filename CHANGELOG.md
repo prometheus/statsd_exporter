@@ -1,3 +1,7 @@
+## v0.10.4 / 2019-05-20
+
+* [BUGFIX] Revert #218 due to a race condition ([#221](https://github.com/prometheus/statsd_exporter/pull/221))
+
 ## v0.10.3 / 2019-05-17
 
 * [ENHANCEMENT] Reduce allocations when escaping metric names ([#217](https://github.com/prometheus/statsd_exporter/pull/217))
