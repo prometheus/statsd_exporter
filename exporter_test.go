@@ -531,7 +531,7 @@ func TestSummaryWithQuantilesEmptyMapping(t *testing.T) {
 
 	metrics, err := prometheus.DefaultGatherer.Gather()
 	if err != nil {
-		t.Fatal("Gather should not fail")
+		t.Fatal("Gather should not fail: ", err)
 	}
 
 	var metricFamily *dto.MetricFamily

@@ -40,9 +40,9 @@ const (
 )
 
 var (
-	hash   = fnv.New64a()
-	strBuf bytes.Buffer // Used for hashing.
-	intBuf = make([]byte, 8)
+	fnvHash = fnv.New64a()
+	strBuf  bytes.Buffer // Used for hashing.
+	intBuf  = make([]byte, 8)
 )
 
 // uncheckedCollector wraps a Collector but its Describe method yields no Desc.
@@ -55,15 +55,6 @@ func (u uncheckedCollector) Describe(_ chan<- *prometheus.Desc) {}
 func (u uncheckedCollector) Collect(c chan<- prometheus.Metric) {
 	u.c.Collect(c)
 }
-
-type metricType int
-
-const (
-	CounterMetricType metricType = iota
-	GaugeMetricType
-	SummaryMetricType
-	HistogramMetricType
-)
 
 type metricChecker interface {
 	metricConflicts(string, metricType) bool
@@ -88,7 +79,7 @@ func getContainerMapKey(metricName string, labelNames []string) string {
 // Not safe for concurrent use! (Uses a shared buffer and hasher to save on
 // allocations.)
 func hashNameAndLabels(name string, labelNames []string, labels prometheus.Labels) uint64 {
-	hash.Reset()
+	fnvHash.Reset()
 	strBuf.Reset()
 	strBuf.WriteString(name)
 	strBuf.WriteByte(model.SeparatorByte)
@@ -100,8 +91,8 @@ func hashNameAndLabels(name string, labelNames []string, labels prometheus.Label
 		strBuf.WriteByte(model.SeparatorByte)
 	}
 
-	hash.Write(strBuf.Bytes())
-	return hash.Sum64()
+	fnvHash.Write(strBuf.Bytes())
+	return fnvHash.Sum64()
 }
 
 type CounterContainer struct {
@@ -356,6 +347,7 @@ type Exporter struct {
 	Summaries   *SummaryContainer
 	Histograms  *HistogramContainer
 	mapper      *mapper.MetricMapper
+	registry    *registry
 	labelValues map[string]map[uint64]*LabelValues
 }
 
@@ -423,6 +415,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 		select {
 		case <-removeStaleMetricsTicker.C:
 			b.removeStaleMetrics()
+			b.registry.removeStaleMetrics()
 		case events, ok := <-e:
 			if !ok {
 				log.Debug("Channel is closed. Break out of Exporter.Listener.")
@@ -474,7 +467,6 @@ func (b *Exporter) handleEvent(event Event) {
 		metricName = escapeMetricName(event.MetricName())
 	}
 
-	sortedLabelNames := getSortedLabelNames(prometheusLabels)
 	switch ev := event.(type) {
 	case *CounterEvent:
 		// We don't accept negative values for counters. Incrementing the counter with a negative number
@@ -485,16 +477,9 @@ func (b *Exporter) handleEvent(event Event) {
 			return
 		}
 
-		counter, err := b.Counters.Get(
-			metricName,
-			sortedLabelNames,
-			prometheusLabels,
-			b,
-			help,
-		)
+		counter, err := b.registry.getCounter(metricName, prometheusLabels, help, mapping)
 		if err == nil {
 			counter.Add(event.Value())
-			b.saveLabelValues(metricName, CounterMetricType, sortedLabelNames, prometheusLabels, mapping.Ttl)
 			eventStats.WithLabelValues("counter").Inc()
 		} else {
 			log.Debugf(regErrF, metricName, err)
@@ -502,13 +487,7 @@ func (b *Exporter) handleEvent(event Event) {
 		}
 
 	case *GaugeEvent:
-		gauge, err := b.Gauges.Get(
-			metricName,
-			sortedLabelNames,
-			prometheusLabels,
-			b,
-			help,
-		)
+		gauge, err := b.registry.getGauge(metricName, prometheusLabels, help, mapping)
 
 		if err == nil {
 			if ev.relative {
@@ -516,7 +495,6 @@ func (b *Exporter) handleEvent(event Event) {
 			} else {
 				gauge.Set(event.Value())
 			}
-			b.saveLabelValues(metricName, GaugeMetricType, sortedLabelNames, prometheusLabels, mapping.Ttl)
 			eventStats.WithLabelValues("gauge").Inc()
 		} else {
 			log.Debugf(regErrF, metricName, err)
@@ -534,17 +512,9 @@ func (b *Exporter) handleEvent(event Event) {
 
 		switch t {
 		case mapper.TimerTypeHistogram:
-			histogram, err := b.Histograms.Get(
-				metricName,
-				sortedLabelNames,
-				prometheusLabels,
-				b,
-				help,
-				mapping,
-			)
+			histogram, err := b.registry.getHistogram(metricName, prometheusLabels, help, mapping)
 			if err == nil {
 				histogram.Observe(event.Value() / 1000) // prometheus presumes seconds, statsd millisecond
-				b.saveLabelValues(metricName, HistogramMetricType, sortedLabelNames, prometheusLabels, mapping.Ttl)
 				eventStats.WithLabelValues("timer").Inc()
 			} else {
 				log.Debugf(regErrF, metricName, err)
@@ -552,17 +522,9 @@ func (b *Exporter) handleEvent(event Event) {
 			}
 
 		case mapper.TimerTypeDefault, mapper.TimerTypeSummary:
-			summary, err := b.Summaries.Get(
-				metricName,
-				sortedLabelNames,
-				prometheusLabels,
-				b,
-				help,
-				mapping,
-			)
+			summary, err := b.registry.getSummary(metricName, prometheusLabels, help, mapping)
 			if err == nil {
 				summary.Observe(event.Value() / 1000) // prometheus presumes seconds, statsd millisecond
-				b.saveLabelValues(metricName, SummaryMetricType, sortedLabelNames, prometheusLabels, mapping.Ttl)
 				eventStats.WithLabelValues("timer").Inc()
 			} else {
 				log.Debugf(regErrF, metricName, err)
@@ -653,6 +615,7 @@ func NewExporter(mapper *mapper.MetricMapper) *Exporter {
 		Summaries:   NewSummaryContainer(mapper),
 		Histograms:  NewHistogramContainer(mapper),
 		mapper:      mapper,
+		registry:    newRegistry(mapper),
 		labelValues: make(map[string]map[uint64]*LabelValues),
 	}
 }
