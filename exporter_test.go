@@ -779,13 +779,11 @@ func getFloat64(metrics []*dto.MetricFamily, name string, labels prometheus.Labe
 	}
 
 	var metric *dto.Metric
-	sortedLabelNames := getSortedLabelNames(labels)
-	labelsHash := hashNameAndLabels(name, sortedLabelNames, labels)
+	labelStr := fmt.Sprintf("%v", labels)
 	for _, m := range metricFamily.Metric {
 		l := labelPairsAsLabels(m.GetLabel())
-		sln := getSortedLabelNames(l)
-		h := hashNameAndLabels(name, sln, l)
-		if h == labelsHash {
+		ls := fmt.Sprintf("%v", l)
+		if labelStr == ls {
 			metric = m
 			break
 		}
@@ -889,17 +887,14 @@ func BenchmarkHashNameAndLabels(b *testing.B) {
 	}{
 		{
 			name:   "no labels",
-			metric: "counter",
 			labels: map[string]string{},
 		}, {
-			name:   "one label",
-			metric: "counter",
+			name: "one label",
 			labels: map[string]string{
 				"label": "value",
 			},
 		}, {
-			name:   "many labels",
-			metric: "counter",
+			name: "many labels",
 			labels: map[string]string{
 				"label0": "value",
 				"label1": "value",
@@ -915,11 +910,11 @@ func BenchmarkHashNameAndLabels(b *testing.B) {
 		},
 	}
 
+	r := newRegistry(nil)
 	for _, s := range scenarios {
-		sortedLabelNames := getSortedLabelNames(s.labels)
 		b.Run(s.name, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
-				hashNameAndLabels(s.metric, sortedLabelNames, s.labels)
+				r.hashLabels(s.labels)
 			}
 		})
 	}
