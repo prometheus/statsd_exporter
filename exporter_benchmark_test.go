@@ -16,9 +16,11 @@ package main
 import (
 	"fmt"
 	"testing"
+
+	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
 
-func benchmarkExporter(times int, b *testing.B) {
+func benchmarkUDPListener(times int, b *testing.B) {
 	input := []string{
 		"foo1:2|c",
 		"foo2:3|g",
@@ -50,12 +52,102 @@ func benchmarkExporter(times int, b *testing.B) {
 	}
 }
 
-func BenchmarkExporter1(b *testing.B) {
-	benchmarkExporter(1, b)
+func BenchmarkUDPListener1(b *testing.B) {
+	benchmarkUDPListener(1, b)
 }
-func BenchmarkExporter5(b *testing.B) {
-	benchmarkExporter(5, b)
+func BenchmarkUDPListener5(b *testing.B) {
+	benchmarkUDPListener(5, b)
 }
-func BenchmarkExporter50(b *testing.B) {
-	benchmarkExporter(50, b)
+func BenchmarkUDPListener50(b *testing.B) {
+	benchmarkUDPListener(50, b)
+}
+
+func BenchmarkExporterListener(b *testing.B) {
+	events := Events{
+		&CounterEvent{ // simple counter
+			metricName: "counter",
+			value:      2,
+		},
+		&GaugeEvent{ // simple gauge
+			metricName: "gauge",
+			value:      10,
+		},
+		&TimerEvent{ // simple timer
+			metricName: "timer",
+			value:      200,
+		},
+		&TimerEvent{ // simple histogram
+			metricName: "histogram.test",
+			value:      200,
+		},
+		&CounterEvent{ // simple_tags
+			metricName: "simple_tags",
+			value:      100,
+			labels: map[string]string{
+				"alpha": "bar",
+				"bravo": "baz",
+			},
+		},
+		&CounterEvent{ // slightly different tags
+			metricName: "simple_tags",
+			value:      100,
+			labels: map[string]string{
+				"alpha":   "bar",
+				"charlie": "baz",
+			},
+		},
+		&CounterEvent{ // and even more different tags
+			metricName: "simple_tags",
+			value:      100,
+			labels: map[string]string{
+				"alpha": "bar",
+				"bravo": "baz",
+				"golf":  "looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong",
+			},
+		},
+		&CounterEvent{ // datadog tag extension with complex tags
+			metricName: "foo",
+			value:      100,
+			labels: map[string]string{
+				"action":                "test",
+				"application":           "testapp",
+				"application_component": "testcomp",
+				"application_role":      "test_role",
+				"category":              "category",
+				"controller":            "controller",
+				"deployed_to":           "production",
+				"kube_deployment":       "deploy",
+				"kube_namespace":        "kube-production",
+				"method":                "get",
+				"version":               "5.2.8374",
+				"status":                "200",
+				"status_range":          "2xx",
+			},
+		},
+	}
+	config := `
+mappings:
+- match: histogram.test
+  timer_type: histogram
+  name: "histogram_test"
+`
+
+	testMapper := &mapper.MetricMapper{}
+	err := testMapper.InitFromYAMLString(config, 0)
+	if err != nil {
+		b.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	ex := NewExporter(testMapper)
+	for i := 0; i < b.N; i++ {
+		ec := make(chan Events, 1000)
+		go func() {
+			for i := 0; i < 1000; i++ {
+				ec <- events
+			}
+			close(ec)
+		}()
+
+		ex.Listen(ec)
+	}
 }
