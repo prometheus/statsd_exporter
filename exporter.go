@@ -458,7 +458,6 @@ func (b *Exporter) handleEvent(event Event) {
 
 	metricName := ""
 	prometheusLabels := event.Labels()
-	sortedLabelNames := getSortedLabelNames(prometheusLabels)
 	if present {
 		if mapping.Name == "" {
 			log.Debugf("The mapping of '%s' for match '%s' generates an empty metric name", event.MetricName(), mapping.Match)
@@ -474,6 +473,7 @@ func (b *Exporter) handleEvent(event Event) {
 		eventsUnmapped.Inc()
 		metricName = escapeMetricName(event.MetricName())
 	}
+	sortedLabelNames := getSortedLabelNames(prometheusLabels)
 
 	switch ev := event.(type) {
 	case *CounterEvent:
