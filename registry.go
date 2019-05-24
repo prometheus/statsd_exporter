@@ -78,16 +78,15 @@ type registry struct {
 	// The below value and label variables are allocated in the registry struct
 	// so that we don't have to allocate them every time have to compute a label
 	// hash.
-	valueBuf, nameBuf       bytes.Buffer
-	valueHasher, nameHasher hash.Hash64
+	valueBuf, nameBuf bytes.Buffer
+	hasher            hash.Hash64
 }
 
 func newRegistry(mapper *mapper.MetricMapper) *registry {
 	return &registry{
-		metrics:     make(map[string]metric),
-		mapper:      mapper,
-		valueHasher: fnv.New64a(),
-		nameHasher:  fnv.New64a(),
+		metrics: make(map[string]metric),
+		mapper:  mapper,
+		hasher:  fnv.New64a(),
 	}
 }
 
@@ -361,7 +360,7 @@ func (r *registry) getSummary(metricName string, labels prometheus.Labels, help 
 func (r *registry) removeStaleMetrics() {
 	now := clock.Now()
 	// delete timeseries with expired ttl
-	for metricName, metric := range r.metrics {
+	for _, metric := range r.metrics {
 		for hash, rm := range metric.metrics {
 			if rm.ttl == 0 {
 				continue
@@ -371,21 +370,13 @@ func (r *registry) removeStaleMetrics() {
 				metric.vectors[rm.vecKey].refCount--
 				delete(metric.metrics, hash)
 			}
-			// If no individual instances exist, then delete the entire vector
-			if metric.vectors[rm.vecKey].refCount == 0 {
-				delete(r.metrics, metricName)
-			}
 		}
 	}
 }
 
-// Calculates a hash of both the label names and the label names + label values.
-// Note that this function goes to silly lengths to avoid allocating memory.
-// This is in the fast path for every metric ingested and allocating and gc'ing
-// temporary memory is expensive.
+// Calculates a hash of both the label names and the label names and values.
 func (r *registry) hashLabels(labels prometheus.Labels) (labelHash, []string) {
-	r.nameHasher.Reset()
-	r.valueHasher.Reset()
+	r.hasher.Reset()
 	r.nameBuf.Reset()
 	r.valueBuf.Reset()
 	labelNames := make([]string, 0, len(labels))
@@ -404,11 +395,13 @@ func (r *registry) hashLabels(labels prometheus.Labels) (labelHash, []string) {
 		r.nameBuf.WriteByte(model.SeparatorByte)
 	}
 
-	r.nameHasher.Write(r.nameBuf.Bytes())
-	r.valueHasher.Write(r.nameBuf.Bytes())
-	r.valueHasher.Write(r.valueBuf.Bytes())
+	lh := labelHash{}
+	r.hasher.Write(r.nameBuf.Bytes())
+	lh.names = nameHash(r.hasher.Sum64())
 
-	return labelHash{
-		names:  nameHash(r.nameHasher.Sum64()),
-		values: valueHash(r.valueHasher.Sum64())}, labelNames
+	// Now add the values to the names we've already hashed.
+	r.hasher.Write(r.valueBuf.Bytes())
+	lh.values = valueHash(r.hasher.Sum64())
+
+	return lh, labelNames
 }
