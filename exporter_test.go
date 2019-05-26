@@ -489,10 +489,12 @@ func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
 	}()
 
 	events := make(chan Events)
+	ueh := &unbufferedEventHandler{c: events}
 
 	go func() {
 		for _, l := range []statsDPacketHandler{&StatsDUDPListener{}, &mockStatsDTCPListener{}} {
-			l.handlePacket([]byte("bar:200|c|#tag:value\nbar:200|c|#tag:\xc3\x28invalid"), events)
+			l.SetEventHandler(ueh)
+			l.handlePacket([]byte("bar:200|c|#tag:value\nbar:200|c|#tag:\xc3\x28invalid"))
 		}
 		close(events)
 	}()
@@ -639,14 +641,15 @@ func TestCounterIncrement(t *testing.T) {
 }
 
 type statsDPacketHandler interface {
-	handlePacket(packet []byte, e chan<- Events)
+	handlePacket(packet []byte)
+	SetEventHandler(eh eventHandler)
 }
 
 type mockStatsDTCPListener struct {
 	StatsDTCPListener
 }
 
-func (ml *mockStatsDTCPListener) handlePacket(packet []byte, e chan<- Events) {
+func (ml *mockStatsDTCPListener) handlePacket(packet []byte) {
 	// Forcing IPv4 because the TravisCI build environment does not have IPv6
 	// addresses.
 	lc, err := net.ListenTCP("tcp4", nil)
@@ -674,7 +677,7 @@ func (ml *mockStatsDTCPListener) handlePacket(packet []byte, e chan<- Events) {
 	if err != nil {
 		panic(fmt.Sprintf("mockStatsDTCPListener: accept failed: %v", err))
 	}
-	ml.handleConn(sc, e)
+	ml.handleConn(sc)
 }
 
 func TestEscapeMetricName(t *testing.T) {

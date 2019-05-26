@@ -46,49 +46,6 @@ func (u uncheckedCollector) Collect(c chan<- prometheus.Metric) {
 	u.c.Collect(c)
 }
 
-type Event interface {
-	MetricName() string
-	Value() float64
-	Labels() map[string]string
-	MetricType() mapper.MetricType
-}
-
-type CounterEvent struct {
-	metricName string
-	value      float64
-	labels     map[string]string
-}
-
-func (c *CounterEvent) MetricName() string            { return c.metricName }
-func (c *CounterEvent) Value() float64                { return c.value }
-func (c *CounterEvent) Labels() map[string]string     { return c.labels }
-func (c *CounterEvent) MetricType() mapper.MetricType { return mapper.MetricTypeCounter }
-
-type GaugeEvent struct {
-	metricName string
-	value      float64
-	relative   bool
-	labels     map[string]string
-}
-
-func (g *GaugeEvent) MetricName() string            { return g.metricName }
-func (g *GaugeEvent) Value() float64                { return g.value }
-func (c *GaugeEvent) Labels() map[string]string     { return c.labels }
-func (c *GaugeEvent) MetricType() mapper.MetricType { return mapper.MetricTypeGauge }
-
-type TimerEvent struct {
-	metricName string
-	value      float64
-	labels     map[string]string
-}
-
-func (t *TimerEvent) MetricName() string            { return t.metricName }
-func (t *TimerEvent) Value() float64                { return t.value }
-func (c *TimerEvent) Labels() map[string]string     { return c.labels }
-func (c *TimerEvent) MetricType() mapper.MetricType { return mapper.MetricTypeTimer }
-
-type Events []Event
-
 type Exporter struct {
 	mapper   *mapper.MetricMapper
 	registry *registry
@@ -475,10 +432,15 @@ samples:
 }
 
 type StatsDUDPListener struct {
-	conn *net.UDPConn
+	conn         *net.UDPConn
+	eventHandler eventHandler
 }
 
-func (l *StatsDUDPListener) Listen(e chan<- Events) {
+func (l *StatsDUDPListener) SetEventHandler(eh eventHandler) {
+	l.eventHandler = eh
+}
+
+func (l *StatsDUDPListener) Listen() {
 	buf := make([]byte, 65535)
 	for {
 		n, _, err := l.conn.ReadFromUDP(buf)
@@ -491,26 +453,29 @@ func (l *StatsDUDPListener) Listen(e chan<- Events) {
 			log.Error(err)
 			return
 		}
-		l.handlePacket(buf[0:n], e)
+		l.handlePacket(buf[0:n])
 	}
 }
 
-func (l *StatsDUDPListener) handlePacket(packet []byte, e chan<- Events) {
+func (l *StatsDUDPListener) handlePacket(packet []byte) {
 	udpPackets.Inc()
 	lines := strings.Split(string(packet), "\n")
-	events := Events{}
 	for _, line := range lines {
 		linesReceived.Inc()
-		events = append(events, lineToEvents(line)...)
+		l.eventHandler.queue(lineToEvents(line))
 	}
-	e <- events
 }
 
 type StatsDTCPListener struct {
-	conn *net.TCPListener
+	conn         *net.TCPListener
+	eventHandler eventHandler
 }
 
-func (l *StatsDTCPListener) Listen(e chan<- Events) {
+func (l *StatsDTCPListener) SetEventHandler(eh eventHandler) {
+	l.eventHandler = eh
+}
+
+func (l *StatsDTCPListener) Listen() {
 	for {
 		c, err := l.conn.AcceptTCP()
 		if err != nil {
@@ -521,11 +486,11 @@ func (l *StatsDTCPListener) Listen(e chan<- Events) {
 			}
 			log.Fatalf("AcceptTCP failed: %v", err)
 		}
-		go l.handleConn(c, e)
+		go l.handleConn(c)
 	}
 }
 
-func (l *StatsDTCPListener) handleConn(c *net.TCPConn, e chan<- Events) {
+func (l *StatsDTCPListener) handleConn(c *net.TCPConn) {
 	defer c.Close()
 
 	tcpConnections.Inc()
@@ -546,15 +511,20 @@ func (l *StatsDTCPListener) handleConn(c *net.TCPConn, e chan<- Events) {
 			break
 		}
 		linesReceived.Inc()
-		e <- lineToEvents(string(line))
+		l.eventHandler.queue(lineToEvents(string(line)))
 	}
 }
 
 type StatsDUnixgramListener struct {
-	conn *net.UnixConn
+	conn         *net.UnixConn
+	eventHandler eventHandler
 }
 
-func (l *StatsDUnixgramListener) Listen(e chan<- Events) {
+func (l *StatsDUnixgramListener) SetEventHandler(eh eventHandler) {
+	l.eventHandler = eh
+}
+
+func (l *StatsDUnixgramListener) Listen() {
 	buf := make([]byte, 65535)
 	for {
 		n, _, err := l.conn.ReadFromUnix(buf)
@@ -566,17 +536,15 @@ func (l *StatsDUnixgramListener) Listen(e chan<- Events) {
 			}
 			log.Fatal(err)
 		}
-		l.handlePacket(buf[:n], e)
+		l.handlePacket(buf[:n])
 	}
 }
 
-func (l *StatsDUnixgramListener) handlePacket(packet []byte, e chan<- Events) {
+func (l *StatsDUnixgramListener) handlePacket(packet []byte) {
 	unixgramPackets.Inc()
 	lines := strings.Split(string(packet), "\n")
-	events := Events{}
 	for _, line := range lines {
 		linesReceived.Inc()
-		events = append(events, lineToEvents(line)...)
+		l.eventHandler.queue(lineToEvents(string(line)))
 	}
-	e <- events
 }
