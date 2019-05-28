@@ -160,6 +160,61 @@ mappings:
 	}
 }
 
+// TestLabelParsing verifies that labels getting parsed out of metric
+// names are being properly created.
+func TestLabelParsing(t *testing.T) {
+	codes := [2]string{"200", "300"}
+
+	events := make(chan Events)
+	go func() {
+		c := Events{
+			&CounterEvent{
+				metricName: "counter.test.200",
+				value:      1,
+				labels:     make(map[string]string),
+			},
+			&CounterEvent{
+				metricName: "counter.test.300",
+				value:      1,
+				labels:     make(map[string]string),
+			},
+		}
+		events <- c
+		close(events)
+	}()
+
+	config := `
+mappings:
+- match: counter.test.*
+  name: "counter_test"
+  labels:
+    code: $1
+`
+
+	testMapper := &mapper.MetricMapper{}
+	err := testMapper.InitFromYAMLString(config, 0)
+	if err != nil {
+		t.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	ex := NewExporter(testMapper)
+	ex.Listen(events)
+
+	metrics, err := prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Fatalf("Cannot gather from DefaultGatherer: %v", err)
+	}
+
+	labels := make(map[string]string)
+
+	for _, code := range codes {
+		labels["code"] = code
+		if getFloat64(metrics, "counter_test", labels) == nil {
+			t.Fatalf("Could not find metrics for counter_test code %s", code)
+		}
+	}
+}
+
 // TestConflictingMetrics validates that the exporter will not register metrics
 // of different types that have overlapping names.
 func TestConflictingMetrics(t *testing.T) {
