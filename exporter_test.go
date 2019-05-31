@@ -620,6 +620,7 @@ func TestCounterIncrement(t *testing.T) {
 		},
 	}
 	events <- c
+	// Push empty event so that we block until the first event is consumed.
 	events <- Events{}
 	close(events)
 
