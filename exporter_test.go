@@ -531,7 +531,7 @@ func TestSummaryWithQuantilesEmptyMapping(t *testing.T) {
 
 	metrics, err := prometheus.DefaultGatherer.Gather()
 	if err != nil {
-		t.Fatal("Gather should not fail")
+		t.Fatal("Gather should not fail: ", err)
 	}
 
 	var metricFamily *dto.MetricFamily
@@ -589,6 +589,52 @@ func TestHistogramUnits(t *testing.T) {
 		t.Fatalf("Histogram observations not scaled into Seconds")
 	} else if *value != .300 {
 		t.Fatalf("Received unexpected value for histogram observation %f != .300", *value)
+	}
+}
+func TestCounterIncrement(t *testing.T) {
+	// Start exporter with a synchronous channel
+	events := make(chan Events)
+	go func() {
+		testMapper := mapper.MetricMapper{}
+		testMapper.InitCache(0)
+		ex := NewExporter(&testMapper)
+		ex.Listen(events)
+	}()
+
+	// Synchronously send a statsd event to wait for handleEvent execution.
+	// Then close events channel to stop a listener.
+	name := "foo_counter"
+	labels := map[string]string{
+		"foo": "bar",
+	}
+	c := Events{
+		&CounterEvent{
+			metricName: name,
+			value:      1,
+			labels:     labels,
+		},
+		&CounterEvent{
+			metricName: name,
+			value:      1,
+			labels:     labels,
+		},
+	}
+	events <- c
+	// Push empty event so that we block until the first event is consumed.
+	events <- Events{}
+	close(events)
+
+	// Check histogram value
+	metrics, err := prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Fatalf("Cannot gather from DefaultGatherer: %v", err)
+	}
+	value := getFloat64(metrics, name, labels)
+	if value == nil {
+		t.Fatal("Counter value should not be nil")
+	}
+	if *value != 2 {
+		t.Fatalf("Counter wasn't incremented properly")
 	}
 }
 
@@ -764,6 +810,37 @@ mappings:
 	}
 }
 
+func TestHashLabelNames(t *testing.T) {
+	r := newRegistry(nil)
+	// Validate value hash changes and name has doesn't when just the value changes.
+	hash1, _ := r.hashLabels(map[string]string{
+		"label": "value1",
+	})
+	hash2, _ := r.hashLabels(map[string]string{
+		"label": "value2",
+	})
+	if hash1.names != hash2.names {
+		t.Fatal("Hash of label names should match, but doesn't")
+	}
+	if hash1.values == hash2.values {
+		t.Fatal("Hash of label names shouldn't match, but do")
+	}
+
+	// Validate value and name hashes change when the name changes.
+	hash1, _ = r.hashLabels(map[string]string{
+		"label1": "value",
+	})
+	hash2, _ = r.hashLabels(map[string]string{
+		"label2": "value",
+	})
+	if hash1.names == hash2.names {
+		t.Fatal("Hash of label names shouldn't match, but do")
+	}
+	if hash1.values == hash2.values {
+		t.Fatal("Hash of label names shouldn't match, but do")
+	}
+}
+
 // getFloat64 search for metric by name in array of MetricFamily and then search a value by labels.
 // Method returns a value or nil if metric is not found.
 func getFloat64(metrics []*dto.MetricFamily, name string, labels prometheus.Labels) *float64 {
@@ -779,13 +856,11 @@ func getFloat64(metrics []*dto.MetricFamily, name string, labels prometheus.Labe
 	}
 
 	var metric *dto.Metric
-	sortedLabelNames := getSortedLabelNames(labels)
-	labelsHash := hashNameAndLabels(name, sortedLabelNames, labels)
+	labelStr := fmt.Sprintf("%v", labels)
 	for _, m := range metricFamily.Metric {
 		l := labelPairsAsLabels(m.GetLabel())
-		sln := getSortedLabelNames(l)
-		h := hashNameAndLabels(name, sln, l)
-		if h == labelsHash {
+		ls := fmt.Sprintf("%v", l)
+		if labelStr == ls {
 			metric = m
 			break
 		}
@@ -889,17 +964,14 @@ func BenchmarkHashNameAndLabels(b *testing.B) {
 	}{
 		{
 			name:   "no labels",
-			metric: "counter",
 			labels: map[string]string{},
 		}, {
-			name:   "one label",
-			metric: "counter",
+			name: "one label",
 			labels: map[string]string{
 				"label": "value",
 			},
 		}, {
-			name:   "many labels",
-			metric: "counter",
+			name: "many labels",
 			labels: map[string]string{
 				"label0": "value",
 				"label1": "value",
@@ -915,11 +987,11 @@ func BenchmarkHashNameAndLabels(b *testing.B) {
 		},
 	}
 
+	r := newRegistry(nil)
 	for _, s := range scenarios {
-		sortedLabelNames := getSortedLabelNames(s.labels)
 		b.Run(s.name, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
-				hashNameAndLabels(s.metric, sortedLabelNames, s.labels)
+				r.hashLabels(s.labels)
 			}
 		})
 	}
