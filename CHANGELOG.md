@@ -1,3 +1,7 @@
+## unreleased / ????-??-??
+
+* [BUGFIX] Fix mapping collision for metrics with different types, but the same name ([#229](https://github.com/prometheus/statsd_exporter/pull/229))
+
 ## v0.10.5 / 2019-05-27
 
 * [BUGFIX] Fix "Error: inconsistent label cardinality: expected 0 label values but got N in prometheus.Labels" ([#224](https://github.com/prometheus/statsd_exporter/pull/224))
