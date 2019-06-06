@@ -237,7 +237,7 @@ func (m *MetricMapper) InitCache(cacheSize int) {
 func (m *MetricMapper) GetMapping(statsdMetric string, statsdMetricType MetricType) (*MetricMapping, prometheus.Labels, bool) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
-	result, cached := m.cache.Get(statsdMetric)
+	result, cached := m.cache.Get(statsdMetric, statsdMetricType)
 	if cached {
 		return result.Mapping, result.Labels, result.Matched
 	}
@@ -253,12 +253,12 @@ func (m *MetricMapper) GetMapping(statsdMetric string, statsdMetricType MetricTy
 				labels[result.labelKeys[index]] = formatter.Format(captures)
 			}
 
-			m.cache.AddMatch(statsdMetric, result, labels)
+			m.cache.AddMatch(statsdMetric, statsdMetricType, result, labels)
 
 			return result, labels, true
 		} else if !m.doRegex {
 			// if there's no regex match type, return immediately
-			m.cache.AddMiss(statsdMetric)
+			m.cache.AddMiss(statsdMetric, statsdMetricType)
 			return nil, nil, false
 		}
 	}
@@ -291,11 +291,11 @@ func (m *MetricMapper) GetMapping(statsdMetric string, statsdMetricType MetricTy
 			labels[label] = string(value)
 		}
 
-		m.cache.AddMatch(statsdMetric, &mapping, labels)
+		m.cache.AddMatch(statsdMetric, statsdMetricType, &mapping, labels)
 
 		return &mapping, labels, true
 	}
 
-	m.cache.AddMiss(statsdMetric)
+	m.cache.AddMiss(statsdMetric, statsdMetricType)
 	return nil, nil, false
 }

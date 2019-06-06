@@ -14,6 +14,7 @@
 package mapper
 
 import (
+	"fmt"
 	"github.com/hashicorp/golang-lru"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -34,9 +35,9 @@ type MetricMapperCacheResult struct {
 }
 
 type MetricMapperCache interface {
-	Get(metricString string) (*MetricMapperCacheResult, bool)
-	AddMatch(metricString string, mapping *MetricMapping, labels prometheus.Labels)
-	AddMiss(metricString string)
+	Get(metricString string, metricType MetricType) (*MetricMapperCacheResult, bool)
+	AddMatch(metricString string, metricType MetricType, mapping *MetricMapping, labels prometheus.Labels)
+	AddMiss(metricString string, metricType MetricType)
 }
 
 type MetricMapperLRUCache struct {
@@ -57,26 +58,30 @@ func NewMetricMapperCache(size int) (*MetricMapperLRUCache, error) {
 	return &MetricMapperLRUCache{cache: cache}, nil
 }
 
-func (m *MetricMapperLRUCache) Get(metricString string) (*MetricMapperCacheResult, bool) {
-	if result, ok := m.cache.Get(metricString); ok {
+func (m *MetricMapperLRUCache) Get(metricString string, metricType MetricType) (*MetricMapperCacheResult, bool) {
+	if result, ok := m.cache.Get(formatKey(metricString, metricType)); ok {
 		return result.(*MetricMapperCacheResult), true
 	} else {
 		return nil, false
 	}
 }
 
-func (m *MetricMapperLRUCache) AddMatch(metricString string, mapping *MetricMapping, labels prometheus.Labels) {
+func (m *MetricMapperLRUCache) AddMatch(metricString string, metricType MetricType, mapping *MetricMapping, labels prometheus.Labels) {
 	go m.trackCacheLength()
-	m.cache.Add(metricString, &MetricMapperCacheResult{Mapping: mapping, Matched: true, Labels: labels})
+	m.cache.Add(formatKey(metricString, metricType), &MetricMapperCacheResult{Mapping: mapping, Matched: true, Labels: labels})
 }
 
-func (m *MetricMapperLRUCache) AddMiss(metricString string) {
+func (m *MetricMapperLRUCache) AddMiss(metricString string, metricType MetricType) {
 	go m.trackCacheLength()
-	m.cache.Add(metricString, &MetricMapperCacheResult{Matched: false})
+	m.cache.Add(formatKey(metricString, metricType), &MetricMapperCacheResult{Matched: false})
 }
 
 func (m *MetricMapperLRUCache) trackCacheLength() {
 	cacheLength.Set(float64(m.cache.Len()))
+}
+
+func formatKey(metricString string, metricType MetricType) string {
+	return fmt.Sprintf("%s.%s", string(metricType), metricString)
 }
 
 func NewMetricMapperNoopCache() *MetricMapperNoopCache {
@@ -84,15 +89,15 @@ func NewMetricMapperNoopCache() *MetricMapperNoopCache {
 	return &MetricMapperNoopCache{}
 }
 
-func (m *MetricMapperNoopCache) Get(metricString string) (*MetricMapperCacheResult, bool) {
+func (m *MetricMapperNoopCache) Get(metricString string, metricType MetricType) (*MetricMapperCacheResult, bool) {
 	return nil, false
 }
 
-func (m *MetricMapperNoopCache) AddMatch(metricString string, mapping *MetricMapping, labels prometheus.Labels) {
+func (m *MetricMapperNoopCache) AddMatch(metricString string, metricType MetricType, mapping *MetricMapping, labels prometheus.Labels) {
 	return
 }
 
-func (m *MetricMapperNoopCache) AddMiss(metricString string) {
+func (m *MetricMapperNoopCache) AddMiss(metricString string, metricType MetricType) {
 	return
 }
 
