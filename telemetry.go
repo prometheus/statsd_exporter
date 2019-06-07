@@ -25,6 +25,12 @@ var (
 		},
 		[]string{"type"},
 	)
+	eventsFlushed = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_event_queue_flushed_total",
+			Help: "Number of times events were flushed to exporter",
+		},
+	)
 	eventsUnmapped = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "statsd_exporter_events_unmapped_total",
 		Help: "The total number of StatsD events no mapping was found for.",
@@ -87,7 +93,7 @@ var (
 	tagErrors = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_tag_errors_total",
-			Help: "The number of errors parsign DogStatsD tags.",
+			Help: "The number of errors parsing DogStatsD tags.",
 		},
 	)
 	configLoads = prometheus.NewCounterVec(
@@ -133,6 +139,7 @@ var (
 
 func init() {
 	prometheus.MustRegister(eventStats)
+	prometheus.MustRegister(eventsFlushed)
 	prometheus.MustRegister(eventsUnmapped)
 	prometheus.MustRegister(udpPackets)
 	prometheus.MustRegister(tcpConnections)
