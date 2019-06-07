@@ -27,7 +27,7 @@ var (
 	)
 	eventsFlushed = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "statsd_exporter_events_flushed_total",
+			Name: "statsd_exporter_event_queue_flushed_total",
 			Help: "Number of times events were flushed to exporter",
 		},
 	)
