@@ -1,4 +1,4 @@
-## unreleased / ????-??-??
+## v0.10.6 / 2019-06-07
 
 * [BUGFIX] Fix mapping collision for metrics with different types, but the same name ([#229](https://github.com/prometheus/statsd_exporter/pull/229))
 
