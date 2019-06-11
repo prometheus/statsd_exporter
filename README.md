@@ -32,9 +32,9 @@ in the long term.
 ### DogStatsD extensions
 
 The exporter will convert DogStatsD-style tags to prometheus labels. See
-[Tags](http://docs.datadoghq.com/guides/dogstatsd/#tags) in the DogStatsD
+[Tags](https://docs.datadoghq.com/developers/dogstatsd/data_types/#tagging) in the DogStatsD
 documentation for the concept description and
-[Datagram Format](http://docs.datadoghq.com/guides/dogstatsd/#datagram-format)
+[Datagram Format](https://docs.datadoghq.com/developers/dogstatsd/datagram_shell/)
 for specifics. It boils down to appending
 `|#tag:value,another_tag:another_value` to the normal StatsD format.  Tags
 without values (`#some_tag`) are not supported.
