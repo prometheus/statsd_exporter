@@ -16,6 +16,7 @@ github.com/howeyc/fsnotify
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/prometheus/client_golang v0.9.2
 github.com/prometheus/client_golang/prometheus
+github.com/prometheus/client_golang/prometheus/promhttp
 github.com/prometheus/client_golang/prometheus/internal
 # github.com/prometheus/client_model v0.0.0-20180712105110-5c3871d89910
 github.com/prometheus/client_model/go

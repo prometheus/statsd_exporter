@@ -25,6 +25,7 @@ import (
 
 	"github.com/howeyc/fsnotify"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -37,8 +38,7 @@ func init() {
 }
 
 func serveHTTP(listenAddress, metricsEndpoint string) {
-	//lint:ignore SA1019 prometheus.Handler() is deprecated.
-	http.Handle(metricsEndpoint, prometheus.Handler())
+	http.Handle(metricsEndpoint, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
 			<head><title>StatsD Exporter</title></head>
