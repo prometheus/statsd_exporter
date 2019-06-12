@@ -18,12 +18,14 @@ import (
 	"time"
 )
 
-type mappings map[string]struct {
-	name       string
-	labels     map[string]string
-	quantiles  []metricObjective
-	notPresent bool
-	ttl        time.Duration
+type mappings []struct {
+	statsdMetric string
+	name         string
+	labels       map[string]string
+	quantiles    []metricObjective
+	notPresent   bool
+	ttl          time.Duration
+	metricType   MetricType
 }
 
 func TestMetricMapperYAML(t *testing.T) {
@@ -85,8 +87,9 @@ mappings:
 
   `,
 			mappings: mappings{
-				"test.dispatcher.FooProcessor.send.succeeded": {
-					name: "dispatch_events",
+				{
+					statsdMetric: "test.dispatcher.FooProcessor.send.succeeded",
+					name:         "dispatch_events",
 					labels: map[string]string{
 						"processor": "FooProcessor",
 						"action":    "send",
@@ -94,8 +97,9 @@ mappings:
 						"job":       "test_dispatcher",
 					},
 				},
-				"test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded": {
-					name: "host_dispatch_events",
+				{
+					statsdMetric: "test.my-dispatch-host01.name.dispatcher.FooProcessor.send.succeeded",
+					name:         "host_dispatch_events",
 					labels: map[string]string{
 						"processor": "FooProcessor",
 						"action":    "send",
@@ -103,8 +107,9 @@ mappings:
 						"job":       "test_dispatcher",
 					},
 				},
-				"request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.": {
-					name: "tyk_http_request",
+				{
+					statsdMetric: "request_time.get/threads/1/posts.200.00000000.nonversioned.discussions.a11bbcdf0ac64ec243658dc64b7100fb.172.20.0.1.12ba97b7eaa1a50001000001.",
+					name:         "tyk_http_request",
 					labels: map[string]string{
 						"method_and_path": "get/threads/1/posts",
 						"response_code":   "200",
@@ -120,8 +125,9 @@ mappings:
 						"oauthid":         "",
 					},
 				},
-				"foo.bar": {
-					name: "catchall",
+				{
+					statsdMetric: "foo.bar",
+					name:         "catchall",
 					labels: map[string]string{
 						"first":  "foo",
 						"second": "bar",
@@ -129,9 +135,12 @@ mappings:
 						"job":    "foo-bar-",
 					},
 				},
-				"foo.bar.baz": {},
-				"proxy-1.http-goober.success": {
-					name: "proxy_requests_total",
+				{
+					statsdMetric: "foo.bar.baz",
+				},
+				{
+					statsdMetric: "proxy-1.http-goober.success",
+					name:         "proxy_requests_total",
 					labels: map[string]string{
 						"job":      "proxy-1",
 						"protocol": "http",
@@ -157,20 +166,23 @@ mappings:
     label: "${1}_foo"
   `,
 			mappings: mappings{
-				"backtrack.good.bbb": {
-					name: "testb",
+				{
+					statsdMetric: "backtrack.good.bbb",
+					name:         "testb",
 					labels: map[string]string{
 						"label": "good_foo",
 					},
 				},
-				"backtrack.justatest.bbb": {
-					name: "testb",
+				{
+					statsdMetric: "backtrack.justatest.bbb",
+					name:         "testb",
 					labels: map[string]string{
 						"label": "justatest_foo",
 					},
 				},
-				"backtrack.justatest.aaa": {
-					name: "testa",
+				{
+					statsdMetric: "backtrack.justatest.aaa",
+					name:         "testa",
 					labels: map[string]string{
 						"label": "_foo",
 					},
@@ -199,15 +211,17 @@ mappings:
     attribute: $1
 `,
 			mappings: mappings{
-				"whatever.dummy.test": {
-					name: "metric_one",
+				{
+					statsdMetric: "whatever.dummy.test",
+					name:         "metric_one",
 					labels: map[string]string{
 						"system":    "whatever",
 						"attribute": "test",
 					},
 				},
-				"full.name.anothertest": {
-					name: "metric_two",
+				{
+					statsdMetric: "full.name.anothertest",
+					name:         "metric_two",
 					labels: map[string]string{
 						"system":    "static",
 						"attribute": "anothertest",
@@ -235,14 +249,16 @@ mappings:
     label: "ccc_foo"
   `,
 			mappings: mappings{
-				"noorder.good.bbb": {
-					name: "testb",
+				{
+					statsdMetric: "noorder.good.bbb",
+					name:         "testb",
 					labels: map[string]string{
 						"label": "good_foo",
 					},
 				},
-				"noorder.ccc.bbb": {
-					name: "testc",
+				{
+					statsdMetric: "noorder.ccc.bbb",
+					name:         "testc",
 					labels: map[string]string{
 						"label": "ccc_foo",
 					},
@@ -265,8 +281,9 @@ mappings:
     label: "${1}_foo"
   `,
 			mappings: mappings{
-				"order.good.bbb": {
-					name: "testa",
+				{
+					statsdMetric: "order.good.bbb",
+					name:         "testa",
 					labels: map[string]string{
 						"label": "good_foo",
 					},
@@ -283,8 +300,9 @@ mappings:
     label: "$1_foo"
   `,
 			mappings: mappings{
-				"test.a": {
-					name: "name",
+				{
+					statsdMetric: "test.a",
+					name:         "name",
 					labels: map[string]string{
 						"label": "",
 					},
@@ -301,8 +319,9 @@ mappings:
     label: "${1}_foo"
   `,
 			mappings: mappings{
-				"test.a": {
-					name: "name",
+				{
+					statsdMetric: "test.a",
+					name:         "name",
 					labels: map[string]string{
 						"label": "a_foo",
 					},
@@ -335,14 +354,17 @@ mappings:
   labels: {}
   `,
 			mappings: mappings{
-				"test1.total_requests.count": {
-					name: "total_requests",
+				{
+					statsdMetric: "test1.total_requests.count",
+					name:         "total_requests",
 				},
-				"test2.total_requests.count": {
-					name: "total_requests_count",
+				{
+					statsdMetric: "test2.total_requests.count",
+					name:         "total_requests_count",
 				},
-				"test3.total_requests.count": {
-					name: "count_total_requests",
+				{
+					statsdMetric: "test3.total_requests.count",
+					name:         "count_total_requests",
 				},
 			},
 		},
@@ -379,8 +401,9 @@ mappings:
   labels:
     label: "${1}_foo"`,
 			mappings: mappings{
-				"test.a": {
-					name: "name",
+				{
+					statsdMetric: "test.a",
+					name:         "name",
 					labels: map[string]string{
 						"label": "a_foo",
 					},
@@ -406,8 +429,9 @@ mappings:
   labels:
     label: "${2}_foo"`,
 			mappings: mappings{
-				"foo.test.a": {
-					name: "name",
+				{
+					statsdMetric: "foo.test.a",
+					name:         "name",
 					labels: map[string]string{
 						"label": "a_foo",
 					},
@@ -429,9 +453,10 @@ mappings:
       error: 0.002
   `,
 			mappings: mappings{
-				"test.*.*": {
-					name:   "foo",
-					labels: map[string]string{},
+				{
+					statsdMetric: "test.*.*",
+					name:         "foo",
+					labels:       map[string]string{},
 					quantiles: []metricObjective{
 						{Quantile: 0.42, Error: 0.04},
 						{Quantile: 0.7, Error: 0.002},
@@ -448,9 +473,10 @@ mappings:
   labels: {}
   `,
 			mappings: mappings{
-				"test1.*.*": {
-					name:   "foo",
-					labels: map[string]string{},
+				{
+					statsdMetric: "test1.*.*",
+					name:         "foo",
+					labels:       map[string]string{},
 					quantiles: []metricObjective{
 						{Quantile: 0.5, Error: 0.05},
 						{Quantile: 0.9, Error: 0.01},
@@ -491,6 +517,30 @@ mappings:
     `,
 			configBad: true,
 		},
+		// Config with multiple explicit metric types
+		{
+			config: `---
+mappings:
+- match: test.foo.*
+  name: "test_foo_sum"
+  match_metric_type: counter
+- match: test.foo.*
+  name: "test_foo_current"
+  match_metric_type: gauge
+    `,
+			mappings: mappings{
+				{
+					statsdMetric: "test.foo.test",
+					name:         "test_foo_sum",
+					metricType:   MetricTypeCounter,
+				},
+				{
+					statsdMetric: "test.foo.test",
+					name:         "test_foo_current",
+					metricType:   MetricTypeGauge,
+				},
+			},
+		},
 		//Config with uncompilable regex.
 		{
 			config: `---
@@ -512,10 +562,11 @@ mappings:
   labels: {}
   `,
 			mappings: mappings{
-				"test.1.2": {
-					name:       "test_1_2",
-					labels:     map[string]string{},
-					notPresent: true,
+				{
+					statsdMetric: "test.1.2",
+					name:         "test_1_2",
+					labels:       map[string]string{},
+					notPresent:   true,
 				},
 			},
 		},
@@ -549,8 +600,9 @@ mappings:
     job: "${1}_server"
 `,
 			mappings: mappings{
-				"test.dispatcher.FooProcessor.send.success": {
-					name: "dispatcher_events_total",
+				{
+					statsdMetric: "test.dispatcher.FooProcessor.send.success",
+					name:         "dispatcher_events_total",
 					labels: map[string]string{
 						"processor": "FooProcessor",
 						"action":    "send",
@@ -558,17 +610,19 @@ mappings:
 						"job":       "test_dispatcher",
 					},
 				},
-				"foo_product.signup.facebook.failure": {
-					name: "signup_events_total",
+				{
+					statsdMetric: "foo_product.signup.facebook.failure",
+					name:         "signup_events_total",
 					labels: map[string]string{
 						"provider": "facebook",
 						"outcome":  "failure",
 						"job":      "foo_product_server",
 					},
 				},
-				"test.web-server.foo.bar": {
-					name:   "test_web_server_foo_bar",
-					labels: map[string]string{},
+				{
+					statsdMetric: "test.web-server.foo.bar",
+					name:         "test_web_server_foo_bar",
+					labels:       map[string]string{},
 				},
 			},
 		},
@@ -580,8 +634,12 @@ mappings:
   name: "drop"
   action: drop`,
 			mappings: mappings{
-				"test.a": {},
-				"abc":    {},
+				{
+					statsdMetric: "test.a",
+				},
+				{
+					statsdMetric: "abc",
+				},
 			},
 		},
 		// Config that has a catch-all to drop all.
@@ -596,9 +654,12 @@ mappings:
   name: "drop"
   action: drop`,
 			mappings: mappings{
-				"test.a": {},
-				"web.localhost": {
-					name: "web",
+				{
+					statsdMetric: "test.a",
+				},
+				{
+					statsdMetric: "web.localhost",
+					name:         "web",
 					labels: map[string]string{
 						"site": "localhost",
 					},
@@ -614,9 +675,12 @@ mappings:
   labels:
     site: "$1"`,
 			mappings: mappings{
-				"test.a": {},
-				"web.localhost": {
-					name: "web",
+				{
+					statsdMetric: "test.a",
+				},
+				{
+					statsdMetric: "web.localhost",
+					name:         "web",
 					labels: map[string]string{
 						"site": "localhost",
 					},
@@ -634,9 +698,12 @@ mappings:
   labels:
     site: "$1"`,
 			mappings: mappings{
-				"test.a": {},
-				"web.localhost": {
-					name: "web",
+				{
+					statsdMetric: "test.a",
+				},
+				{
+					statsdMetric: "web.localhost",
+					name:         "web",
 					labels: map[string]string{
 						"site": "localhost",
 					},
@@ -655,9 +722,12 @@ mappings:
   labels:
     site: "$1"`,
 			mappings: mappings{
-				"test.a": {},
-				"web.localhost": {
-					name: "web",
+				{
+					statsdMetric: "test.a",
+				},
+				{
+					statsdMetric: "web.localhost",
+					name:         "web",
 					labels: map[string]string{
 						"site": "localhost",
 					},
@@ -669,7 +739,7 @@ mappings:
 
 	mapper := MetricMapper{}
 	for i, scenario := range scenarios {
-		err := mapper.InitFromYAMLString(scenario.config, 0)
+		err := mapper.InitFromYAMLString(scenario.config, 1000)
 		if err != nil && !scenario.configBad {
 			t.Fatalf("%d. Config load error: %s %s", i, scenario.config, err)
 		}
@@ -679,8 +749,12 @@ mappings:
 
 		for metric, mapping := range scenario.mappings {
 			// exporter will call mapper.GetMapping with valid MetricType
-			// so we also pass a sane MetricType in testing
-			m, labels, present := mapper.GetMapping(metric, MetricTypeCounter)
+			// so we also pass a sane MetricType in testing if it's not specified
+			mapType := mapping.metricType
+			if mapType == "" {
+				mapType = MetricTypeCounter
+			}
+			m, labels, present := mapper.GetMapping(mapping.statsdMetric, mapType)
 			if present && mapping.name != "" && m.Name != mapping.name {
 				t.Fatalf("%d.%q: Expected name %v, got %v", i, metric, m.Name, mapping.name)
 			}
@@ -697,6 +771,9 @@ mappings:
 			}
 			if mapping.ttl > 0 && mapping.ttl != m.Ttl {
 				t.Fatalf("%d.%q: Expected ttl of %s, got %s", i, metric, mapping.ttl.String(), m.Ttl.String())
+			}
+			if mapping.metricType != "" && mapType != m.MatchMetricType {
+				t.Fatalf("%d.%q: Expected match metric of %s, got %s", i, metric, mapType, m.MatchMetricType)
 			}
 
 			if len(mapping.quantiles) != 0 {
