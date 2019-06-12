@@ -1,3 +1,9 @@
+## Unreleased / ????-??-??
+
+* [ENHANCEMENT] Switch Prometheus client to promhttp, freeing the standard HTTP metrics ([#233](https://github.com/prometheus/statsd_exporter/pull/233))
+
+With #233, the exporter no longer exports metrics about its own HTTP status. These were not helpful since you could not get them when scraping fails. This allows mapping to metric names like `http_requests_total` that are useful as application metrics.
+
 ## v0.10.6 / 2019-06-07
 
 * [BUGFIX] Fix mapping collision for metrics with different types, but the same name ([#229](https://github.com/prometheus/statsd_exporter/pull/229))
