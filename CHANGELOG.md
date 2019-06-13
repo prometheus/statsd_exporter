@@ -1,5 +1,6 @@
-## Unreleased / ????-??-??
+## v0.11.0 / 2019-06-13
 
+* [ENHANCEMENT] Batch event processing for improved ingestion performance ([#227](https://github.com/prometheus/statsd_exporter/pull/227))
 * [ENHANCEMENT] Switch Prometheus client to promhttp, freeing the standard HTTP metrics ([#233](https://github.com/prometheus/statsd_exporter/pull/233))
 
 With #233, the exporter no longer exports metrics about its own HTTP status. These were not helpful since you could not get them when scraping fails. This allows mapping to metric names like `http_requests_total` that are useful as application metrics.
