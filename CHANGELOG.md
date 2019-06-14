@@ -1,4 +1,4 @@
-## v0.11.0 / 2019-06-13
+## v0.11.1 / 2019-06-14
 
 * [ENHANCEMENT] Batch event processing for improved ingestion performance ([#227](https://github.com/prometheus/statsd_exporter/pull/227))
 * [ENHANCEMENT] Switch Prometheus client to promhttp, freeing the standard HTTP metrics ([#233](https://github.com/prometheus/statsd_exporter/pull/233))
