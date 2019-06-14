@@ -1,3 +1,7 @@
+## v0.11.2 / 2019-06014
+
+* [BUGFIX] Fix TCP handler ([#235](https://github.com/prometheus/statsd_exporter/pull/235))
+
 ## v0.11.1 / 2019-06-14
 
 * [ENHANCEMENT] Batch event processing for improved ingestion performance ([#227](https://github.com/prometheus/statsd_exporter/pull/227))
