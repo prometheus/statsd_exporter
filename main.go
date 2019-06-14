@@ -202,7 +202,7 @@ func main() {
 		}
 		defer tconn.Close()
 
-		tl := &StatsDTCPListener{conn: tconn}
+		tl := &StatsDTCPListener{conn: tconn, eventHandler: eventQueue}
 		go tl.Listen()
 	}
 
