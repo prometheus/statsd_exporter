@@ -1,4 +1,8 @@
-## v0.11.2 / 2019-06014
+## v0.12.0 / 2019-07-08
+
+* [CHANGE] Reload on SIGHUP instead of watching the file ([#243](https://github.com/prometheus/statsd_exporter/pull/243))
+
+## v0.11.2 / 2019-06-14
 
 * [BUGFIX] Fix TCP handler ([#235](https://github.com/prometheus/statsd_exporter/pull/235))
 
