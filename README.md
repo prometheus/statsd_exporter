@@ -123,14 +123,14 @@ An example mapping configuration:
 
 ```yaml
 mappings:
-- match: test.dispatcher.*.*.*
+- match: "test.dispatcher.*.*.*"
   name: "dispatcher_events_total"
   labels:
     processor: "$1"
     action: "$2"
     outcome: "$3"
     job: "test_dispatcher"
-- match: *.signup.*.*
+- match: "*.signup.*.*"
   name: "signup_events_total"
   labels:
     provider: "$2"
@@ -156,7 +156,7 @@ wildcard match in the matching line. That allows for dynamic rewrites, such as:
 
 ```yaml
 mappings:
-- match: test.*.*.counter
+- match: "test.*.*.counter"
   name: "${2}_total"
   labels:
     provider: "$1"
@@ -165,9 +165,9 @@ mappings:
 The metric name can also contain references to regex matches. The mapping above
 could be written as:
 
-```
+```yaml
 mappings:
-- match: test\.(\w+)\.(\w+)\.counter
+- match: "test\.(\w+)\.(\w+)\.counter"
   match_type: regex
   name: "${2}_total"
   labels:
@@ -182,7 +182,7 @@ configuration to specify a custom help text for each mapping:
 
 ```yaml
 mappings:
-- match: http.request.*
+- match: "http.request.*"
   help: "Total number of http requests"
   name: "http_requests_total"
   labels:
@@ -197,7 +197,7 @@ error](https://prometheus.io/docs/practices/histograms/#quantiles):
 
 ```yaml
 mappings:
-- match: test.timing.*.*.*
+- match: "test.timing.*.*.*"
   timer_type: summary
   name: "my_timer"
   labels:
@@ -223,7 +223,7 @@ to set the timer type for a single metric:
 
 ```yaml
 mappings:
-- match: test.timing.*.*.*
+- match: "test.timing.*.*.*"
   timer_type: histogram
   buckets: [ 0.01, 0.025, 0.05, 0.1 ]
   name: "my_timer"
@@ -245,7 +245,7 @@ paramter is specified the default value of `glob` will be assumed:
 
 ```yaml
 mappings:
-- match: (.*)\.(.*)--(.*)\.status\.(.*)\.count
+- match: "(.*)\.(.*)--(.*)\.status\.(.*)\.count"
   match_type: regex
   name: "request_total"
   labels:
@@ -279,14 +279,14 @@ defaults:
   ttl: 0 # metrics do not expire
 mappings:
 # This will be a histogram using the buckets set in `defaults`.
-- match: test.timing.*.*.*
+- match: "test.timing.*.*.*"
   name: "my_timer"
   labels:
     provider: "$2"
     outcome: "$3"
     job: "${1}_server"
 # This will be a summary timer.
-- match: other.timing.*.*.*
+- match: "other.timing.*.*.*"
   timer_type: summary
   name: "other_timer"
   labels:
@@ -326,14 +326,14 @@ example:
 ```yaml
 mappings:
 # This metric would match as normal.
-- match: test.timing.*.*.*
+- match: "test.timing.*.*.*"
   name: "my_timer"
   labels:
     provider: "$2"
     outcome: "$3"
     job: "${1}_server"
 # Any metric not matched will be dropped because "." matches all metrics.
-- match: .
+- match: "."
   match_type: regex
   action: drop
   name: "dropped"
@@ -350,7 +350,7 @@ mapping definition allows you to specify which metric type to match:
 
 ```
 mappings:
-- match: test.foo.*
+- match: "test.foo.*"
   name: "test_foo"
   match_metric_type: counter
   labels:
