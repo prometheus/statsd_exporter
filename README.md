@@ -94,7 +94,7 @@ NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/king
 
 The `statsd_exporter` can be configured to translate specific dot-separated StatsD
 metrics into labeled Prometheus metrics via a simple mapping language. The config
-file is watched for changes and automatically reloaded.
+file is reloaded on SIGHUP.
 
 A mapping definition starts with a line matching the StatsD metric in question,
 with `*`s acting as wildcards for each dot-separated metric component. The

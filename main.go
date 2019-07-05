@@ -23,7 +23,6 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/howeyc/fsnotify"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
@@ -91,35 +90,24 @@ func tcpAddrFromString(addr string) *net.TCPAddr {
 	}
 }
 
-func watchConfig(fileName string, mapper *mapper.MetricMapper, cacheSize int) {
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		log.Fatal(err)
-	}
+func configReloader(fileName string, mapper *mapper.MetricMapper, cacheSize int) {
 
-	err = watcher.WatchFlags(fileName, fsnotify.FSN_MODIFY)
-	if err != nil {
-		log.Fatal(err)
-	}
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGHUP)
 
-	for {
-		select {
-		case ev := <-watcher.Event:
-			log.Infof("Config file changed (%s), attempting reload", ev)
-			err = mapper.InitFromFile(fileName, cacheSize)
-			if err != nil {
-				log.Errorln("Error reloading config:", err)
-				configLoads.WithLabelValues("failure").Inc()
-			} else {
-				log.Infoln("Config reloaded successfully")
-				configLoads.WithLabelValues("success").Inc()
-			}
-			// Re-add the file watcher since it can get lost on some changes. E.g.
-			// saving a file with vim results in a RENAME-MODIFY-DELETE event
-			// sequence, after which the newly written file is no longer watched.
-			_ = watcher.WatchFlags(fileName, fsnotify.FSN_MODIFY)
-		case err := <-watcher.Error:
-			log.Errorln("Error watching config:", err)
+	for s := range signals {
+		if fileName == "" {
+			log.Warnf("Received %s but no mapping config to reload", s)
+			continue
+		}
+		log.Infof("Received %s, attempting reload", s)
+		err := mapper.InitFromFile(fileName, cacheSize)
+		if err != nil {
+			log.Errorln("Error reloading config:", err)
+			configLoads.WithLabelValues("failure").Inc()
+		} else {
+			log.Infoln("Config reloaded successfully")
+			configLoads.WithLabelValues("success").Inc()
 		}
 	}
 }
@@ -262,10 +250,12 @@ func main() {
 				log.Fatal("Error dumping FSM:", err)
 			}
 		}
-		go watchConfig(*mappingConfig, mapper, *cacheSize)
 	} else {
 		mapper.InitCache(*cacheSize)
 	}
+
+	go configReloader(*mappingConfig, mapper, *cacheSize)
+
 	exporter := NewExporter(mapper)
 
 	signals := make(chan os.Signal, 1)
