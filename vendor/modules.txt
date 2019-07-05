@@ -10,8 +10,6 @@ github.com/golang/protobuf/proto
 # github.com/hashicorp/golang-lru v0.5.1
 github.com/hashicorp/golang-lru
 github.com/hashicorp/golang-lru/simplelru
-# github.com/howeyc/fsnotify v0.0.0-20151003194602-f0c08ee9c607
-github.com/howeyc/fsnotify
 # github.com/konsorten/go-windows-terminal-sequences v1.0.1
 github.com/konsorten/go-windows-terminal-sequences
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
