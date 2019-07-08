@@ -169,6 +169,8 @@ func (r *registry) get(metricName string, hash labelHash, metricType metricType)
 
 	rm, ok := metric.metrics[hash.values]
 	if ok {
+		now := clock.Now()
+		rm.lastRegisteredAt = now
 		return metric.vectors[hash.names].holder, rm.metric
 	}
 
