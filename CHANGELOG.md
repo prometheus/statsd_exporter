@@ -1,5 +1,6 @@
-## v0.12.0 / 2019-07-08
+## v0.12.1 / 2019-07-08
 
+* [BUGFIX] Renew TTL when a metric receives updates ([#246](https://github.com/prometheus/statsd_exporter/pull/246))
 * [CHANGE] Reload on SIGHUP instead of watching the file ([#243](https://github.com/prometheus/statsd_exporter/pull/243))
 
 ## v0.11.2 / 2019-06-14
