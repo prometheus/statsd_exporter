@@ -216,7 +216,7 @@ func main() {
 			}
 		}
 
-		ul := &StatsDUnixgramListener{conn: uxgconn}
+		ul := &StatsDUnixgramListener{conn: uxgconn, eventHandler: eventQueue}
 		go ul.Listen()
 
 		// if it's an abstract unix domain socket, it won't exist on fs
