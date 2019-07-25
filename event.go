@@ -82,6 +82,7 @@ func newEventQueue(c chan Events, flushThreshold int, flushInterval time.Duratio
 		c:              c,
 		flushThreshold: flushThreshold,
 		flushTicker:    ticker,
+		q:              make([]Event, 0, flushThreshold),
 	}
 	go func() {
 		for {
@@ -112,7 +113,7 @@ func (eq *eventQueue) flush() {
 
 func (eq *eventQueue) flushUnlocked() {
 	eq.c <- eq.q
-	eq.q = eq.q[:0]
+	eq.q = make([]Event, 0, cap(eq.q))
 	eventsFlushed.Inc()
 }
 
