@@ -1,3 +1,10 @@
+## v0.12.2 / 2019-07-25
+
+* [BUGFIX] Fix Unix socket handler ([#252](https://github.com/prometheus/statsd_exporter/pull/252))
+* [BUGFIX] Fix panic under high load ([#253](https://github.com/prometheus/statsd_exporter/pull/253))
+
+Thank you to everyone who reported and helped debug these issues!
+
 ## v0.12.1 / 2019-07-08
 
 * [BUGFIX] Renew TTL when a metric receives updates ([#246](https://github.com/prometheus/statsd_exporter/pull/246))
