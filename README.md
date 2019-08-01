@@ -235,6 +235,8 @@ mappings:
 
 Note that timers will be accepted with the `ms`, `h`, and `d` statsd types.  The first two are timers and histograms and the `d` type is for DataDog's "distribution" type.  The distribution type is treated identically to timers and histograms.
 
+The DogStatsD client by default emits timer metrics in seconds, set [use_ms](https://github.com/DataDog/datadogpy/blob/master/datadog/dogstatsd/base.py#L63) to `True` to fix this.
+
 ### Regular expression matching
 
 Another capability when using YAML configuration is the ability to define matches
