@@ -235,7 +235,12 @@ mappings:
 
 Note that timers will be accepted with the `ms`, `h`, and `d` statsd types.  The first two are timers and histograms and the `d` type is for DataDog's "distribution" type.  The distribution type is treated identically to timers and histograms.
 
-The DogStatsD client by default emits timer metrics in seconds, set [use_ms](https://datadogpy.readthedocs.io/en/latest/index.html?highlight=use_ms) to `True` to fix this.
+### DogStatsD Client Behavior
+
+#### `timed()` decorator
+
+If you are using the DogStatsD client's [timed](https://datadogpy.readthedocs.io/en/latest/#datadog.threadstats.base.ThreadStats.timed) decorator,
+it emits the metric in seconds, set [use_ms](https://datadogpy.readthedocs.io/en/latest/index.html?highlight=use_ms) to `True` to fix this.
 
 ### Regular expression matching
 
