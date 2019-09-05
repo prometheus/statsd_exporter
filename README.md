@@ -235,6 +235,10 @@ mappings:
 
 Note that timers will be accepted with the `ms`, `h`, and `d` statsd types.  The first two are timers and histograms and the `d` type is for DataDog's "distribution" type.  The distribution type is treated identically to timers and histograms.
 
+It should be noted that whereas timers in statsd expects the unit of timing data to be in milliseconds, 
+prometheus expects the unit to be seconds. Hence, the exporter converts all timers to seconds 
+before exporting them.
+
 ### DogStatsD Client Behavior
 
 #### `timed()` decorator
