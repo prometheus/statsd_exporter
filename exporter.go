@@ -389,8 +389,8 @@ samples:
 			for _, component := range components[2:] {
 				switch component[0] {
 				case '@':
-					if statType != "c" && statType != "ms" {
-						log.Debugln("Illegal sampling factor for non-counter metric on line", line)
+					if statType == "g" {
+						log.Debugln("Illegal sampling factor for gauge metric type on line", line)
 						sampleErrors.WithLabelValues("illegal_sample_factor").Inc()
 						continue
 					}
@@ -405,7 +405,7 @@ samples:
 
 					if statType == "c" {
 						value /= samplingFactor
-					} else if statType == "ms" {
+					} else if statType == "ms" || statType == "h" {
 						multiplyEvents = int(1 / samplingFactor)
 					}
 				case '#':
