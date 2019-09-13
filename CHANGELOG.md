@@ -1,3 +1,7 @@
+## unreleased / ????-??-??
+
+* [ENHANCEMENT] Support sampling factors for all statsd metric types ([#264](https://github.com/prometheus/statsd_exporter/issues/250))
+
 ## v0.12.2 / 2019-07-25
 
 * [BUGFIX] Fix Unix socket handler ([#252](https://github.com/prometheus/statsd_exporter/pull/252))
