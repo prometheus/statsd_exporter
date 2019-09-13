@@ -88,6 +88,36 @@ func TestHandlePacket(t *testing.T) {
 				},
 			},
 		}, {
+			name: "distribution with sampling",
+			in:   "foo:0.01|d|@0.2|#tag1:bar,#tag2:baz",
+			out: Events{
+				&TimerEvent{
+					metricName: "foo",
+					value:      0.01,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&TimerEvent{
+					metricName: "foo",
+					value:      0.01,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&TimerEvent{
+					metricName: "foo",
+					value:      0.01,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&TimerEvent{
+					metricName: "foo",
+					value:      0.01,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&TimerEvent{
+					metricName: "foo",
+					value:      0.01,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		}, {
 			name: "datadog tag extension",
 			in:   "foo:100|c|#tag1:bar,tag2:baz",
 			out: Events{
