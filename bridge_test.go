@@ -47,6 +47,16 @@ func TestHandlePacket(t *testing.T) {
 				},
 			},
 		}, {
+			name: "gauge with sampling",
+			in:   "foo:3|g|@0.2",
+			out: Events{
+				&GaugeEvent{
+					metricName: "foo",
+					value:      3,
+					labels:     map[string]string{},
+				},
+			},
+		}, {
 			name: "gauge decrement",
 			in:   "foo:-10|g",
 			out: Events{
@@ -85,6 +95,36 @@ func TestHandlePacket(t *testing.T) {
 					metricName: "foo",
 					value:      200,
 					labels:     map[string]string{},
+				},
+			},
+		}, {
+			name: "distribution with sampling",
+			in:   "foo:0.01|d|@0.2|#tag1:bar,#tag2:baz",
+			out: Events{
+				&TimerEvent{
+					metricName: "foo",
+					value:      0.01,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&TimerEvent{
+					metricName: "foo",
+					value:      0.01,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&TimerEvent{
+					metricName: "foo",
+					value:      0.01,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&TimerEvent{
+					metricName: "foo",
+					value:      0.01,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&TimerEvent{
+					metricName: "foo",
+					value:      0.01,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
 			},
 		}, {
@@ -154,6 +194,36 @@ func TestHandlePacket(t *testing.T) {
 				&CounterEvent{
 					metricName: "foo",
 					value:      1000,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		}, {
+			name: "histogram with sampling",
+			in:   "foo:0.01|h|@0.2|#tag1:bar,#tag2:baz",
+			out: Events{
+				&TimerEvent{
+					metricName: "foo",
+					value:      0.01,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&TimerEvent{
+					metricName: "foo",
+					value:      0.01,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&TimerEvent{
+					metricName: "foo",
+					value:      0.01,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&TimerEvent{
+					metricName: "foo",
+					value:      0.01,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&TimerEvent{
+					metricName: "foo",
+					value:      0.01,
 					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
 			},

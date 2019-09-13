@@ -389,11 +389,7 @@ samples:
 			for _, component := range components[2:] {
 				switch component[0] {
 				case '@':
-					if statType != "c" && statType != "ms" {
-						log.Debugln("Illegal sampling factor for non-counter metric on line", line)
-						sampleErrors.WithLabelValues("illegal_sample_factor").Inc()
-						continue
-					}
+
 					samplingFactor, err = strconv.ParseFloat(component[1:], 64)
 					if err != nil {
 						log.Debugf("Invalid sampling factor %s on line %s", component[1:], line)
@@ -403,9 +399,11 @@ samples:
 						samplingFactor = 1
 					}
 
-					if statType == "c" {
+					if statType == "g" {
+						continue
+					} else if statType == "c" {
 						value /= samplingFactor
-					} else if statType == "ms" {
+					} else if statType == "ms" || statType == "h" || statType == "d" {
 						multiplyEvents = int(1 / samplingFactor)
 					}
 				case '#':
