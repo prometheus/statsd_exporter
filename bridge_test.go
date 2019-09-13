@@ -159,8 +159,28 @@ func TestHandlePacket(t *testing.T) {
 			},
 		}, {
 			name: "histogram with sampling",
-			in:   "foo:0.01|h|@0.1|#tag1:bar,#tag2:baz",
+			in:   "foo:0.01|h|@0.2|#tag1:bar,#tag2:baz",
 			out: Events{
+				&TimerEvent{
+					metricName: "foo",
+					value:      0.01,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&TimerEvent{
+					metricName: "foo",
+					value:      0.01,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&TimerEvent{
+					metricName: "foo",
+					value:      0.01,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&TimerEvent{
+					metricName: "foo",
+					value:      0.01,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
 				&TimerEvent{
 					metricName: "foo",
 					value:      0.01,
