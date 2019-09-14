@@ -128,6 +128,26 @@ func TestHandlePacket(t *testing.T) {
 				},
 			},
 		}, {
+			name: "librato tag extension",
+			in:   "foo#tag1=bar,tag2=baz:100|c",
+			out: Events{
+				&CounterEvent{
+					metricName: "foo",
+					value:      100,
+					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		}, {
+			name: "librato tag extension with tag keys unsupported by prometheus",
+			in:   "foo#09digits=0,tag.with.dots=1:100|c",
+			out: Events{
+				&CounterEvent{
+					metricName: "foo",
+					value:      100,
+					labels:     map[string]string{"_09digits": "0", "tag_with_dots": "1"},
+				},
+			},
+		}, {
 			name: "datadog tag extension",
 			in:   "foo:100|c|#tag1:bar,tag2:baz",
 			out: Events{
@@ -195,6 +215,16 @@ func TestHandlePacket(t *testing.T) {
 					metricName: "foo",
 					value:      1000,
 					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		}, {
+			name: "librato and datadog tag extension with sampling",
+			in:   "foo#tag1=foo,tag3=bing:100|c|@0.1|#tag1:bar,#tag2:baz",
+			out: Events{
+				&CounterEvent{
+					metricName: "foo",
+					value:      1000,
+					labels:     map[string]string{"tag1": "bar", "tag3": "bing", "tag2": "baz"},
 				},
 			},
 		}, {

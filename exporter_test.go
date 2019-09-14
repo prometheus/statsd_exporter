@@ -953,7 +953,8 @@ func BenchmarkParseDogStatsDTagsToLabels(b *testing.B) {
 	for name, tags := range scenarios {
 		b.Run(name, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
-				parseDogStatsDTagsToLabels(tags)
+				labels := map[string]string{}
+				parseDogStatsDTagsToLabels(tags, labels)
 			}
 		})
 	}

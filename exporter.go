@@ -275,7 +275,63 @@ func buildEvent(statType, metric string, value float64, relative bool, labels ma
 	}
 }
 
-func handleDogStatsDTagToKeyValue(labels map[string]string, component, tag string) {
+func handleLibratoTag(component, tag string, labels map[string]string) {
+	// Empty tag is an error
+	if len(tag) == 0 {
+		tagErrors.Inc()
+		log.Debugf("Empty Librato tag in component %s", component)
+		return
+	}
+
+	for i, c := range tag {
+		if c == '=' {
+			k := tag[:i]
+			v := tag[i+1:]
+
+			if len(k) == 0 || len(v) == 0 {
+				// Empty key or value, so it's an error
+				tagErrors.Inc()
+				log.Debugf("Malformed Librato tag %s=%s in component %s", k, v, component)
+			} else {
+				labels[escapeMetricName(k)] = v
+			}
+			return
+		}
+	}
+
+	// Could not find an equals sign, so it's an error
+	tagErrors.Inc()
+	log.Debugf("Malformed Librato tag %s in component %s", tag, component)
+}
+
+func parseLibratoTags(component string, labels map[string]string) {
+	lastTagEndIndex := 0
+	for i, c := range component {
+		if c == ',' {
+			tag := component[lastTagEndIndex:i]
+			lastTagEndIndex = i + 1
+			handleLibratoTag(component, tag, labels)
+		}
+	}
+
+	// If we're not off the end of the string, add the last tag
+	if lastTagEndIndex < len(component) {
+		tag := component[lastTagEndIndex:]
+		handleLibratoTag(component, tag, labels)
+	}
+}
+
+func parseNameAndLibratoLabels(name string, labels map[string]string) string {
+	for i, c := range name {
+		if c == '#' {
+			parseLibratoTags(name[i+1:], labels)
+			return name[:i]
+		}
+	}
+	return name
+}
+
+func handleDogStatsDTag(component, tag string, labels map[string]string) {
 	// Bail early if the tag is empty
 	if len(tag) == 0 {
 		tagErrors.Inc()
@@ -305,30 +361,23 @@ func handleDogStatsDTagToKeyValue(labels map[string]string, component, tag strin
 	}
 
 	labels[escapeMetricName(k)] = v
-
-	return
 }
 
-func parseDogStatsDTagsToLabels(component string) map[string]string {
-	labels := map[string]string{}
-	tagsReceived.Inc()
-
+func parseDogStatsDTagsToLabels(component string, labels map[string]string) {
 	lastTagEndIndex := 0
 	for i, c := range component {
 		if c == ',' {
 			tag := component[lastTagEndIndex:i]
 			lastTagEndIndex = i + 1
-			handleDogStatsDTagToKeyValue(labels, component, tag)
+			handleDogStatsDTag(component, tag, labels)
 		}
 	}
 
 	// If we're not off the end of the string, add the last tag
 	if lastTagEndIndex < len(component) {
 		tag := component[lastTagEndIndex:]
-		handleDogStatsDTagToKeyValue(labels, component, tag)
+		handleDogStatsDTag(component, tag, labels)
 	}
-
-	return labels
 }
 
 func lineToEvents(line string) Events {
@@ -343,7 +392,9 @@ func lineToEvents(line string) Events {
 		log.Debugln("Bad line from StatsD:", line)
 		return events
 	}
-	metric := elements[0]
+
+	labels := map[string]string{}
+	metric := parseNameAndLibratoLabels(elements[0], labels)
 	var samples []string
 	if strings.Contains(elements[1], "|#") {
 		// using datadog extensions, disable multi-metrics
@@ -376,7 +427,6 @@ samples:
 		}
 
 		multiplyEvents := 1
-		labels := map[string]string{}
 		if len(components) >= 3 {
 			for _, component := range components[2:] {
 				if len(component) == 0 {
@@ -407,13 +457,17 @@ samples:
 						multiplyEvents = int(1 / samplingFactor)
 					}
 				case '#':
-					labels = parseDogStatsDTagsToLabels(component[1:])
+					parseDogStatsDTagsToLabels(component[1:], labels)
 				default:
 					log.Debugf("Invalid sampling factor or tag section %s on line %s", components[2], line)
 					sampleErrors.WithLabelValues("invalid_sample_factor").Inc()
 					continue
 				}
 			}
+		}
+
+		if len(labels) > 0 {
+			tagsReceived.Inc()
 		}
 
 		for i := 0; i < multiplyEvents; i++ {
