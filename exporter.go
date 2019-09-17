@@ -275,7 +275,7 @@ func buildEvent(statType, metric string, value float64, relative bool, labels ma
 	}
 }
 
-func handleLibratoTag(component, tag string, labels map[string]string) {
+func extractNameTag(component, tag string, labels map[string]string) {
 	// Empty tag is an error
 	if len(tag) == 0 {
 		tagErrors.Inc()
@@ -304,27 +304,31 @@ func handleLibratoTag(component, tag string, labels map[string]string) {
 	log.Debugf("Malformed Librato tag %s in component %s", tag, component)
 }
 
-func parseLibratoTags(component string, labels map[string]string) {
+func parseNameTag(component string, labels map[string]string) {
 	lastTagEndIndex := 0
 	for i, c := range component {
 		if c == ',' {
 			tag := component[lastTagEndIndex:i]
 			lastTagEndIndex = i + 1
-			handleLibratoTag(component, tag, labels)
+			extractNameTag(component, tag, labels)
 		}
 	}
 
 	// If we're not off the end of the string, add the last tag
 	if lastTagEndIndex < len(component) {
 		tag := component[lastTagEndIndex:]
-		handleLibratoTag(component, tag, labels)
+		extractNameTag(component, tag, labels)
 	}
 }
 
-func parseNameAndLibratoLabels(name string, labels map[string]string) string {
+func parseNameAndLabels(name string, labels map[string]string) string {
 	for i, c := range name {
-		if c == '#' {
-			parseLibratoTags(name[i+1:], labels)
+		// # delimiting start of tags by Librato
+		// https://www.librato.com/docs/kb/collect/collection_agents/stastd/#stat-level-tags
+		// , delimiting start of tags by InfluxDB
+		// https://www.influxdata.com/blog/getting-started-with-sending-statsd-metrics-to-telegraf-influxdb/#introducing-influx-statsd
+		if c == '#' || c == ',' {
+			parseNameTag(name[i+1:], labels)
 			return name[:i]
 		}
 	}
@@ -394,7 +398,7 @@ func lineToEvents(line string) Events {
 	}
 
 	labels := map[string]string{}
-	metric := parseNameAndLibratoLabels(elements[0], labels)
+	metric := parseNameAndLabels(elements[0], labels)
 	var samples []string
 	if strings.Contains(elements[1], "|#") {
 		// using datadog extensions, disable multi-metrics
