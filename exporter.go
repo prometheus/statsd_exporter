@@ -279,7 +279,7 @@ func extractNameTag(component, tag string, labels map[string]string) {
 	// Empty tag is an error
 	if len(tag) == 0 {
 		tagErrors.Inc()
-		log.Debugf("Empty Librato tag in component %s", component)
+		log.Debugf("Empty name tag in component %s", component)
 		return
 	}
 
@@ -291,7 +291,7 @@ func extractNameTag(component, tag string, labels map[string]string) {
 			if len(k) == 0 || len(v) == 0 {
 				// Empty key or value, so it's an error
 				tagErrors.Inc()
-				log.Debugf("Malformed Librato tag %s=%s in component %s", k, v, component)
+				log.Debugf("Malformed name tag %s=%s in component %s", k, v, component)
 			} else {
 				labels[escapeMetricName(k)] = v
 			}
@@ -301,7 +301,7 @@ func extractNameTag(component, tag string, labels map[string]string) {
 
 	// Could not find an equals sign, so it's an error
 	tagErrors.Inc()
-	log.Debugf("Malformed Librato tag %s in component %s", tag, component)
+	log.Debugf("Malformed name tag %s in component %s", tag, component)
 }
 
 func parseNameTag(component string, labels map[string]string) {
