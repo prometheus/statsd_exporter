@@ -31,10 +31,11 @@ in the long term.
 
 ### Tagging Extensions
 
-The exporter supports both Librato-style tags and DogStatsD-style tags,
+The exporter supports Librato, InfluxDB, and DogStatsD-style tags,
 which will be converted into Prometheus labels.
 
-For Librato-style tags, they must be appended to the metric name, as so:
+For Librato-style tags, they must be appended to the metric name with a
+delimiting `#`, as so:
 
 ```
 metric.name#tagName=val,tag2Name=val2:0|c
@@ -43,8 +44,19 @@ metric.name#tagName=val,tag2Name=val2:0|c
 See the [statsd-librato-backend README](https://github.com/librato/statsd-librato-backend#tags)
 for a more complete description.
 
-For DogStatsD-style tags, they're appended as another section at the end of the
-metric, as so:
+For InfluxDB-style tags, they must be appended to the metric name with a
+delimiting comma, as so:
+
+```
+metric.name,tagName=val,tag2Name=val2:0|c
+```
+
+See [this InfluxDB blog post](https://www.influxdata.com/blog/getting-started-with-sending-statsd-metrics-to-telegraf-influxdb/#introducing-influx-statsd)
+for a larger overview.
+
+
+For DogStatsD-style tags, they're appended as a `|#` delimited section at the
+end of the metric, as so:
 
 ```
 metric.name:0|c|#tagName=val,tag2Name=val2
@@ -53,13 +65,16 @@ metric.name:0|c|#tagName=val,tag2Name=val2
 See [Tags](https://docs.datadoghq.com/developers/dogstatsd/data_types/#tagging)
 in the DogStatsD documentation for the concept description and
 [Datagram Format](https://docs.datadoghq.com/developers/dogstatsd/datagram_shell/).
+Note that this tagging style is incompatible with the original `statsd`
+implementation, you will be unable to use it as a repeater in front of the
+statsd-to-prometheus exporter.
 
-Although you can use both tag types simultaneously, this is not recommended.
-DogStatsD `name=value` pairs will take priority over Librato tags with the same
-name.
+Although you can use both name-appended tags (Librato or InfluxDB) and
+metric-appended tags simultaneously, this is not recommended. If you do, be
+aware that DogStatsD `name=value` pairs will take priority over Librato tags
+with the same name.
 
-For both Librato and DogStatsD tags, tags without values (`#some_tag`) are not
-supported.
+Tags without values (`#some_tag`) are not supported and will be dropped.
 
 ## Building and Running
 
