@@ -941,7 +941,7 @@ func BenchmarkEscapeMetricName(b *testing.B) {
 	}
 }
 
-func BenchmarkParseDogStatsDTagsToLabels(b *testing.B) {
+func BenchmarkParseDogStatsDTags(b *testing.B) {
 	scenarios := map[string]string{
 		"1 tag w/hash":         "#test:tag",
 		"1 tag w/o hash":       "test:tag",
@@ -954,7 +954,7 @@ func BenchmarkParseDogStatsDTagsToLabels(b *testing.B) {
 		b.Run(name, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				labels := map[string]string{}
-				parseDogStatsDTagsToLabels(tags, labels)
+				parseDogStatsDTags(tags, labels)
 			}
 		})
 	}

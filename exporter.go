@@ -275,8 +275,8 @@ func buildEvent(statType, metric string, value float64, relative bool, labels ma
 	}
 }
 
-func extractNameTag(component, tag string, labels map[string]string) {
-	// Empty tag is an error
+func parseTag(component, tag string, separator rune, labels map[string]string) {
+	// Entirely empty tag is an error
 	if len(tag) == 0 {
 		tagErrors.Inc()
 		log.Debugf("Empty name tag in component %s", component)
@@ -284,12 +284,12 @@ func extractNameTag(component, tag string, labels map[string]string) {
 	}
 
 	for i, c := range tag {
-		if c == '=' {
+		if c == separator {
 			k := tag[:i]
 			v := tag[i+1:]
 
 			if len(k) == 0 || len(v) == 0 {
-				// Empty key or value, so it's an error
+				// Empty key or value is an error
 				tagErrors.Inc()
 				log.Debugf("Malformed name tag %s=%s in component %s", k, v, component)
 			} else {
@@ -299,89 +299,64 @@ func extractNameTag(component, tag string, labels map[string]string) {
 		}
 	}
 
-	// Could not find an equals sign, so it's an error
+	// Missing separator (no value) is an error
 	tagErrors.Inc()
 	log.Debugf("Malformed name tag %s in component %s", tag, component)
 }
 
-func parseNameTag(component string, labels map[string]string) {
+func parseNameTags(component string, labels map[string]string) {
 	lastTagEndIndex := 0
 	for i, c := range component {
 		if c == ',' {
 			tag := component[lastTagEndIndex:i]
 			lastTagEndIndex = i + 1
-			extractNameTag(component, tag, labels)
+			parseTag(component, tag, '=', labels)
 		}
 	}
 
 	// If we're not off the end of the string, add the last tag
 	if lastTagEndIndex < len(component) {
 		tag := component[lastTagEndIndex:]
-		extractNameTag(component, tag, labels)
+		parseTag(component, tag, '=', labels)
 	}
 }
 
-func parseNameAndLabels(name string, labels map[string]string) string {
+func trimLeftHash(s string) string {
+	if s != "" && s[0] == '#' {
+		return s[1:]
+	}
+	return s
+}
+
+func parseDogStatsDTags(component string, labels map[string]string) {
+	lastTagEndIndex := 0
+	for i, c := range component {
+		if c == ',' {
+			tag := component[lastTagEndIndex:i]
+			lastTagEndIndex = i + 1
+			parseTag(component, trimLeftHash(tag), ':', labels)
+		}
+	}
+
+	// If we're not off the end of the string, add the last tag
+	if lastTagEndIndex < len(component) {
+		tag := component[lastTagEndIndex:]
+		parseTag(component, trimLeftHash(tag), ':', labels)
+	}
+}
+
+func parseNameAndTags(name string, labels map[string]string) string {
 	for i, c := range name {
-		// # delimiting start of tags by Librato
+		// `#` delimits start of tags by Librato
 		// https://www.librato.com/docs/kb/collect/collection_agents/stastd/#stat-level-tags
-		// , delimiting start of tags by InfluxDB
+		// `,` delimits start of tags by InfluxDB
 		// https://www.influxdata.com/blog/getting-started-with-sending-statsd-metrics-to-telegraf-influxdb/#introducing-influx-statsd
 		if c == '#' || c == ',' {
-			parseNameTag(name[i+1:], labels)
+			parseNameTags(name[i+1:], labels)
 			return name[:i]
 		}
 	}
 	return name
-}
-
-func handleDogStatsDTag(component, tag string, labels map[string]string) {
-	// Bail early if the tag is empty
-	if len(tag) == 0 {
-		tagErrors.Inc()
-		log.Debugf("Malformed or empty DogStatsD tag %s in component %s", tag, component)
-		return
-	}
-	// Skip hash if found.
-	if tag[0] == '#' {
-		tag = tag[1:]
-	}
-
-	// find the first comma and split the tag into key and value.
-	var k, v string
-	for i, c := range tag {
-		if c == ':' {
-			k = tag[0:i]
-			v = tag[(i + 1):]
-			break
-		}
-	}
-	// If either of them is empty, then either the k or v is empty, or we
-	// didn't find a colon, either way, throw an error and skip ahead.
-	if len(k) == 0 || len(v) == 0 {
-		tagErrors.Inc()
-		log.Debugf("Malformed or empty DogStatsD tag %s in component %s", tag, component)
-		return
-	}
-
-	labels[escapeMetricName(k)] = v
-}
-
-func parseDogStatsDTagsToLabels(component string, labels map[string]string) {
-	lastTagEndIndex := 0
-	for i, c := range component {
-		if c == ',' {
-			tag := component[lastTagEndIndex:i]
-			lastTagEndIndex = i + 1
-			handleDogStatsDTag(component, tag, labels)
-		}
-	}
-
-	// If we're not off the end of the string, add the last tag
-	if lastTagEndIndex < len(component) {
-		tag := component[lastTagEndIndex:]
-		handleDogStatsDTag(component, tag, labels)
-	}
 }
 
 func lineToEvents(line string) Events {
@@ -398,11 +373,11 @@ func lineToEvents(line string) Events {
 	}
 
 	labels := map[string]string{}
-	metric := parseNameAndLabels(elements[0], labels)
+	metric := parseNameAndTags(elements[0], labels)
 
 	var samples []string
 	if strings.Contains(elements[1], "|#") {
-		// using datadog extensions
+		// using DogStatsD tags
 
 		// don't allow mixed tagging styles
 		if len(labels) > 0 {
@@ -471,7 +446,7 @@ samples:
 						multiplyEvents = int(1 / samplingFactor)
 					}
 				case '#':
-					parseDogStatsDTagsToLabels(component[1:], labels)
+					parseDogStatsDTags(component[1:], labels)
 				default:
 					log.Debugf("Invalid sampling factor or tag section %s on line %s", components[2], line)
 					sampleErrors.WithLabelValues("invalid_sample_factor").Inc()
