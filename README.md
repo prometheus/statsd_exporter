@@ -65,16 +65,12 @@ metric.name:0|c|#tagName=val,tag2Name=val2
 See [Tags](https://docs.datadoghq.com/developers/dogstatsd/data_types/#tagging)
 in the DogStatsD documentation for the concept description and
 [Datagram Format](https://docs.datadoghq.com/developers/dogstatsd/datagram_shell/).
-Note that this tagging style is incompatible with the original `statsd`
-implementation, you will be unable to use it as a repeater in front of the
-statsd-to-prometheus exporter.
+If you encounter problems, note that this tagging style is incompatible with
+the original `statsd` implementation.
 
-Although you can use both name-appended tags (Librato or InfluxDB) and
-metric-appended tags simultaneously, this is not recommended. If you do, be
-aware that DogStatsD `name=value` pairs will take priority over Librato tags
-with the same name.
-
-Tags without values (`#some_tag`) are not supported and will be dropped.
+Be aware: If you mix tag styles (e.g., Librato/InfluxDB with DogStatsD), the
+exporter will consider this an error and the sample will be discarded. Also,
+tags without values (`#some_tag`) are not supported and will be ignored.
 
 ## Building and Running
 

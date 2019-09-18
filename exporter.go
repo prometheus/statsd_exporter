@@ -399,9 +399,19 @@ func lineToEvents(line string) Events {
 
 	labels := map[string]string{}
 	metric := parseNameAndLabels(elements[0], labels)
+
 	var samples []string
 	if strings.Contains(elements[1], "|#") {
-		// using datadog extensions, disable multi-metrics
+		// using datadog extensions
+
+		// don't allow mixed tagging styles
+		if len(labels) > 0 {
+			sampleErrors.WithLabelValues("malformed_line").Inc()
+			log.Debugln("Bad line (multiple tagging styles) from StatsD:", line)
+			return events
+		}
+
+		// disable multi-metrics
 		samples = elements[1:]
 	} else {
 		samples = strings.Split(elements[1], ":")

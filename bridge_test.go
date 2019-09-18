@@ -238,15 +238,17 @@ func TestHandlePacket(t *testing.T) {
 				},
 			},
 		}, {
-			name: "librato and datadog tag extension with sampling",
+			name: "librato/dogstatsd mixed tag styles without sampling",
+			in:   "foo#tag1=foo,tag3=bing:100|c|#tag1:bar,#tag2:baz",
+			out:  Events{},
+		}, {
+			name: "influxdb/dogstatsd mixed tag styles without sampling",
+			in:   "foo,tag1=foo,tag3=bing:100|c|#tag1:bar,#tag2:baz",
+			out:  Events{},
+		}, {
+			name: "mixed tag styles with sampling",
 			in:   "foo#tag1=foo,tag3=bing:100|c|@0.1|#tag1:bar,#tag2:baz",
-			out: Events{
-				&CounterEvent{
-					metricName: "foo",
-					value:      1000,
-					labels:     map[string]string{"tag1": "bar", "tag3": "bing", "tag2": "baz"},
-				},
-			},
+			out:  Events{},
 		}, {
 			name: "histogram with sampling",
 			in:   "foo:0.01|h|@0.2|#tag1:bar,#tag2:baz",
