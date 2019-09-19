@@ -381,7 +381,7 @@ func lineToEvents(line string) Events {
 
 		// don't allow mixed tagging styles
 		if len(labels) > 0 {
-			sampleErrors.WithLabelValues("malformed_line").Inc()
+			sampleErrors.WithLabelValues("mixed_tagging_styles").Inc()
 			log.Debugln("Bad line (multiple tagging styles) from StatsD:", line)
 			return events
 		}

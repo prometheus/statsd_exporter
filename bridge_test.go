@@ -149,7 +149,7 @@ func TestHandlePacket(t *testing.T) {
 			},
 		}, {
 			name: "influxdb tag extension",
-			in:   "foo#tag1=bar,tag2=baz:100|c",
+			in:   "foo,tag1=bar,tag2=baz:100|c",
 			out: Events{
 				&CounterEvent{
 					metricName: "foo",
@@ -159,7 +159,7 @@ func TestHandlePacket(t *testing.T) {
 			},
 		}, {
 			name: "influxdb tag extension with tag keys unsupported by prometheus",
-			in:   "foo#09digits=0,tag.with.dots=1:100|c",
+			in:   "foo,09digits=0,tag.with.dots=1:100|c",
 			out: Events{
 				&CounterEvent{
 					metricName: "foo",
