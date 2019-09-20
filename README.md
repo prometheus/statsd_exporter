@@ -29,15 +29,48 @@ We recommend this only as an intermediate solution and recommend switching to
 [native Prometheus instrumentation](http://prometheus.io/docs/instrumenting/clientlibs/)
 in the long term.
 
-### DogStatsD extensions
+### Tagging Extensions
 
-The exporter will convert DogStatsD-style tags to prometheus labels. See
-[Tags](https://docs.datadoghq.com/developers/dogstatsd/data_types/#tagging) in the DogStatsD
-documentation for the concept description and
-[Datagram Format](https://docs.datadoghq.com/developers/dogstatsd/datagram_shell/)
-for specifics. It boils down to appending
-`|#tag:value,another_tag:another_value` to the normal StatsD format.  Tags
-without values (`#some_tag`) are not supported.
+The exporter supports Librato, InfluxDB, and DogStatsD-style tags,
+which will be converted into Prometheus labels.
+
+For Librato-style tags, they must be appended to the metric name with a
+delimiting `#`, as so:
+
+```
+metric.name#tagName=val,tag2Name=val2:0|c
+```
+
+See the [statsd-librato-backend README](https://github.com/librato/statsd-librato-backend#tags)
+for a more complete description.
+
+For InfluxDB-style tags, they must be appended to the metric name with a
+delimiting comma, as so:
+
+```
+metric.name,tagName=val,tag2Name=val2:0|c
+```
+
+See [this InfluxDB blog post](https://www.influxdata.com/blog/getting-started-with-sending-statsd-metrics-to-telegraf-influxdb/#introducing-influx-statsd)
+for a larger overview.
+
+
+For DogStatsD-style tags, they're appended as a `|#` delimited section at the
+end of the metric, as so:
+
+```
+metric.name:0|c|#tagName=val,tag2Name=val2
+```
+
+See [Tags](https://docs.datadoghq.com/developers/dogstatsd/data_types/#tagging)
+in the DogStatsD documentation for the concept description and
+[Datagram Format](https://docs.datadoghq.com/developers/dogstatsd/datagram_shell/).
+If you encounter problems, note that this tagging style is incompatible with
+the original `statsd` implementation.
+
+Be aware: If you mix tag styles (e.g., Librato/InfluxDB with DogStatsD), the
+exporter will consider this an error and the sample will be discarded. Also,
+tags without values (`#some_tag`) are not supported and will be ignored.
 
 ## Building and Running
 
@@ -235,8 +268,8 @@ mappings:
 
 Note that timers will be accepted with the `ms`, `h`, and `d` statsd types.  The first two are timers and histograms and the `d` type is for DataDog's "distribution" type.  The distribution type is treated identically to timers and histograms.
 
-It should be noted that whereas timers in statsd expects the unit of timing data to be in milliseconds, 
-prometheus expects the unit to be seconds. Hence, the exporter converts all timers to seconds 
+It should be noted that whereas timers in statsd expects the unit of timing data to be in milliseconds,
+prometheus expects the unit to be seconds. Hence, the exporter converts all timers to seconds
 before exporting them.
 
 ### DogStatsD Client Behavior
