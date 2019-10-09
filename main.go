@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -36,18 +37,37 @@ func init() {
 	prometheus.MustRegister(version.NewCollector("statsd_exporter"))
 }
 
+func startListeningOn(listenAddress string) error {
+	if !strings.HasPrefix(listenAddress, "unix") {
+		return http.ListenAndServe(listenAddress, nil)
+	}
+	path := strings.Split(listenAddress, ":")[1]
+	listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: path, Net: "unix"})
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = os.Chmod(path, 0777)
+	if err != nil {
+		log.Warn(err)
+	}
+	return http.Serve(listener, nil)
+}
+
 func serveHTTP(listenAddress, metricsEndpoint string) {
 	http.Handle(metricsEndpoint, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`<html>
+		_, err := w.Write([]byte(`<html>
 			<head><title>StatsD Exporter</title></head>
 			<body>
 			<h1>StatsD Exporter</h1>
 			<p><a href="` + metricsEndpoint + `">Metrics</a></p>
 			</body>
 			</html>`))
+		if err != nil {
+			log.Fatal(err)
+		}
 	})
-	log.Fatal(http.ListenAndServe(listenAddress, nil))
+	log.Fatal(startListeningOn(listenAddress))
 }
 
 func ipPortFromString(addr string) (*net.IPAddr, int) {
@@ -128,7 +148,7 @@ func dumpFSM(mapper *mapper.MetricMapper, dumpFilename string) error {
 
 func main() {
 	var (
-		listenAddress        = kingpin.Flag("web.listen-address", "The address on which to expose the web interface and generated Prometheus metrics.").Default(":9102").String()
+		listenAddress        = kingpin.Flag("web.listen-address", "The IP address (optionally with port) or unix socket address (unix:/path/to/sock) on which to expose the web interface and generated Prometheus metrics.").Default(":9102").String()
 		metricsEndpoint      = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
 		statsdListenUDP      = kingpin.Flag("statsd.listen-udp", "The UDP address on which to receive statsd metric lines. \"\" disables it.").Default(":9125").String()
 		statsdListenTCP      = kingpin.Flag("statsd.listen-tcp", "The TCP address on which to receive statsd metric lines. \"\" disables it.").Default(":9125").String()
