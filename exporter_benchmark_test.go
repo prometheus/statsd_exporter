@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/go-kit/kit/log"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
 
@@ -138,7 +139,7 @@ mappings:
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	ex := NewExporter(testMapper)
+	ex := NewExporter(testMapper, log.NewNopLogger())
 	for i := 0; i < b.N; i++ {
 		ec := make(chan Events, 1000)
 		go func() {

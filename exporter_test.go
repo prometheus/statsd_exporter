@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 
@@ -58,7 +59,7 @@ func TestNegativeCounter(t *testing.T) {
 	testMapper := mapper.MetricMapper{}
 	testMapper.InitCache(0)
 
-	ex := NewExporter(&testMapper)
+	ex := NewExporter(&testMapper, log.NewNopLogger())
 	ex.Listen(events)
 
 	updated := getTelemetryCounterValue(errorCounter)
@@ -139,7 +140,7 @@ mappings:
 		t.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	ex := NewExporter(testMapper)
+	ex := NewExporter(testMapper, log.NewNopLogger())
 	ex.Listen(events)
 
 	metrics, err := prometheus.DefaultGatherer.Gather()
@@ -197,7 +198,7 @@ mappings:
 		t.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	ex := NewExporter(testMapper)
+	ex := NewExporter(testMapper, log.NewNopLogger())
 	ex.Listen(events)
 
 	metrics, err := prometheus.DefaultGatherer.Gather()
@@ -412,7 +413,7 @@ mappings:
 				events <- s.in
 				close(events)
 			}()
-			ex := NewExporter(testMapper)
+			ex := NewExporter(testMapper, log.NewNopLogger())
 			ex.Listen(events)
 
 			metrics, err := prometheus.DefaultGatherer.Gather()
@@ -467,7 +468,7 @@ mappings:
 	errorCounter := errorEventStats.WithLabelValues("empty_metric_name")
 	prev := getTelemetryCounterValue(errorCounter)
 
-	ex := NewExporter(testMapper)
+	ex := NewExporter(testMapper, log.NewNopLogger())
 	ex.Listen(events)
 
 	updated := getTelemetryCounterValue(errorCounter)
@@ -502,7 +503,7 @@ func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
 	testMapper := mapper.MetricMapper{}
 	testMapper.InitCache(0)
 
-	ex := NewExporter(&testMapper)
+	ex := NewExporter(&testMapper, log.NewNopLogger())
 	ex.Listen(events)
 }
 
@@ -516,7 +517,7 @@ func TestSummaryWithQuantilesEmptyMapping(t *testing.T) {
 		testMapper := mapper.MetricMapper{}
 		testMapper.InitCache(0)
 
-		ex := NewExporter(&testMapper)
+		ex := NewExporter(&testMapper, log.NewNopLogger())
 		ex.Listen(events)
 	}()
 
@@ -560,7 +561,7 @@ func TestHistogramUnits(t *testing.T) {
 	go func() {
 		testMapper := mapper.MetricMapper{}
 		testMapper.InitCache(0)
-		ex := NewExporter(&testMapper)
+		ex := NewExporter(&testMapper, log.NewNopLogger())
 		ex.mapper.Defaults.TimerType = mapper.TimerTypeHistogram
 		ex.Listen(events)
 	}()
@@ -599,7 +600,7 @@ func TestCounterIncrement(t *testing.T) {
 	go func() {
 		testMapper := mapper.MetricMapper{}
 		testMapper.InitCache(0)
-		ex := NewExporter(&testMapper)
+		ex := NewExporter(&testMapper, log.NewNopLogger())
 		ex.Listen(events)
 	}()
 
@@ -726,7 +727,7 @@ mappings:
 	events := make(chan Events)
 	defer close(events)
 	go func() {
-		ex := NewExporter(testMapper)
+		ex := NewExporter(testMapper, log.NewNopLogger())
 		ex.Listen(events)
 	}()
 
@@ -954,7 +955,7 @@ func BenchmarkParseDogStatsDTags(b *testing.B) {
 		b.Run(name, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				labels := map[string]string{}
-				parseDogStatsDTags(tags, labels)
+				parseDogStatsDTags(tags, labels, log.NewNopLogger())
 			}
 		})
 	}
