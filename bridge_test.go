@@ -16,6 +16,8 @@ package main
 import (
 	"reflect"
 	"testing"
+
+	"github.com/go-kit/kit/log"
 )
 
 func TestHandlePacket(t *testing.T) {
@@ -413,7 +415,7 @@ func TestHandlePacket(t *testing.T) {
 		},
 	}
 
-	for k, l := range []statsDPacketHandler{&StatsDUDPListener{}, &mockStatsDTCPListener{}} {
+	for k, l := range []statsDPacketHandler{&StatsDUDPListener{nil, nil, log.NewNopLogger()}, &mockStatsDTCPListener{StatsDTCPListener{nil, nil, log.NewNopLogger()}, log.NewNopLogger()}} {
 		events := make(chan Events, 32)
 		l.SetEventHandler(&unbufferedEventHandler{c: events})
 		for i, scenario := range scenarios {

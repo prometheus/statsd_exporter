@@ -493,7 +493,7 @@ func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
 	ueh := &unbufferedEventHandler{c: events}
 
 	go func() {
-		for _, l := range []statsDPacketHandler{&StatsDUDPListener{}, &mockStatsDTCPListener{}} {
+		for _, l := range []statsDPacketHandler{&StatsDUDPListener{nil, nil, log.NewNopLogger()}, &mockStatsDTCPListener{StatsDTCPListener{nil, nil, log.NewNopLogger()}, log.NewNopLogger()}} {
 			l.SetEventHandler(ueh)
 			l.handlePacket([]byte("bar:200|c|#tag:value\nbar:200|c|#tag:\xc3\x28invalid"))
 		}
@@ -648,6 +648,7 @@ type statsDPacketHandler interface {
 
 type mockStatsDTCPListener struct {
 	StatsDTCPListener
+	log.Logger
 }
 
 func (ml *mockStatsDTCPListener) handlePacket(packet []byte) {

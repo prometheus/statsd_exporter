@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -581,7 +582,8 @@ func (l *StatsDUnixgramListener) Listen() {
 			if strings.HasSuffix(err.Error(), "use of closed network connection") {
 				return
 			}
-			panic(err)
+			level.Error(l.logger).Log(err)
+			os.Exit(1)
 		}
 		l.handlePacket(buf[:n])
 	}
