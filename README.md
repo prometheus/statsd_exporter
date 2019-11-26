@@ -200,6 +200,16 @@ could be written as:
 
 ```yaml
 mappings:
+- match: "test\\.(\\w+)\\.(\\w+)\\.counter"
+  match_type: regex
+  name: "${2}_total"
+  labels:
+    provider: "$1"
+```
+
+Be aware about yaml escape rules as a mapping like the following one will not work. 
+```yaml 
+mappings:
 - match: "test\.(\w+)\.(\w+)\.counter"
   match_type: regex
   name: "${2}_total"
