@@ -1,6 +1,5 @@
 ## unreleased / ????-??-??
 
-* [ENHANCEMENT] Updated readme docs and added a test for invalid yaml ([#274](https://github.com/prometheus/statsd_exporter/issues/274))
 * [ENHANCEMENT] Support sampling factors for all statsd metric types ([#264](https://github.com/prometheus/statsd_exporter/issues/250))
 * [ENHANCEMENT] Support Librato and InfluxDB labeling formats ([#267](https://github.com/prometheus/statsd_exporter/pull/267))
 
