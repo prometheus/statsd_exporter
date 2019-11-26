@@ -842,6 +842,31 @@ mappings:
 			configBad:      true,
 			expectedAction: ActionTypeDrop,
 		},
+		{
+			// valid yaml example
+			config: `---
+mappings:
+- match: "test\\.(\\w+)\\.(\\w+)\\.counter"
+  match_type: regex
+  name: "${2}_total"
+  labels:
+    provider: "$1"
+`,
+			configBad:      false,
+			expectedAction: ActionTypeMap,
+		},
+		{
+			// invalid yaml example
+			config: `---
+mappings:
+- match: "test\.(\w+)\.(\w+)\.counter"
+  match_type: regex
+  name: "${2}_total"
+  labels:
+    provider: "$1"
+`,
+			configBad: true,
+		},
 	}
 
 	for i, scenario := range scenarios {
