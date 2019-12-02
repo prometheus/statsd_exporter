@@ -413,7 +413,7 @@ mappings:
 
 Possible values for `match_metric_type` are `gauge`, `counter` and `timer`.
 
-### Mapping cache size and cache replacement polixy
+### Mapping cache size and cache replacement policy
 
 There is a cache used to improve the performance of the metric mapping, that can greatly improvement performance.
 The cache has a default maximum of 1000 unique statsd metric names -> prometheus metrics mappings that it can store.
