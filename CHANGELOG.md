@@ -1,4 +1,4 @@
-## unreleased / ????-??-??
+## v0.13.0 / 2019-12-06
 
 * [ENHANCEMENT] Support sampling factors for all statsd metric types ([#264](https://github.com/prometheus/statsd_exporter/issues/250))
 * [ENHANCEMENT] Support Librato and InfluxDB labeling formats ([#267](https://github.com/prometheus/statsd_exporter/pull/267))
