@@ -1,44 +1,44 @@
-## v0.13.0 / 2019-12-06
+## 0.13.0 / 2019-12-06
 
 * [ENHANCEMENT] Support sampling factors for all statsd metric types ([#264](https://github.com/prometheus/statsd_exporter/issues/250))
 * [ENHANCEMENT] Support Librato and InfluxDB labeling formats ([#267](https://github.com/prometheus/statsd_exporter/pull/267))
 
-## v0.12.2 / 2019-07-25
+## 0.12.2 / 2019-07-25
 
 * [BUGFIX] Fix Unix socket handler ([#252](https://github.com/prometheus/statsd_exporter/pull/252))
 * [BUGFIX] Fix panic under high load ([#253](https://github.com/prometheus/statsd_exporter/pull/253))
 
 Thank you to everyone who reported and helped debug these issues!
 
-## v0.12.1 / 2019-07-08
+## 0.12.1 / 2019-07-08
 
 * [BUGFIX] Renew TTL when a metric receives updates ([#246](https://github.com/prometheus/statsd_exporter/pull/246))
 * [CHANGE] Reload on SIGHUP instead of watching the file ([#243](https://github.com/prometheus/statsd_exporter/pull/243))
 
-## v0.11.2 / 2019-06-14
+## 0.11.2 / 2019-06-14
 
 * [BUGFIX] Fix TCP handler ([#235](https://github.com/prometheus/statsd_exporter/pull/235))
 
-## v0.11.1 / 2019-06-14
+## 0.11.1 / 2019-06-14
 
 * [ENHANCEMENT] Batch event processing for improved ingestion performance ([#227](https://github.com/prometheus/statsd_exporter/pull/227))
 * [ENHANCEMENT] Switch Prometheus client to promhttp, freeing the standard HTTP metrics ([#233](https://github.com/prometheus/statsd_exporter/pull/233))
 
 With #233, the exporter no longer exports metrics about its own HTTP status. These were not helpful since you could not get them when scraping fails. This allows mapping to metric names like `http_requests_total` that are useful as application metrics.
 
-## v0.10.6 / 2019-06-07
+## 0.10.6 / 2019-06-07
 
 * [BUGFIX] Fix mapping collision for metrics with different types, but the same name ([#229](https://github.com/prometheus/statsd_exporter/pull/229))
 
-## v0.10.5 / 2019-05-27
+## 0.10.5 / 2019-05-27
 
 * [BUGFIX] Fix "Error: inconsistent label cardinality: expected 0 label values but got N in prometheus.Labels" ([#224](https://github.com/prometheus/statsd_exporter/pull/224))
 
-## v0.10.4 / 2019-05-20
+## 0.10.4 / 2019-05-20
 
 * [BUGFIX] Revert #218 due to a race condition ([#221](https://github.com/prometheus/statsd_exporter/pull/221))
 
-## v0.10.3 / 2019-05-17
+## 0.10.3 / 2019-05-17
 
 * [ENHANCEMENT] Reduce allocations when escaping metric names ([#217](https://github.com/prometheus/statsd_exporter/pull/217))
 * [ENHANCEMENT] Reduce allocations when handling packets ([#218](https://github.com/prometheus/statsd_exporter/pull/218))
@@ -46,7 +46,7 @@ With #233, the exporter no longer exports metrics about its own HTTP status. The
 
 This release is entirely powered by @claytono. Kudos!
 
-## v0.10.2 / 2019-05-17
+## 0.10.2 / 2019-05-17
 
 * [CHANGE] Do not run as root in the Docker container by default ([#202](https://github.com/prometheus/statsd_exporter/pull/202))
 * [FEATURE] Add metric for count of events by action ([#193](https://github.com/prometheus/statsd_exporter/pull/193))
@@ -65,7 +65,7 @@ This release is entirely powered by @claytono. Kudos!
 
 With #192, the count of events rejected because of negative counter increments has moved into the `statsd_exporter_events_error_total` metric, instead of being lumped in with the different kinds of successful events.
 
-## v0.9.0 / 2019-03-11
+## 0.9.0 / 2019-03-11
 
 * [ENHANCEMENT] Update the Prometheus client library to 0.9.2 ([#171](https://github.com/prometheus/statsd_exporter/pull/171))
 * [FEATURE] Metrics can now be expired with a per-mapping TTL ([#164](https://github.com/prometheus/statsd_exporter/pull/164))
@@ -74,12 +74,12 @@ With #192, the count of events rejected because of negative counter increments h
 If you are using summaries, all your quantiles and `_total` will change by a factor of 1000.
 Adjust your queries and dashboards, or consider switching to histograms altogether.
 
-## v0.8.1 / 2018-12-05
+## 0.8.1 / 2018-12-05
 
 * [BUGFIX] Expose the counter for unmapped matches ([#161](https://github.com/prometheus/statsd_exporter/pull/161))
 * [BUGFIX] Unsuccessful backtracking does not clobber captures ([#169](https://github.com/prometheus/statsd_exporter/pull/169), fixes [#168](https://github.com/prometheus/statsd_exporter/issues/168))
 
-## v0.8.0 / 2018-10-12
+## 0.8.0 / 2018-10-12
 
 * [ENHANCEMENT] Speed up glob matching ([#157](https://github.com/prometheus/statsd_exporter/pull/157))
 
@@ -89,7 +89,7 @@ is logged.
 
 This major enhancement was contributed by [Wangchong Zhou](https://github.com/fffonion).
 
-## v0.7.0 / 2018-08-22
+## 0.7.0 / 2018-08-22
 
 This is a breaking release, but the migration is easy: command line flags now
 require two dashes (`--help` instead of `-help`). The previous flag library
@@ -104,12 +104,12 @@ The deprecated `--statsd.listen-address` flag has been removed, use
 * [ENHANCEMENT] Summary quantiles can be configured ([#135](https://github.com/prometheus/statsd_exporter/pulls/135))
 * [BUGFIX] Fix panic if an invalid regular expression is supplied ([#126](https://github.com/prometheus/statsd_exporter/pulls/126))
 
-## v0.6.0 / 2018-01-17
+## 0.6.0 / 2018-01-17
 
 * [ENHANCEMENT] Add a drop action ([#115](https://github.com/prometheus/statsd_exporter/pulls/115))
 * [ENHANCEMENT] Allow templating metric names ([#117](https://github.com/prometheus/statsd_exporter/pulls/117))
 
-## v0.5.0 / 2017-11-16
+## 0.5.0 / 2017-11-16
 
 NOTE: This release breaks backward compatibility. `statsd_exporter` now uses
 a YAML configuration file. You must convert your mappings configuration to
@@ -172,7 +172,7 @@ There is a [tool](https://github.com/bakins/statsd-exporter-convert) available t
 * [BUGFIX] Conflicting label sets no longer crash the exporter and will be
   ignored. Restart to clear the remembered label set. [#72](https://github.com/prometheus/statsd_exporter/pulls/72)
 
-## v0.4.0 / 2017-05-12
+## 0.4.0 / 2017-05-12
 
 * [ENHANCEMENT] Improve mapping configuration parser [#61](https://github.com/prometheus/statsd_exporter/pulls/61)
 * [ENHANCEMENT] Add increment/decrement support to Gauges [#65](https://github.com/prometheus/statsd_exporter/pulls/65)
