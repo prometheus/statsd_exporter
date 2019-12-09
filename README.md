@@ -59,7 +59,7 @@ For DogStatsD-style tags, they're appended as a `|#` delimited section at the
 end of the metric, as so:
 
 ```
-metric.name:0|c|#tagName=val,tag2Name=val2
+metric.name:0|c|#tagName:val,tag2Name:val2
 ```
 
 See [Tags](https://docs.datadoghq.com/developers/dogstatsd/data_types/#tagging)
