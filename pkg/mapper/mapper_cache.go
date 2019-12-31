@@ -14,8 +14,7 @@
 package mapper
 
 import (
-	"fmt"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -81,7 +80,7 @@ func (m *MetricMapperLRUCache) trackCacheLength() {
 }
 
 func formatKey(metricString string, metricType MetricType) string {
-	return fmt.Sprintf("%s.%s", string(metricType), metricString)
+	return string(metricType) + "." + metricString
 }
 
 func NewMetricMapperNoopCache() *MetricMapperNoopCache {
