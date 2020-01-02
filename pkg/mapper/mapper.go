@@ -18,12 +18,12 @@ import (
 	"io/ioutil"
 	"regexp"
 	"sync"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/statsd_exporter/pkg/mapper/fsm"
 	yaml "gopkg.in/yaml.v2"
-	"time"
 )
 
 var (
@@ -85,7 +85,7 @@ var defaultQuantiles = []metricObjective{
 	{Quantile: 0.99, Error: 0.001},
 }
 
-func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int) error {
+func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int, options ...CacheOption) error {
 	var n MetricMapper
 
 	if err := yaml.Unmarshal([]byte(fileContents), &n); err != nil {
@@ -191,7 +191,7 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int) er
 
 	m.Defaults = n.Defaults
 	m.Mappings = n.Mappings
-	m.InitCache(cacheSize)
+	m.InitCache(cacheSize, options...)
 
 	if n.doFSM {
 		var mappings []string
@@ -213,20 +213,39 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int) er
 	return nil
 }
 
-func (m *MetricMapper) InitFromFile(fileName string, cacheSize int) error {
+func (m *MetricMapper) InitFromFile(fileName string, cacheSize int, options ...CacheOption) error {
 	mappingStr, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		return err
 	}
 
-	return m.InitFromYAMLString(string(mappingStr), cacheSize)
+	return m.InitFromYAMLString(string(mappingStr), cacheSize, options...)
 }
 
-func (m *MetricMapper) InitCache(cacheSize int) {
+func (m *MetricMapper) InitCache(cacheSize int, options ...CacheOption) {
 	if cacheSize == 0 {
 		m.cache = NewMetricMapperNoopCache()
 	} else {
-		cache, err := NewMetricMapperCache(cacheSize)
+		o := cacheOptions{
+			cacheType: "lru",
+		}
+		for _, f := range options {
+			f(&o)
+		}
+
+		var (
+			cache MetricMapperCache
+			err   error
+		)
+		switch o.cacheType {
+		case "lru":
+			cache, err = NewMetricMapperCache(cacheSize)
+		case "random":
+			cache, err = NewMetricMapperRRCache(cacheSize)
+		default:
+			err = fmt.Errorf("unsupported cache type %q", o.cacheType)
+		}
+
 		if err != nil {
 			log.Fatalf("Unable to setup metric cache. Caused by: %s", err)
 		}
