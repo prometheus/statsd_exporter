@@ -25,6 +25,18 @@ var (
 			Help: "The count of unique metrics currently cached.",
 		},
 	)
+	cacheGetsTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "mapping_cache_gets_total",
+			Help: "The count of total cache gets.",
+		},
+	)
+	cacheHitsTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "mapping_cache_hits_total",
+			Help: "The count of total cache hits.",
+		},
+	)
 )
 
 type MetricMapperCacheResult struct {
@@ -58,7 +70,9 @@ func NewMetricMapperCache(size int) (*MetricMapperLRUCache, error) {
 }
 
 func (m *MetricMapperLRUCache) Get(metricString string, metricType MetricType) (*MetricMapperCacheResult, bool) {
+	cacheGetsTotal.Inc()
 	if result, ok := m.cache.Get(formatKey(metricString, metricType)); ok {
+		cacheHitsTotal.Inc()
 		return result.(*MetricMapperCacheResult), true
 	} else {
 		return nil, false
@@ -102,4 +116,6 @@ func (m *MetricMapperNoopCache) AddMiss(metricString string, metricType MetricTy
 
 func init() {
 	prometheus.MustRegister(cacheLength)
+	prometheus.MustRegister(cacheGetsTotal)
+	prometheus.MustRegister(cacheHitsTotal)
 }
