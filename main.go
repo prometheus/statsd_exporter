@@ -40,7 +40,7 @@ func init() {
 	prometheus.MustRegister(version.NewCollector("statsd_exporter"))
 }
 
-func serveHTTP(listenAddress, metricsEndpoint string) {
+func serveHTTP(listenAddress, metricsEndpoint string, logger log.Logger) {
 	http.Handle(metricsEndpoint, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
@@ -51,13 +51,14 @@ func serveHTTP(listenAddress, metricsEndpoint string) {
 			</body>
 			</html>`))
 	})
-	panic(http.ListenAndServe(listenAddress, nil))
+	level.Error(logger).Log("msg", http.ListenAndServe(listenAddress, nil))
+	os.Exit(1)
 }
 
-func ipPortFromString(addr string) (*net.IPAddr, int) {
+func ipPortFromString(addr string) (*net.IPAddr, int, error) {
 	host, portStr, err := net.SplitHostPort(addr)
 	if err != nil {
-		panic(fmt.Sprintf("Bad StatsD listening address: %s", addr))
+		return nil, 0, fmt.Errorf("bad StatsD listening address: %s", addr)
 	}
 
 	if host == "" {
@@ -65,33 +66,39 @@ func ipPortFromString(addr string) (*net.IPAddr, int) {
 	}
 	ip, err := net.ResolveIPAddr("ip", host)
 	if err != nil {
-		panic(fmt.Sprintf("Unable to resolve %s: %s", host, err))
+		return nil, 0, fmt.Errorf("Unable to resolve %s: %s", host, err)
 	}
 
 	port, err := strconv.Atoi(portStr)
 	if err != nil || port < 0 || port > 65535 {
-		panic(fmt.Sprintf("Bad port %s: %s", portStr, err))
+		return nil, 0, fmt.Errorf("Bad port %s: %s", portStr, err)
 	}
 
-	return ip, port
+	return ip, port, nil
 }
 
-func udpAddrFromString(addr string) *net.UDPAddr {
-	ip, port := ipPortFromString(addr)
+func udpAddrFromString(addr string) (*net.UDPAddr, error) {
+	ip, port, err := ipPortFromString(addr)
+	if err != nil {
+		return nil, err
+	}
 	return &net.UDPAddr{
 		IP:   ip.IP,
 		Port: port,
 		Zone: ip.Zone,
-	}
+	}, nil
 }
 
-func tcpAddrFromString(addr string) *net.TCPAddr {
-	ip, port := ipPortFromString(addr)
+func tcpAddrFromString(addr string) (*net.TCPAddr, error) {
+	ip, port, err := ipPortFromString(addr)
+	if err != nil {
+		return nil, err
+	}
 	return &net.TCPAddr{
 		IP:   ip.IP,
 		Port: port,
 		Zone: ip.Zone,
-	}
+	}, nil
 }
 
 func configReloader(fileName string, mapper *mapper.MetricMapper, cacheSize int, logger log.Logger) {
@@ -156,7 +163,8 @@ func main() {
 	logger := promlog.New(promlogConfig)
 
 	if *statsdListenUDP == "" && *statsdListenTCP == "" && *statsdListenUnixgram == "" {
-		panic("At least one of UDP/TCP/Unixgram listeners must be specified.")
+		level.Error(logger).Log("At least one of UDP/TCP/Unixgram listeners must be specified.")
+		os.Exit(1)
 	}
 
 	level.Info(logger).Log("msg", "Starting StatsD -> Prometheus Exporter", "version", version.Info())
@@ -164,23 +172,29 @@ func main() {
 	level.Info(logger).Log("msg", "Accepting StatsD Traffic", "udp", *statsdListenUDP, "tcp", *statsdListenTCP, "unixgram", *statsdListenUnixgram)
 	level.Info(logger).Log("msg", "Accepting Prometheus Requests", "addr", *listenAddress)
 
-	go serveHTTP(*listenAddress, *metricsEndpoint)
+	go serveHTTP(*listenAddress, *metricsEndpoint, logger)
 
 	events := make(chan Events, *eventQueueSize)
 	defer close(events)
 	eventQueue := newEventQueue(events, *eventFlushThreshold, *eventFlushInterval)
 
 	if *statsdListenUDP != "" {
-		udpListenAddr := udpAddrFromString(*statsdListenUDP)
+		udpListenAddr, err := udpAddrFromString(*statsdListenUDP)
+		if err != nil {
+			level.Error(logger).Log("msg", "invalid UDP listen address", "address", *statsdListenUDP, "error", err)
+			os.Exit(1)
+		}
 		uconn, err := net.ListenUDP("udp", udpListenAddr)
 		if err != nil {
-			panic(err)
+			level.Error(logger).Log("msg", "failed to start UDP listener", "error", err)
+			os.Exit(1)
 		}
 
 		if *readBuffer != 0 {
 			err = uconn.SetReadBuffer(*readBuffer)
 			if err != nil {
-				panic(fmt.Sprintf("Error setting UDP read buffer: %s", err))
+				level.Error(logger).Log("msg", "error setting UDP read buffer", "error", err)
+				os.Exit(1)
 			}
 		}
 
@@ -189,10 +203,15 @@ func main() {
 	}
 
 	if *statsdListenTCP != "" {
-		tcpListenAddr := tcpAddrFromString(*statsdListenTCP)
+		tcpListenAddr, err := tcpAddrFromString(*statsdListenTCP)
+		if err != nil {
+			level.Error(logger).Log("msg", "invalid TCP listen address", "address", *statsdListenUDP, "error", err)
+			os.Exit(1)
+		}
 		tconn, err := net.ListenTCP("tcp", tcpListenAddr)
 		if err != nil {
-			panic(err)
+			level.Error(logger).Log("msg", err)
+			os.Exit(1)
 		}
 		defer tconn.Close()
 
@@ -203,14 +222,16 @@ func main() {
 	if *statsdListenUnixgram != "" {
 		var err error
 		if _, err = os.Stat(*statsdListenUnixgram); !os.IsNotExist(err) {
-			panic(fmt.Sprintf("Unixgram socket \"%s\" already exists", *statsdListenUnixgram))
+			level.Error(logger).Log("msg", "Unixgram socket already exists", "socket_name", *statsdListenUnixgram)
+			os.Exit(1)
 		}
 		uxgconn, err := net.ListenUnixgram("unixgram", &net.UnixAddr{
 			Net:  "unixgram",
 			Name: *statsdListenUnixgram,
 		})
 		if err != nil {
-			panic(err)
+			level.Error(logger).Log("msg", "failed to listen on Unixgram socket", "error", err)
+			os.Exit(1)
 		}
 
 		defer uxgconn.Close()
@@ -218,7 +239,8 @@ func main() {
 		if *readBuffer != 0 {
 			err = uxgconn.SetReadBuffer(*readBuffer)
 			if err != nil {
-				panic(fmt.Sprintf("Error setting Unixgram read buffer: %s", err))
+				level.Error(logger).Log("msg", "error setting Unixgram read buffer", "error", err)
+				os.Exit(1)
 			}
 		}
 
@@ -248,12 +270,16 @@ func main() {
 	if *mappingConfig != "" {
 		err := mapper.InitFromFile(*mappingConfig, *cacheSize)
 		if err != nil {
-			panic(fmt.Sprintf("Error loading config: %s", err))
+			level.Error(logger).Log("msg", "error loading config", "error", err)
+			os.Exit(1)
 		}
 		if *dumpFSMPath != "" {
 			err := dumpFSM(mapper, *dumpFSMPath, logger)
 			if err != nil {
-				panic(fmt.Sprintf("Error dumping FSM: %s", err))
+				level.Error(logger).Log("msg", "error dumping FSM", "error", err)
+				// Failure to dump the FSM is an error (the user asked for it and it
+				// didn't happen) but not fatal (the exporter is fully functional
+				// afterwards).
 			}
 		}
 	} else {

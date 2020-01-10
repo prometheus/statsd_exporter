@@ -234,7 +234,8 @@ func (b *Exporter) handleEvent(event Event) {
 			}
 
 		default:
-			panic(fmt.Sprintf("unknown timer type '%s'", t))
+			level.Error(b.logger).Log("msg", "unknown timer type", "type", t)
+			os.Exit(1)
 		}
 
 	default:
@@ -531,7 +532,8 @@ func (l *StatsDTCPListener) Listen() {
 			if strings.HasSuffix(err.Error(), "use of closed network connection") {
 				return
 			}
-			panic(fmt.Sprintf("AcceptTCP failed: %s", err))
+			level.Error(l.logger).Log("msg", "AcceptTCP failed", "error", err)
+			os.Exit(1)
 		}
 		go l.handleConn(c)
 	}
