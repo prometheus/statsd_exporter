@@ -21,7 +21,7 @@ import (
 var (
 	cacheLength = prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "statsd_exporter_cache_length",
+			Name: "mapping_cache_length",
 			Help: "The count of unique metrics currently cached.",
 		},
 	)
