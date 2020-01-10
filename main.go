@@ -15,6 +15,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -23,9 +24,12 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
+	"github.com/prometheus/common/promlog"
+	"github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
 
@@ -36,7 +40,7 @@ func init() {
 	prometheus.MustRegister(version.NewCollector("statsd_exporter"))
 }
 
-func serveHTTP(listenAddress, metricsEndpoint string) {
+func serveHTTP(listenAddress, metricsEndpoint string, logger log.Logger) {
 	http.Handle(metricsEndpoint, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
@@ -47,13 +51,14 @@ func serveHTTP(listenAddress, metricsEndpoint string) {
 			</body>
 			</html>`))
 	})
-	log.Fatal(http.ListenAndServe(listenAddress, nil))
+	level.Error(logger).Log("msg", http.ListenAndServe(listenAddress, nil))
+	os.Exit(1)
 }
 
-func ipPortFromString(addr string) (*net.IPAddr, int) {
+func ipPortFromString(addr string) (*net.IPAddr, int, error) {
 	host, portStr, err := net.SplitHostPort(addr)
 	if err != nil {
-		log.Fatal("Bad StatsD listening address", addr)
+		return nil, 0, fmt.Errorf("bad StatsD listening address: %s", addr)
 	}
 
 	if host == "" {
@@ -61,68 +66,74 @@ func ipPortFromString(addr string) (*net.IPAddr, int) {
 	}
 	ip, err := net.ResolveIPAddr("ip", host)
 	if err != nil {
-		log.Fatalf("Unable to resolve %s: %s", host, err)
+		return nil, 0, fmt.Errorf("Unable to resolve %s: %s", host, err)
 	}
 
 	port, err := strconv.Atoi(portStr)
 	if err != nil || port < 0 || port > 65535 {
-		log.Fatalf("Bad port %s: %s", portStr, err)
+		return nil, 0, fmt.Errorf("Bad port %s: %s", portStr, err)
 	}
 
-	return ip, port
+	return ip, port, nil
 }
 
-func udpAddrFromString(addr string) *net.UDPAddr {
-	ip, port := ipPortFromString(addr)
+func udpAddrFromString(addr string) (*net.UDPAddr, error) {
+	ip, port, err := ipPortFromString(addr)
+	if err != nil {
+		return nil, err
+	}
 	return &net.UDPAddr{
 		IP:   ip.IP,
 		Port: port,
 		Zone: ip.Zone,
-	}
+	}, nil
 }
 
-func tcpAddrFromString(addr string) *net.TCPAddr {
-	ip, port := ipPortFromString(addr)
+func tcpAddrFromString(addr string) (*net.TCPAddr, error) {
+	ip, port, err := ipPortFromString(addr)
+	if err != nil {
+		return nil, err
+	}
 	return &net.TCPAddr{
 		IP:   ip.IP,
 		Port: port,
 		Zone: ip.Zone,
-	}
+	}, nil
 }
 
-func configReloader(fileName string, mapper *mapper.MetricMapper, cacheSize int) {
+func configReloader(fileName string, mapper *mapper.MetricMapper, cacheSize int, logger log.Logger) {
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGHUP)
 
 	for s := range signals {
 		if fileName == "" {
-			log.Warnf("Received %s but no mapping config to reload", s)
+			level.Warn(logger).Log("msg", "Received signal but no mapping config to reload", "signal", s)
 			continue
 		}
-		log.Infof("Received %s, attempting reload", s)
+		level.Info(logger).Log("msg", "Received signal, attempting reload", "signal", s)
 		err := mapper.InitFromFile(fileName, cacheSize)
 		if err != nil {
-			log.Errorln("Error reloading config:", err)
+			level.Info(logger).Log("msg", "Error reloading config", "error", err)
 			configLoads.WithLabelValues("failure").Inc()
 		} else {
-			log.Infoln("Config reloaded successfully")
+			level.Info(logger).Log("msg", "Config reloaded successfully")
 			configLoads.WithLabelValues("success").Inc()
 		}
 	}
 }
 
-func dumpFSM(mapper *mapper.MetricMapper, dumpFilename string) error {
+func dumpFSM(mapper *mapper.MetricMapper, dumpFilename string, logger log.Logger) error {
 	f, err := os.Create(dumpFilename)
 	if err != nil {
 		return err
 	}
-	log.Infoln("Start dumping FSM to", dumpFilename)
+	level.Info(logger).Log("msg", "Start dumping FSM", "file_name", dumpFilename)
 	w := bufio.NewWriter(f)
 	mapper.FSM.DumpFSM(w)
 	w.Flush()
 	f.Close()
-	log.Infoln("Finish dumping FSM")
+	level.Info(logger).Log("msg", "Finish dumping FSM")
 	return nil
 }
 
@@ -144,37 +155,46 @@ func main() {
 		dumpFSMPath          = kingpin.Flag("debug.dump-fsm", "The path to dump internal FSM generated for glob matching as Dot file.").Default("").String()
 	)
 
-	log.AddFlags(kingpin.CommandLine)
+	promlogConfig := &promlog.Config{}
+	flag.AddFlags(kingpin.CommandLine, promlogConfig)
 	kingpin.Version(version.Print("statsd_exporter"))
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
+	logger := promlog.New(promlogConfig)
 
 	if *statsdListenUDP == "" && *statsdListenTCP == "" && *statsdListenUnixgram == "" {
-		log.Fatalln("At least one of UDP/TCP/Unixgram listeners must be specified.")
+		level.Error(logger).Log("At least one of UDP/TCP/Unixgram listeners must be specified.")
+		os.Exit(1)
 	}
 
-	log.Infoln("Starting StatsD -> Prometheus Exporter", version.Info())
-	log.Infoln("Build context", version.BuildContext())
-	log.Infof("Accepting StatsD Traffic: UDP %v, TCP %v, Unixgram %v", *statsdListenUDP, *statsdListenTCP, *statsdListenUnixgram)
-	log.Infoln("Accepting Prometheus Requests on", *listenAddress)
+	level.Info(logger).Log("msg", "Starting StatsD -> Prometheus Exporter", "version", version.Info())
+	level.Info(logger).Log("msg", "Build context", "context", version.BuildContext())
+	level.Info(logger).Log("msg", "Accepting StatsD Traffic", "udp", *statsdListenUDP, "tcp", *statsdListenTCP, "unixgram", *statsdListenUnixgram)
+	level.Info(logger).Log("msg", "Accepting Prometheus Requests", "addr", *listenAddress)
 
-	go serveHTTP(*listenAddress, *metricsEndpoint)
+	go serveHTTP(*listenAddress, *metricsEndpoint, logger)
 
 	events := make(chan Events, *eventQueueSize)
 	defer close(events)
 	eventQueue := newEventQueue(events, *eventFlushThreshold, *eventFlushInterval)
 
 	if *statsdListenUDP != "" {
-		udpListenAddr := udpAddrFromString(*statsdListenUDP)
+		udpListenAddr, err := udpAddrFromString(*statsdListenUDP)
+		if err != nil {
+			level.Error(logger).Log("msg", "invalid UDP listen address", "address", *statsdListenUDP, "error", err)
+			os.Exit(1)
+		}
 		uconn, err := net.ListenUDP("udp", udpListenAddr)
 		if err != nil {
-			log.Fatal(err)
+			level.Error(logger).Log("msg", "failed to start UDP listener", "error", err)
+			os.Exit(1)
 		}
 
 		if *readBuffer != 0 {
 			err = uconn.SetReadBuffer(*readBuffer)
 			if err != nil {
-				log.Fatal("Error setting UDP read buffer:", err)
+				level.Error(logger).Log("msg", "error setting UDP read buffer", "error", err)
+				os.Exit(1)
 			}
 		}
 
@@ -183,28 +203,35 @@ func main() {
 	}
 
 	if *statsdListenTCP != "" {
-		tcpListenAddr := tcpAddrFromString(*statsdListenTCP)
+		tcpListenAddr, err := tcpAddrFromString(*statsdListenTCP)
+		if err != nil {
+			level.Error(logger).Log("msg", "invalid TCP listen address", "address", *statsdListenUDP, "error", err)
+			os.Exit(1)
+		}
 		tconn, err := net.ListenTCP("tcp", tcpListenAddr)
 		if err != nil {
-			log.Fatal(err)
+			level.Error(logger).Log("msg", err)
+			os.Exit(1)
 		}
 		defer tconn.Close()
 
-		tl := &StatsDTCPListener{conn: tconn, eventHandler: eventQueue}
+		tl := &StatsDTCPListener{conn: tconn, eventHandler: eventQueue, logger: logger}
 		go tl.Listen()
 	}
 
 	if *statsdListenUnixgram != "" {
 		var err error
 		if _, err = os.Stat(*statsdListenUnixgram); !os.IsNotExist(err) {
-			log.Fatalf("Unixgram socket \"%s\" already exists", *statsdListenUnixgram)
+			level.Error(logger).Log("msg", "Unixgram socket already exists", "socket_name", *statsdListenUnixgram)
+			os.Exit(1)
 		}
 		uxgconn, err := net.ListenUnixgram("unixgram", &net.UnixAddr{
 			Net:  "unixgram",
 			Name: *statsdListenUnixgram,
 		})
 		if err != nil {
-			log.Fatal(err)
+			level.Error(logger).Log("msg", "failed to listen on Unixgram socket", "error", err)
+			os.Exit(1)
 		}
 
 		defer uxgconn.Close()
@@ -212,11 +239,12 @@ func main() {
 		if *readBuffer != 0 {
 			err = uxgconn.SetReadBuffer(*readBuffer)
 			if err != nil {
-				log.Fatal("Error setting Unixgram read buffer:", err)
+				level.Error(logger).Log("msg", "error setting Unixgram read buffer", "error", err)
+				os.Exit(1)
 			}
 		}
 
-		ul := &StatsDUnixgramListener{conn: uxgconn, eventHandler: eventQueue}
+		ul := &StatsDUnixgramListener{conn: uxgconn, eventHandler: eventQueue, logger: logger}
 		go ul.Listen()
 
 		// if it's an abstract unix domain socket, it won't exist on fs
@@ -227,11 +255,11 @@ func main() {
 			// convert the string to octet
 			perm, err := strconv.ParseInt("0"+string(*statsdUnixSocketMode), 8, 32)
 			if err != nil {
-				log.Warnf("Bad permission %s: %v, ignoring\n", *statsdUnixSocketMode, err)
+				level.Warn(logger).Log("Bad permission %s: %v, ignoring\n", *statsdUnixSocketMode, err)
 			} else {
 				err = os.Chmod(*statsdListenUnixgram, os.FileMode(perm))
 				if err != nil {
-					log.Warnf("Failed to change unixgram socket permission: %v", err)
+					level.Warn(logger).Log("Failed to change unixgram socket permission: %v", err)
 				}
 			}
 		}
@@ -242,21 +270,25 @@ func main() {
 	if *mappingConfig != "" {
 		err := mapper.InitFromFile(*mappingConfig, *cacheSize)
 		if err != nil {
-			log.Fatal("Error loading config:", err)
+			level.Error(logger).Log("msg", "error loading config", "error", err)
+			os.Exit(1)
 		}
 		if *dumpFSMPath != "" {
-			err := dumpFSM(mapper, *dumpFSMPath)
+			err := dumpFSM(mapper, *dumpFSMPath, logger)
 			if err != nil {
-				log.Fatal("Error dumping FSM:", err)
+				level.Error(logger).Log("msg", "error dumping FSM", "error", err)
+				// Failure to dump the FSM is an error (the user asked for it and it
+				// didn't happen) but not fatal (the exporter is fully functional
+				// afterwards).
 			}
 		}
 	} else {
 		mapper.InitCache(*cacheSize)
 	}
 
-	go configReloader(*mappingConfig, mapper, *cacheSize)
+	go configReloader(*mappingConfig, mapper, *cacheSize, logger)
 
-	exporter := NewExporter(mapper)
+	exporter := NewExporter(mapper, logger)
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
