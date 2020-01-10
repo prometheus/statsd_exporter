@@ -1,3 +1,10 @@
+## 0.14.0 / unreleased
+
+* [ENHANCEMENT] Add metrics for mapping cache hits ([#280](https://github.com/prometheus/statsd_exporter/pull/280))
+* [CHANGE] Rename existing metric for mapping cache size ([#282](https://github.com/prometheus/statsd_exporter/pull/282))
+
+The metric `statsd_exporter_cache_length` is now called `mapping_cache_length`.
+
 ## 0.13.0 / 2019-12-06
 
 * [ENHANCEMENT] Support sampling factors for all statsd metric types ([#264](https://github.com/prometheus/statsd_exporter/issues/250))
