@@ -21,20 +21,20 @@ import (
 var (
 	cacheLength = prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "mapping_cache_length",
+			Name: "statsd_metric_mapper_cache_length",
 			Help: "The count of unique metrics currently cached.",
 		},
 	)
 	cacheGetsTotal = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "mapping_cache_gets_total",
-			Help: "The count of total cache gets.",
+			Name: "statsd_metric_mapper_cache_gets_total",
+			Help: "The count of total metric cache gets.",
 		},
 	)
 	cacheHitsTotal = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "mapping_cache_hits_total",
-			Help: "The count of total cache hits.",
+			Name: "statsd_metric_mapper_cache_hits_total",
+			Help: "The count of total metric cache hits.",
 		},
 	)
 )
