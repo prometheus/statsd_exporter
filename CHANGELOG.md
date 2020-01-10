@@ -1,7 +1,10 @@
 ## 0.14.0 / unreleased
 
+* [CHANGE] Switch logging to go-kit ([#283](https://github.com/prometheus/statsd_exporter/pull/283))
+* [CHANGE] Rename existing metric for mapping cache size ([#284](https://github.com/prometheus/statsd_exporter/pull/284))
 * [ENHANCEMENT] Add metrics for mapping cache hits ([#280](https://github.com/prometheus/statsd_exporter/pull/280))
-* [CHANGE] Rename existing metric for mapping cache size ([#282](https://github.com/prometheus/statsd_exporter/pull/282), [#284](https://github.com/prometheus/statsd_exporter/pull/284))
+
+Logs are more structured now. The `fatal` log level no longer exists; use `--log.level=error` instead. The valid log formats are `logfmt` and `json`.
 
 The metric `statsd_exporter_cache_length` is now called `statsd_metric_mapper_cache_length`.
 
