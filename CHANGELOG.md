@@ -1,4 +1,4 @@
-## 0.14.0 / unreleased
+## 0.14.0 / 2020-01-10
 
 * [CHANGE] Switch logging to go-kit ([#283](https://github.com/prometheus/statsd_exporter/pull/283))
 * [CHANGE] Rename existing metric for mapping cache size ([#284](https://github.com/prometheus/statsd_exporter/pull/284))
