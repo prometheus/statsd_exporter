@@ -245,7 +245,8 @@ func (m *MetricMapper) GetMapping(statsdMetric string, statsdMetricType MetricTy
 	if m.doFSM {
 		finalState, captures := m.FSM.GetMapping(statsdMetric, string(statsdMetricType))
 		if finalState != nil && finalState.Result != nil {
-			result := finalState.Result.(*MetricMapping)
+			v := finalState.Result.(*MetricMapping)
+			result := copyMetricMapping(v)
 			result.Name = result.nameFormatter.Format(captures)
 
 			labels := prometheus.Labels{}
@@ -298,4 +299,12 @@ func (m *MetricMapper) GetMapping(statsdMetric string, statsdMetricType MetricTy
 
 	m.cache.AddMiss(statsdMetric, statsdMetricType)
 	return nil, nil, false
+}
+
+// make a shallow copy so that we do not overwrite name
+// as multiple names can be matched by same mapping
+func copyMetricMapping(in *MetricMapping) *MetricMapping {
+	var out MetricMapping
+	out = *in
+	return &out
 }
