@@ -198,7 +198,7 @@ func main() {
 			}
 		}
 
-		ul := &StatsDUDPListener{conn: uconn, eventHandler: eventQueue}
+		ul := &StatsDUDPListener{conn: uconn, eventHandler: eventQueue, logger: logger}
 		go ul.Listen()
 	}
 
