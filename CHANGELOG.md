@@ -1,3 +1,10 @@
+## 0.14.1 / 2010-01-13
+
+* [BUGFIX] Mapper cache poisoning when name is variable ([#286](https://github.com/prometheus/statsd_exporter/pull/286))
+* [BUGFIX] nil pointer dereference in UDP listener ([#287](https://github.com/prometheus/statsd_exporter/pull/287))
+
+Thank you to everyone who reported these, and @bakins for the mapper cache fix!
+
 ## 0.14.0 / 2020-01-10
 
 * [CHANGE] Switch logging to go-kit ([#283](https://github.com/prometheus/statsd_exporter/pull/283))
