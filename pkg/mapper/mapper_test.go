@@ -887,3 +887,56 @@ mappings:
 		}
 	}
 }
+
+// Test for https://github.com/prometheus/statsd_exporter/issues/273
+// Corrupt cache for multiple names matching in fsm
+func TestMultipleMatches(t *testing.T) {
+	config := `---
+mappings:
+- match: aa.bb.*.*
+  name: "aa_bb_${1}_total"
+  labels:
+  app: "$2"
+`
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(config, 0)
+	if err != nil {
+		t.Fatalf("config load error: %s ", err)
+	}
+
+	names := map[string]string{
+		"aa.bb.aa.myapp": "aa_bb_aa_total",
+		"aa.bb.bb.myapp": "aa_bb_bb_total",
+		"aa.bb.cc.myapp": "aa_bb_cc_total",
+		"aa.bb.dd.myapp": "aa_bb_dd_total",
+	}
+
+	scenarios := []struct {
+		cacheSize int
+	}{
+		{
+			cacheSize: 0,
+		},
+		{
+			cacheSize: len(names),
+		},
+	}
+
+	for i, scenario := range scenarios {
+		mapper.InitCache(scenario.cacheSize)
+
+		// run multiple times to ensure cache works as expected
+		for j := 0; j < 10; j++ {
+			for name, expected := range names {
+				m, _, ok := mapper.GetMapping(name, MetricTypeCounter)
+				if !ok {
+					t.Fatalf("%d:%d Did not find match for %s", i, j, name)
+				}
+				if m.Name != expected {
+					t.Fatalf("%d:%d Expected name %s, got %s", i, j, expected, m.Name)
+				}
+			}
+		}
+	}
+
+}
