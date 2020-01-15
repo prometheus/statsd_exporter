@@ -295,7 +295,7 @@ Another capability when using YAML configuration is the ability to define matche
 using raw regular expressions as opposed to the default globbing style of match.
 This may allow for pulling structured data from otherwise poorly named statsd
 metrics AND allow for more precise targetting of match rules. When no `match_type`
-paramter is specified the default value of `glob` will be assumed:
+parameter is specified the default value of `glob` will be assumed:
 
 ```yaml
 mappings:
