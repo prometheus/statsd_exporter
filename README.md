@@ -247,15 +247,16 @@ mappings:
     provider: "$2"
     outcome: "$3"
     job: "${1}_server"
-  quantiles:
-    - quantile: 0.99
-      error: 0.001
-    - quantile: 0.95
-      error: 0.01
-    - quantile: 0.9
-      error: 0.05
-    - quantile: 0.5
-      error: 0.005
+  summary_options:
+    quantiles:
+      - quantile: 0.99
+        error: 0.001
+      - quantile: 0.95
+        error: 0.01
+      - quantile: 0.9
+        error: 0.05
+      - quantile: 0.5
+        error: 0.005
 ```
 
 The default quantiles are 0.99, 0.9, and 0.5.
@@ -268,7 +269,8 @@ to set the timer type for a single metric:
 mappings:
 - match: "test.timing.*.*.*"
   timer_type: histogram
-  buckets: [ 0.01, 0.025, 0.05, 0.1 ]
+  histogram_options:
+    buckets: [ 0.01, 0.025, 0.05, 0.1 ]
   name: "my_timer"
   labels:
     provider: "$2"

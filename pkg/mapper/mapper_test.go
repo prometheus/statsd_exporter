@@ -496,6 +496,51 @@ mappings:
     `,
 			configBad: true,
 		},
+		// new style quantiles
+		{
+			config: `---
+mappings:
+- match: test.*.*
+  timer_type: summary
+  name: "foo"
+  labels: {}
+  summary_options:
+    quantiles:
+      - quantile: 0.42
+        error: 0.04
+      - quantile: 0.7
+        error: 0.002
+  `,
+			mappings: mappings{
+				{
+					statsdMetric: "test.*.*",
+					name:         "foo",
+					labels:       map[string]string{},
+					quantiles: []metricObjective{
+						{Quantile: 0.42, Error: 0.04},
+						{Quantile: 0.7, Error: 0.002},
+					},
+				},
+			},
+		},
+		// duplicate quantiles are bad
+		{
+			config: `---
+mappings:
+- match: test.*.*
+  timer_type: summary
+  name: "foo"
+  labels: {}
+  quantiles:
+    - quantile: 0.42
+      error: 0.04
+  summary_options:
+    quantiles:
+      - quantile: 0.42
+        error: 0.04
+  `,
+			configBad: true,
+		},
 		// Config with good metric type.
 		{
 			config: `---
@@ -777,15 +822,15 @@ mappings:
 			}
 
 			if len(mapping.quantiles) != 0 {
-				if len(mapping.quantiles) != len(m.Quantiles) {
-					t.Fatalf("%d.%q: Expected %d quantiles, got %d", i, metric, len(mapping.quantiles), len(m.Quantiles))
+				if len(mapping.quantiles) != len(m.SummaryOptions.Quantiles) {
+					t.Fatalf("%d.%q: Expected %d quantiles, got %d", i, metric, len(mapping.quantiles), len(m.SummaryOptions.Quantiles))
 				}
 				for i, quantile := range mapping.quantiles {
-					if quantile.Quantile != m.Quantiles[i].Quantile {
-						t.Fatalf("%d.%q: Expected quantile %v, got %v", i, metric, m.Quantiles[i].Quantile, quantile.Quantile)
+					if quantile.Quantile != m.SummaryOptions.Quantiles[i].Quantile {
+						t.Fatalf("%d.%q: Expected quantile %v, got %v", i, metric, m.SummaryOptions.Quantiles[i].Quantile, quantile.Quantile)
 					}
-					if quantile.Error != m.Quantiles[i].Error {
-						t.Fatalf("%d.%q: Expected Error margin %v, got %v", i, metric, m.Quantiles[i].Error, quantile.Error)
+					if quantile.Error != m.SummaryOptions.Quantiles[i].Error {
+						t.Fatalf("%d.%q: Expected Error margin %v, got %v", i, metric, m.SummaryOptions.Quantiles[i].Error, quantile.Error)
 					}
 				}
 			}
