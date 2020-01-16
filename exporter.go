@@ -54,61 +54,6 @@ type Exporter struct {
 	logger   log.Logger
 }
 
-// Replace invalid characters in the metric name with "_"
-// Valid characters are a-z, A-Z, 0-9, and _
-func escapeMetricName(metricName string) string {
-	metricLen := len(metricName)
-	if metricLen == 0 {
-		return ""
-	}
-
-	escaped := false
-	var sb strings.Builder
-	// If a metric starts with a digit, allocate the memory and prepend an
-	// underscore.
-	if metricName[0] >= '0' && metricName[0] <= '9' {
-		escaped = true
-		sb.Grow(metricLen + 1)
-		sb.WriteByte('_')
-	}
-
-	// This is an character replacement method optimized for this limited
-	// use case.  It is much faster than using a regex.
-	offset := 0
-	for i, c := range metricName {
-		// Seek forward, skipping valid characters until we find one that needs
-		// to be replaced, then add all the characters we've seen so far to the
-		// string.Builder.
-		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-			(c >= '0' && c <= '9') || (c == '_') {
-			// Character is valid, so skip over it without doing anything.
-		} else {
-			if !escaped {
-				// Up until now we've been lazy and avoided actually allocating
-				// memory.  Unfortunately we've now determined this string needs
-				// escaping, so allocate the buffer for the whole string.
-				escaped = true
-				sb.Grow(metricLen)
-			}
-			sb.WriteString(metricName[offset:i])
-			offset = i + utf8.RuneLen(c)
-			sb.WriteByte('_')
-		}
-	}
-
-	if !escaped {
-		// This is the happy path where nothing had to be escaped, so we can
-		// avoid doing anything.
-		return metricName
-	}
-
-	if offset < metricLen {
-		sb.WriteString(metricName[offset:])
-	}
-
-	return sb.String()
-}
-
 // Listen handles all events sent to the given channel sequentially. It
 // terminates when the channel is closed.
 func (b *Exporter) Listen(e <-chan Events) {
@@ -159,14 +104,14 @@ func (b *Exporter) handleEvent(event Event) {
 			errorEventStats.WithLabelValues("empty_metric_name").Inc()
 			return
 		}
-		metricName = escapeMetricName(mapping.Name)
+		metricName = mapper.EscapeMetricName(mapping.Name)
 		for label, value := range labels {
 			prometheusLabels[label] = value
 		}
 		eventsActions.WithLabelValues(string(mapping.Action)).Inc()
 	} else {
 		eventsUnmapped.Inc()
-		metricName = escapeMetricName(event.MetricName())
+		metricName = mapper.EscapeMetricName(event.MetricName())
 	}
 
 	switch ev := event.(type) {
@@ -298,7 +243,7 @@ func parseTag(component, tag string, separator rune, labels map[string]string, l
 				tagErrors.Inc()
 				level.Debug(logger).Log("msg", "Malformed name tag", "k", k, "v", v, "component", component)
 			} else {
-				labels[escapeMetricName(k)] = v
+				labels[mapper.EscapeMetricName(k)] = v
 			}
 			return
 		}
