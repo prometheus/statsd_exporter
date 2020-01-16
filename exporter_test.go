@@ -682,25 +682,6 @@ func (ml *mockStatsDTCPListener) handlePacket(packet []byte) {
 	ml.handleConn(sc)
 }
 
-func TestEscapeMetricName(t *testing.T) {
-	scenarios := map[string]string{
-		"clean":                   "clean",
-		"0starts_with_digit":      "_0starts_with_digit",
-		"with_underscore":         "with_underscore",
-		"with.dot":                "with_dot",
-		"with😱emoji":              "with_emoji",
-		"with.*.multiple":         "with___multiple",
-		"test.web-server.foo.bar": "test_web_server_foo_bar",
-		"":                        "",
-	}
-
-	for in, want := range scenarios {
-		if got := escapeMetricName(in); want != got {
-			t.Errorf("expected `%s` to be escaped to `%s`, got `%s`", in, want, got)
-		}
-	}
-}
-
 // TestTtlExpiration validates expiration of time series.
 // foobar metric without mapping should expire with default ttl of 1s
 // bazqux metric should expire with ttl of 2s
@@ -920,27 +901,6 @@ func getTelemetryCounterValue(counter prometheus.Counter) float64 {
 		return 0.0
 	}
 	return metric.Counter.GetValue()
-}
-
-func BenchmarkEscapeMetricName(b *testing.B) {
-	scenarios := []string{
-		"clean",
-		"0starts_with_digit",
-		"with_underscore",
-		"with.dot",
-		"with😱emoji",
-		"with.*.multiple",
-		"test.web-server.foo.bar",
-		"",
-	}
-
-	for _, s := range scenarios {
-		b.Run(s, func(b *testing.B) {
-			for n := 0; n < b.N; n++ {
-				escapeMetricName(s)
-			}
-		})
-	}
 }
 
 func BenchmarkParseDogStatsDTags(b *testing.B) {
