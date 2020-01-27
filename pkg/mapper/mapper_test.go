@@ -26,6 +26,9 @@ type mappings []struct {
 	notPresent   bool
 	ttl          time.Duration
 	metricType   MetricType
+	maxAge       time.Duration
+	ageBuckets   uint32
+	bufCap       uint32
 }
 
 func TestMetricMapperYAML(t *testing.T) {
@@ -523,6 +526,39 @@ mappings:
 				},
 			},
 		},
+		// Config with summary configuration.
+		{
+			config: `---
+mappings:
+- match: test.*.*
+  timer_type: summary
+  name: "foo"
+  labels: {}
+  summary_options:
+    quantiles:
+      - quantile: 0.42
+        error: 0.04
+      - quantile: 0.7
+        error: 0.002
+    max_age: 5m
+    age_buckets: 2
+    buf_cap: 1000
+  `,
+			mappings: mappings{
+				{
+					statsdMetric: "test.*.*",
+					name:         "foo",
+					labels:       map[string]string{},
+					quantiles: []metricObjective{
+						{Quantile: 0.42, Error: 0.04},
+						{Quantile: 0.7, Error: 0.002},
+					},
+					maxAge:     5 * time.Minute,
+					ageBuckets: 2,
+					bufCap:     1000,
+				},
+			},
+		},
 		// duplicate quantiles are bad
 		{
 			config: `---
@@ -833,6 +869,15 @@ mappings:
 						t.Fatalf("%d.%q: Expected Error margin %v, got %v", i, metric, m.SummaryOptions.Quantiles[i].Error, quantile.Error)
 					}
 				}
+			}
+			if mapping.maxAge != 0 && mapping.maxAge != m.SummaryOptions.MaxAge {
+				t.Fatalf("%d.%q: Expected max age %v, got %v", i, metric, mapping.maxAge, m.SummaryOptions.MaxAge)
+			}
+			if mapping.ageBuckets != 0 && mapping.ageBuckets != m.SummaryOptions.AgeBuckets {
+				t.Fatalf("%d.%q: Expected max age %v, got %v", i, metric, mapping.ageBuckets, m.SummaryOptions.AgeBuckets)
+			}
+			if mapping.bufCap != 0 && mapping.bufCap != m.SummaryOptions.BufCap {
+				t.Fatalf("%d.%q: Expected max age %v, got %v", i, metric, mapping.bufCap, m.SummaryOptions.BufCap)
 			}
 		}
 	}

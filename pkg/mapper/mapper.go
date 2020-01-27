@@ -77,7 +77,10 @@ type MetricMapping struct {
 }
 
 type SummaryOptions struct {
-	Quantiles []metricObjective `yaml:"quantiles"`
+	Quantiles  []metricObjective `yaml:"quantiles"`
+	MaxAge     time.Duration     `yaml:"max_age"`
+	AgeBuckets uint32            `yaml:"age_buckets"`
+	BufCap     uint32            `yaml:"buf_cap"`
 }
 
 type HistogramOptions struct {
@@ -226,10 +229,6 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int) er
 			if currentMapping.SummaryOptions == nil {
 				currentMapping.SummaryOptions = &SummaryOptions{}
 			}
-		}
-
-		if currentMapping.LegacyQuantiles == nil || len(currentMapping.LegacyQuantiles) == 0 {
-			currentMapping.LegacyQuantiles = n.Defaults.Quantiles
 			if currentMapping.LegacyQuantiles != nil && len(currentMapping.LegacyQuantiles) != 0 {
 				currentMapping.SummaryOptions.Quantiles = currentMapping.LegacyQuantiles
 			}

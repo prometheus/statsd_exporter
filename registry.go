@@ -344,6 +344,9 @@ func (r *registry) getSummary(metricName string, labels prometheus.Labels, help 
 			Name:       metricName,
 			Help:       help,
 			Objectives: objectives,
+			MaxAge:     summaryOptions.MaxAge,
+			AgeBuckets: summaryOptions.AgeBuckets,
+			BufCap:     summaryOptions.BufCap,
 		}, labelNames)
 
 		if err := prometheus.Register(uncheckedCollector{summaryVec}); err != nil {
