@@ -35,17 +35,17 @@ var (
 	labelNameRE  = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]+$`)
 )
 
-type mapperConfigDefaults struct {
+type MapperConfigDefaults struct {
 	TimerType           TimerType         `yaml:"timer_type"`
 	Buckets             []float64         `yaml:"buckets"`
-	Quantiles           []metricObjective `yaml:"quantiles"`
+	Quantiles           []MetricObjective `yaml:"quantiles"`
 	MatchType           MatchType         `yaml:"match_type"`
 	GlobDisableOrdering bool              `yaml:"glob_disable_ordering"`
 	Ttl                 time.Duration     `yaml:"ttl"`
 }
 
 type MetricMapper struct {
-	Defaults mapperConfigDefaults `yaml:"defaults"`
+	Defaults MapperConfigDefaults `yaml:"defaults"`
 	Mappings []MetricMapping      `yaml:"mappings"`
 	FSM      *fsm.FSM
 	doFSM    bool
@@ -66,7 +66,7 @@ type MetricMapping struct {
 	labelFormatters []*fsm.TemplateFormatter
 	TimerType       TimerType         `yaml:"timer_type"`
 	Buckets         []float64         `yaml:"buckets"`
-	Quantiles       []metricObjective `yaml:"quantiles"`
+	Quantiles       []MetricObjective `yaml:"quantiles"`
 	MatchType       MatchType         `yaml:"match_type"`
 	HelpText        string            `yaml:"help"`
 	Action          ActionType        `yaml:"action"`
@@ -74,12 +74,12 @@ type MetricMapping struct {
 	Ttl             time.Duration     `yaml:"ttl"`
 }
 
-type metricObjective struct {
+type MetricObjective struct {
 	Quantile float64 `yaml:"quantile"`
 	Error    float64 `yaml:"error"`
 }
 
-var defaultQuantiles = []metricObjective{
+var defaultQuantiles = []MetricObjective{
 	{Quantile: 0.5, Error: 0.05},
 	{Quantile: 0.9, Error: 0.01},
 	{Quantile: 0.99, Error: 0.001},

@@ -16,6 +16,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/prometheus/statsd_exporter/pkg/telemetry"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -115,10 +116,10 @@ func configReloader(fileName string, mapper *mapper.MetricMapper, cacheSize int,
 		err := mapper.InitFromFile(fileName, cacheSize)
 		if err != nil {
 			level.Info(logger).Log("msg", "Error reloading config", "error", err)
-			configLoads.WithLabelValues("failure").Inc()
+			telemetry.ConfigLoads.WithLabelValues("failure").Inc()
 		} else {
 			level.Info(logger).Log("msg", "Config reloaded successfully")
-			configLoads.WithLabelValues("success").Inc()
+			telemetry.ConfigLoads.WithLabelValues("success").Inc()
 		}
 	}
 }
@@ -266,7 +267,7 @@ func main() {
 
 	}
 
-	mapper := &mapper.MetricMapper{MappingsCount: mappingsCount}
+	mapper := &mapper.MetricMapper{MappingsCount: telemetry.MappingsCount}
 	if *mappingConfig != "" {
 		err := mapper.InitFromFile(*mappingConfig, *cacheSize)
 		if err != nil {

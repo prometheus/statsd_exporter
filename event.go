@@ -14,6 +14,7 @@
 package main
 
 import (
+	"github.com/prometheus/statsd_exporter/pkg/telemetry"
 	"sync"
 	"time"
 
@@ -114,7 +115,7 @@ func (eq *eventQueue) flush() {
 func (eq *eventQueue) flushUnlocked() {
 	eq.c <- eq.q
 	eq.q = make([]Event, 0, cap(eq.q))
-	eventsFlushed.Inc()
+	telemetry.EventsFlushed.Inc()
 }
 
 func (eq *eventQueue) len() int {

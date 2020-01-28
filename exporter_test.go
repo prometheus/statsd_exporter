@@ -15,6 +15,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/prometheus/statsd_exporter/pkg/telemetry"
 	"net"
 	"testing"
 	"time"
@@ -53,7 +54,7 @@ func TestNegativeCounter(t *testing.T) {
 		close(events)
 	}()
 
-	errorCounter := errorEventStats.WithLabelValues("illegal_negative_counter")
+	errorCounter := telemetry.ErrorEventStats.WithLabelValues("illegal_negative_counter")
 	prev := getTelemetryCounterValue(errorCounter)
 
 	testMapper := mapper.MetricMapper{}
@@ -465,7 +466,7 @@ mappings:
 		t.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	errorCounter := errorEventStats.WithLabelValues("empty_metric_name")
+	errorCounter := telemetry.ErrorEventStats.WithLabelValues("empty_metric_name")
 	prev := getTelemetryCounterValue(errorCounter)
 
 	ex := NewExporter(testMapper, log.NewNopLogger())
@@ -796,37 +797,6 @@ mappings:
 	}
 }
 
-func TestHashLabelNames(t *testing.T) {
-	r := newRegistry(nil)
-	// Validate value hash changes and name has doesn't when just the value changes.
-	hash1, _ := r.hashLabels(map[string]string{
-		"label": "value1",
-	})
-	hash2, _ := r.hashLabels(map[string]string{
-		"label": "value2",
-	})
-	if hash1.names != hash2.names {
-		t.Fatal("Hash of label names should match, but doesn't")
-	}
-	if hash1.values == hash2.values {
-		t.Fatal("Hash of label names shouldn't match, but do")
-	}
-
-	// Validate value and name hashes change when the name changes.
-	hash1, _ = r.hashLabels(map[string]string{
-		"label1": "value",
-	})
-	hash2, _ = r.hashLabels(map[string]string{
-		"label2": "value",
-	})
-	if hash1.names == hash2.names {
-		t.Fatal("Hash of label names shouldn't match, but do")
-	}
-	if hash1.values == hash2.values {
-		t.Fatal("Hash of label names shouldn't match, but do")
-	}
-}
-
 // getFloat64 search for metric by name in array of MetricFamily and then search a value by labels.
 // Method returns a value or nil if metric is not found.
 func getFloat64(metrics []*dto.MetricFamily, name string, labels prometheus.Labels) *float64 {
@@ -917,47 +887,6 @@ func BenchmarkParseDogStatsDTags(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				labels := map[string]string{}
 				parseDogStatsDTags(tags, labels, log.NewNopLogger())
-			}
-		})
-	}
-}
-
-func BenchmarkHashNameAndLabels(b *testing.B) {
-	scenarios := []struct {
-		name   string
-		metric string
-		labels map[string]string
-	}{
-		{
-			name:   "no labels",
-			labels: map[string]string{},
-		}, {
-			name: "one label",
-			labels: map[string]string{
-				"label": "value",
-			},
-		}, {
-			name: "many labels",
-			labels: map[string]string{
-				"label0": "value",
-				"label1": "value",
-				"label2": "value",
-				"label3": "value",
-				"label4": "value",
-				"label5": "value",
-				"label6": "value",
-				"label7": "value",
-				"label8": "value",
-				"label9": "value",
-			},
-		},
-	}
-
-	r := newRegistry(nil)
-	for _, s := range scenarios {
-		b.Run(s.name, func(b *testing.B) {
-			for n := 0; n < b.N; n++ {
-				r.hashLabels(s.labels)
 			}
 		})
 	}

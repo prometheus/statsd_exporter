@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package expiringregistry
 
 import (
 	"bytes"
@@ -19,6 +19,7 @@ import (
 	"hash"
 	"hash/fnv"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -27,8 +28,20 @@ import (
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
 
+// uncheckedCollector wraps a Collector but its Describe method yields no Desc.
+// This allows incoming metrics to have inconsistent label sets
+type uncheckedCollector struct {
+	c prometheus.Collector
+}
+
+func (u uncheckedCollector) Describe(_ chan<- *prometheus.Desc) {}
+func (u uncheckedCollector) Collect(c chan<- prometheus.Metric) {
+	u.c.Collect(c)
+}
+
 type metricType int
 
+// metricType enums
 const (
 	CounterMetricType metricType = iota
 	GaugeMetricType
@@ -72,25 +85,40 @@ type metric struct {
 	metrics map[valueHash]*registeredMetric
 }
 
-type registry struct {
+// Registry is an expiring metric registry
+type Registry struct {
+	mtx     sync.RWMutex
 	metrics map[string]metric
-	mapper  *mapper.MetricMapper
 	// The below value and label variables are allocated in the registry struct
 	// so that we don't have to allocate them every time have to compute a label
 	// hash.
+	defaults          *mapper.MapperConfigDefaults
+	metricsCount      *prometheus.GaugeVec // the prometheus gaugevec to add metric counts to
 	valueBuf, nameBuf bytes.Buffer
 	hasher            hash.Hash64
 }
 
-func newRegistry(mapper *mapper.MetricMapper) *registry {
-	return &registry{
-		metrics: make(map[string]metric),
-		mapper:  mapper,
-		hasher:  fnv.New64a(),
+// NewRegistry returns a new expiring registry. Pass nil for metricsCount to use the default metric name for counts
+func NewRegistry(defaults *mapper.MapperConfigDefaults, metricsCount *prometheus.GaugeVec) *Registry {
+	if metricsCount == nil {
+		metricsCount = prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "expiring_registry_metrics_total",
+				Help: "The total number of metrics.",
+			},
+			[]string{"type"})
+	}
+	return &Registry{
+		metrics:      make(map[string]metric),
+		metricsCount: metricsCount,
+		defaults:     defaults,
+		hasher:       fnv.New64a(),
 	}
 }
 
-func (r *registry) metricConflicts(metricName string, metricType metricType) bool {
+func (r *Registry) metricConflicts(metricName string, metricType metricType) bool {
+	r.mtx.RLock()
+	defer r.mtx.RUnlock()
 	vector, hasMetric := r.metrics[metricName]
 	if !hasMetric {
 		// No metric with this name exists
@@ -108,23 +136,29 @@ func (r *registry) metricConflicts(metricName string, metricType metricType) boo
 	return true
 }
 
-func (r *registry) storeCounter(metricName string, hash labelHash, labels prometheus.Labels, vec *prometheus.CounterVec, c prometheus.Counter, ttl time.Duration) {
+// storeCounter stores a counter with a ttl
+func (r *Registry) storeCounter(metricName string, hash labelHash, labels prometheus.Labels, vec *prometheus.CounterVec, c prometheus.Counter, ttl time.Duration) {
 	r.store(metricName, hash, labels, vec, c, CounterMetricType, ttl)
 }
 
-func (r *registry) storeGauge(metricName string, hash labelHash, labels prometheus.Labels, vec *prometheus.GaugeVec, g prometheus.Counter, ttl time.Duration) {
+// storeGauge stores a gauge with a ttl
+func (r *Registry) storeGauge(metricName string, hash labelHash, labels prometheus.Labels, vec *prometheus.GaugeVec, g prometheus.Counter, ttl time.Duration) {
 	r.store(metricName, hash, labels, vec, g, GaugeMetricType, ttl)
 }
 
-func (r *registry) storeHistogram(metricName string, hash labelHash, labels prometheus.Labels, vec *prometheus.HistogramVec, o prometheus.Observer, ttl time.Duration) {
+// storeHistogram stores a histogram with a ttl
+func (r *Registry) storeHistogram(metricName string, hash labelHash, labels prometheus.Labels, vec *prometheus.HistogramVec, o prometheus.Observer, ttl time.Duration) {
 	r.store(metricName, hash, labels, vec, o, HistogramMetricType, ttl)
 }
 
-func (r *registry) storeSummary(metricName string, hash labelHash, labels prometheus.Labels, vec *prometheus.SummaryVec, o prometheus.Observer, ttl time.Duration) {
+// storeSummary stores a summary with a ttl
+func (r *Registry) storeSummary(metricName string, hash labelHash, labels prometheus.Labels, vec *prometheus.SummaryVec, o prometheus.Observer, ttl time.Duration) {
 	r.store(metricName, hash, labels, vec, o, SummaryMetricType, ttl)
 }
 
-func (r *registry) store(metricName string, hash labelHash, labels prometheus.Labels, vh vectorHolder, mh metricHolder, metricType metricType, ttl time.Duration) {
+func (r *Registry) store(metricName string, hash labelHash, labels prometheus.Labels, vh vectorHolder, mh metricHolder, metricType metricType, ttl time.Duration) {
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
 	metric, hasMetric := r.metrics[metricName]
 	if !hasMetric {
 		metric.metricType = metricType
@@ -157,7 +191,9 @@ func (r *registry) store(metricName string, hash labelHash, labels prometheus.La
 	rm.ttl = ttl
 }
 
-func (r *registry) get(metricName string, hash labelHash, metricType metricType) (vectorHolder, metricHolder) {
+func (r *Registry) get(metricName string, hash labelHash, metricType metricType) (vectorHolder, metricHolder) {
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
 	metric, hasMetric := r.metrics[metricName]
 
 	if !hasMetric {
@@ -182,7 +218,8 @@ func (r *registry) get(metricName string, hash labelHash, metricType metricType)
 	return nil, nil
 }
 
-func (r *registry) getCounter(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping) (prometheus.Counter, error) {
+// GetCounter gets a prometheus.Counter from the ttl registry, creating a new metric if none exist, and updating the last accessed time
+func (r *Registry) GetCounter(metricName string, labels prometheus.Labels, help string, ttl time.Duration) (prometheus.Counter, error) {
 	hash, labelNames := r.hashLabels(labels)
 	vh, mh := r.get(metricName, hash, CounterMetricType)
 	if mh != nil {
@@ -195,7 +232,7 @@ func (r *registry) getCounter(metricName string, labels prometheus.Labels, help 
 
 	var counterVec *prometheus.CounterVec
 	if vh == nil {
-		metricsCount.WithLabelValues("counter").Inc()
+		r.metricsCount.WithLabelValues("counter").Inc()
 		counterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: metricName,
 			Help: help,
@@ -213,12 +250,13 @@ func (r *registry) getCounter(metricName string, labels prometheus.Labels, help 
 	if counter, err = counterVec.GetMetricWith(labels); err != nil {
 		return nil, err
 	}
-	r.storeCounter(metricName, hash, labels, counterVec, counter, mapping.Ttl)
+	r.storeCounter(metricName, hash, labels, counterVec, counter, ttl)
 
 	return counter, nil
 }
 
-func (r *registry) getGauge(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping) (prometheus.Gauge, error) {
+// GetGauge gets a prometheus.Gauge from the ttl registry
+func (r *Registry) GetGauge(metricName string, labels prometheus.Labels, help string, ttl time.Duration) (prometheus.Gauge, error) {
 	hash, labelNames := r.hashLabels(labels)
 	vh, mh := r.get(metricName, hash, GaugeMetricType)
 	if mh != nil {
@@ -231,7 +269,7 @@ func (r *registry) getGauge(metricName string, labels prometheus.Labels, help st
 
 	var gaugeVec *prometheus.GaugeVec
 	if vh == nil {
-		metricsCount.WithLabelValues("gauge").Inc()
+		r.metricsCount.WithLabelValues("gauge").Inc()
 		gaugeVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: metricName,
 			Help: help,
@@ -249,12 +287,13 @@ func (r *registry) getGauge(metricName string, labels prometheus.Labels, help st
 	if gauge, err = gaugeVec.GetMetricWith(labels); err != nil {
 		return nil, err
 	}
-	r.storeGauge(metricName, hash, labels, gaugeVec, gauge, mapping.Ttl)
+	r.storeGauge(metricName, hash, labels, gaugeVec, gauge, ttl)
 
 	return gauge, nil
 }
 
-func (r *registry) getHistogram(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping) (prometheus.Observer, error) {
+// GetHistogram gets a prometheus.Observer for a histogram from the ttl registry
+func (r *Registry) GetHistogram(metricName string, labels prometheus.Labels, help string, buckets []float64, ttl time.Duration) (prometheus.Observer, error) {
 	hash, labelNames := r.hashLabels(labels)
 	vh, mh := r.get(metricName, hash, HistogramMetricType)
 	if mh != nil {
@@ -276,10 +315,9 @@ func (r *registry) getHistogram(metricName string, labels prometheus.Labels, hel
 
 	var histogramVec *prometheus.HistogramVec
 	if vh == nil {
-		metricsCount.WithLabelValues("histogram").Inc()
-		buckets := r.mapper.Defaults.Buckets
-		if mapping.Buckets != nil && len(mapping.Buckets) > 0 {
-			buckets = mapping.Buckets
+		r.metricsCount.WithLabelValues("histogram").Inc()
+		if buckets == nil || len(buckets) == 0 {
+			buckets = r.defaults.Buckets
 		}
 		histogramVec = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Name:    metricName,
@@ -299,12 +337,13 @@ func (r *registry) getHistogram(metricName string, labels prometheus.Labels, hel
 	if observer, err = histogramVec.GetMetricWith(labels); err != nil {
 		return nil, err
 	}
-	r.storeHistogram(metricName, hash, labels, histogramVec, observer, mapping.Ttl)
+	r.storeHistogram(metricName, hash, labels, histogramVec, observer, ttl)
 
 	return observer, nil
 }
 
-func (r *registry) getSummary(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping) (prometheus.Observer, error) {
+// GetSummary gets a prometheus.Observer for a summary from the ttl registry
+func (r *Registry) GetSummary(metricName string, labels prometheus.Labels, help string, objectives []mapper.MetricObjective, ttl time.Duration) (prometheus.Observer, error) {
 	hash, labelNames := r.hashLabels(labels)
 	vh, mh := r.get(metricName, hash, SummaryMetricType)
 	if mh != nil {
@@ -323,16 +362,17 @@ func (r *registry) getSummary(metricName string, labels prometheus.Labels, help 
 
 	var summaryVec *prometheus.SummaryVec
 	if vh == nil {
-		metricsCount.WithLabelValues("summary").Inc()
-		quantiles := r.mapper.Defaults.Quantiles
-		if mapping != nil && mapping.Quantiles != nil && len(mapping.Quantiles) > 0 {
-			quantiles = mapping.Quantiles
+		r.metricsCount.WithLabelValues("summary").Inc()
+		// TODO: fix
+		newQuantiles := r.defaults.Quantiles
+		if objectives != nil && len(objectives) > 0 {
+			newQuantiles = objectives
 		}
 		objectives := make(map[float64]float64)
-		for _, q := range quantiles {
+		for _, q := range newQuantiles {
 			objectives[q.Quantile] = q.Error
 		}
-		// In the case of no mapping file, explicitly define the default quantiles
+		// In the case of no mapping file, explicitly define the default objectives
 		if len(objectives) == 0 {
 			objectives = map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001}
 		}
@@ -354,12 +394,15 @@ func (r *registry) getSummary(metricName string, labels prometheus.Labels, help 
 	if observer, err = summaryVec.GetMetricWith(labels); err != nil {
 		return nil, err
 	}
-	r.storeSummary(metricName, hash, labels, summaryVec, observer, mapping.Ttl)
+	r.storeSummary(metricName, hash, labels, summaryVec, observer, ttl)
 
 	return observer, nil
 }
 
-func (r *registry) removeStaleMetrics() {
+// RemoveStaleMetrics removes expired metrics
+func (r *Registry) RemoveStaleMetrics() {
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
 	now := clock.Now()
 	// delete timeseries with expired ttl
 	for _, metric := range r.metrics {
@@ -377,7 +420,9 @@ func (r *registry) removeStaleMetrics() {
 }
 
 // Calculates a hash of both the label names and the label names and values.
-func (r *registry) hashLabels(labels prometheus.Labels) (labelHash, []string) {
+func (r *Registry) hashLabels(labels prometheus.Labels) (labelHash, []string) {
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
 	r.hasher.Reset()
 	r.nameBuf.Reset()
 	r.valueBuf.Reset()
@@ -398,11 +443,11 @@ func (r *registry) hashLabels(labels prometheus.Labels) (labelHash, []string) {
 	}
 
 	lh := labelHash{}
-	r.hasher.Write(r.nameBuf.Bytes())
+	r.hasher.Write(r.nameBuf.Bytes()) // nolint
 	lh.names = nameHash(r.hasher.Sum64())
 
 	// Now add the values to the names we've already hashed.
-	r.hasher.Write(r.valueBuf.Bytes())
+	r.hasher.Write(r.valueBuf.Bytes()) // nolint
 	lh.values = valueHash(r.hasher.Sum64())
 
 	return lh, labelNames
