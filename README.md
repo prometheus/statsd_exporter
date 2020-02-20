@@ -236,7 +236,8 @@ mappings:
 
 By default, statsd timers are represented as a Prometheus summary with
 quantiles. You may optionally configure the [quantiles and acceptable
-error](https://prometheus.io/docs/practices/histograms/#quantiles):
+error](https://prometheus.io/docs/practices/histograms/#quantiles), as
+well as adjusting how the summary metric is aggregated:
 
 ```yaml
 mappings:
@@ -247,18 +248,28 @@ mappings:
     provider: "$2"
     outcome: "$3"
     job: "${1}_server"
-  quantiles:
-    - quantile: 0.99
-      error: 0.001
-    - quantile: 0.95
-      error: 0.01
-    - quantile: 0.9
-      error: 0.05
-    - quantile: 0.5
-      error: 0.005
+  summary_options:
+    quantiles:
+      - quantile: 0.99
+        error: 0.001
+      - quantile: 0.95
+        error: 0.01
+      - quantile: 0.9
+        error: 0.05
+      - quantile: 0.5
+        error: 0.005
+    max_summary_age: 30s
+    summary_age_buckets: 3
+    stream_buffer_size: 1000
 ```
 
 The default quantiles are 0.99, 0.9, and 0.5.
+
+The default summary age is 10 minutes, the default number of buckets
+is 5 and the default buffer size is 500.  See also the
+[`golang_client` docs](https://godoc.org/github.com/prometheus/client_golang/prometheus#SummaryOpts).
+The `max_summary_age` corresponds to `SummaryOptions.MaxAge`, `summary_age_buckets`
+to `SummaryOptions.AgeBuckets` and `stream_buffer_size` to `SummaryOptions.BufCap`.
 
 In the configuration, one may also set the timer type to "histogram". The
 default is "summary" as in the plain text configuration format.  For example,
@@ -268,7 +279,8 @@ to set the timer type for a single metric:
 mappings:
 - match: "test.timing.*.*.*"
   timer_type: histogram
-  buckets: [ 0.01, 0.025, 0.05, 0.1 ]
+  histogram_options:
+    buckets: [ 0.01, 0.025, 0.05, 0.1 ]
   name: "my_timer"
   labels:
     provider: "$2"

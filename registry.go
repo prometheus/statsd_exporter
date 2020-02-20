@@ -278,8 +278,8 @@ func (r *registry) getHistogram(metricName string, labels prometheus.Labels, hel
 	if vh == nil {
 		metricsCount.WithLabelValues("histogram").Inc()
 		buckets := r.mapper.Defaults.Buckets
-		if mapping.Buckets != nil && len(mapping.Buckets) > 0 {
-			buckets = mapping.Buckets
+		if mapping.HistogramOptions != nil && len(mapping.HistogramOptions.Buckets) > 0 {
+			buckets = mapping.HistogramOptions.Buckets
 		}
 		histogramVec = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Name:    metricName,
@@ -325,8 +325,12 @@ func (r *registry) getSummary(metricName string, labels prometheus.Labels, help 
 	if vh == nil {
 		metricsCount.WithLabelValues("summary").Inc()
 		quantiles := r.mapper.Defaults.Quantiles
-		if mapping != nil && mapping.Quantiles != nil && len(mapping.Quantiles) > 0 {
-			quantiles = mapping.Quantiles
+		if mapping != nil && mapping.SummaryOptions != nil && len(mapping.SummaryOptions.Quantiles) > 0 {
+			quantiles = mapping.SummaryOptions.Quantiles
+		}
+		summaryOptions := mapper.SummaryOptions{}
+		if mapping != nil && mapping.SummaryOptions != nil {
+			summaryOptions = *mapping.SummaryOptions
 		}
 		objectives := make(map[float64]float64)
 		for _, q := range quantiles {
@@ -340,6 +344,9 @@ func (r *registry) getSummary(metricName string, labels prometheus.Labels, help 
 			Name:       metricName,
 			Help:       help,
 			Objectives: objectives,
+			MaxAge:     summaryOptions.MaxAge,
+			AgeBuckets: summaryOptions.AgeBuckets,
+			BufCap:     summaryOptions.BufCap,
 		}, labelNames)
 
 		if err := prometheus.Register(uncheckedCollector{summaryVec}); err != nil {
