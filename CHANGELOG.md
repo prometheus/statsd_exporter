@@ -1,4 +1,68 @@
-## 0.14.1 / 2010-01-13
+## 0.15.0 / unreleased
+
+* [ENHANCEMENT] Allow setting granularity for summary metrics ([#290](https://github.com/prometheus/statsd_exporter/pull/290))
+
+To facilitate the expanded settings for summaries, the configuration format changes from
+
+```yaml
+mappings:
+- match: …
+  timer_type: summary
+  quantiles:
+    - quantile: 0.99
+      error: 0.001
+    - quantile: 0.95
+      error: 0.01
+  …
+```
+
+to
+
+```yaml
+mappings:
+- match: …
+  timer_type: summary
+  summary_options:
+    quantiles:
+      - quantile: 0.99
+        error: 0.001
+      - quantile: 0.95
+        error: 0.01
+      …
+    max_summary_age: 30s
+    summary_age_buckets: 3
+    stream_buffer_size: 1000
+  …
+```
+
+For consistency, the format for histogram buckets also changes from
+
+```yaml
+mappings:
+- match: …
+  timer_type: histogram
+  buckets: [ 0.01, 0.025, 0.05, 0.1 ]
+```
+
+to
+
+```yaml
+mappings:
+- match: …
+  timer_type: histogram
+  histogram_options:
+    buckets: [ 0.01, 0.025, 0.05, 0.1 ]
+```
+
+Transitionally, the old format will still work but is *deprecated*. The new
+settings are optional.
+
+For users of the [mapper](https://pkg.go.dev/github.com/prometheus/statsd_exporter/pkg/mapper?tab=doc)
+as a library, this is a breaking change. To adjust your code, replace
+`mapping.Buckets` with `mapping.HistogramOptions.Buckets` and
+`mapping.Quantiles` with `mapping.SummaryOptions.Quantiles`.
+
+## 0.14.1 / 2020-01-13
 
 * [BUGFIX] Mapper cache poisoning when name is variable ([#286](https://github.com/prometheus/statsd_exporter/pull/286))
 * [BUGFIX] nil pointer dereference in UDP listener ([#287](https://github.com/prometheus/statsd_exporter/pull/287))
