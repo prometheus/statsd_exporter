@@ -454,7 +454,7 @@ metrics that do not expire.
 
 ## Using Docker
 
-You can deploy this exporter using the [prom/statsd-exporter](https://registry.hub.docker.com/u/prom/statsd-exporter/) Docker image.
+You can deploy this exporter using the [prom/statsd-exporter](https://registry.hub.docker.com/r/prom/statsd-exporter) Docker image.
 
 For example:
 
