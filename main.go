@@ -101,7 +101,7 @@ func tcpAddrFromString(addr string) (*net.TCPAddr, error) {
 	}, nil
 }
 
-func configReloader(fileName string, mapper *mapper.MetricMapper, cacheSize int, logger log.Logger) {
+func configReloader(fileName string, mapper *mapper.MetricMapper, cacheSize int, logger log.Logger, option mapper.CacheOption) {
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGHUP)
@@ -112,7 +112,7 @@ func configReloader(fileName string, mapper *mapper.MetricMapper, cacheSize int,
 			continue
 		}
 		level.Info(logger).Log("msg", "Received signal, attempting reload", "signal", s)
-		err := mapper.InitFromFile(fileName, cacheSize)
+		err := mapper.InitFromFile(fileName, cacheSize, option)
 		if err != nil {
 			level.Info(logger).Log("msg", "Error reloading config", "error", err)
 			configLoads.WithLabelValues("failure").Inc()
@@ -149,6 +149,7 @@ func main() {
 		mappingConfig        = kingpin.Flag("statsd.mapping-config", "Metric mapping configuration file name.").String()
 		readBuffer           = kingpin.Flag("statsd.read-buffer", "Size (in bytes) of the operating system's transmit read buffer associated with the UDP or Unixgram connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.").Int()
 		cacheSize            = kingpin.Flag("statsd.cache-size", "Maximum size of your metric mapping cache. Relies on least recently used replacement policy if max size is reached.").Default("1000").Int()
+		cacheType            = kingpin.Flag("statsd.cache-type", "Metric mapping cache type. Valid options are \"lru\" and \"random\"").Default("lru").Enum("lru", "random")
 		eventQueueSize       = kingpin.Flag("statsd.event-queue-size", "Size of internal queue for processing events").Default("10000").Int()
 		eventFlushThreshold  = kingpin.Flag("statsd.event-flush-threshold", "Number of events to hold in queue before flushing").Default("1000").Int()
 		eventFlushInterval   = kingpin.Flag("statsd.event-flush-interval", "Number of events to hold in queue before flushing").Default("200ms").Duration()
@@ -161,6 +162,8 @@ func main() {
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 	logger := promlog.New(promlogConfig)
+
+	cacheOption := mapper.WithCacheType(*cacheType)
 
 	if *statsdListenUDP == "" && *statsdListenTCP == "" && *statsdListenUnixgram == "" {
 		level.Error(logger).Log("At least one of UDP/TCP/Unixgram listeners must be specified.")
@@ -268,7 +271,7 @@ func main() {
 
 	mapper := &mapper.MetricMapper{MappingsCount: mappingsCount}
 	if *mappingConfig != "" {
-		err := mapper.InitFromFile(*mappingConfig, *cacheSize)
+		err := mapper.InitFromFile(*mappingConfig, *cacheSize, cacheOption)
 		if err != nil {
 			level.Error(logger).Log("msg", "error loading config", "error", err)
 			os.Exit(1)
@@ -283,10 +286,10 @@ func main() {
 			}
 		}
 	} else {
-		mapper.InitCache(*cacheSize)
+		mapper.InitCache(*cacheSize, cacheOption)
 	}
 
-	go configReloader(*mappingConfig, mapper, *cacheSize, logger)
+	go configReloader(*mappingConfig, mapper, *cacheSize, logger, cacheOption)
 
 	exporter := NewExporter(mapper, logger)
 

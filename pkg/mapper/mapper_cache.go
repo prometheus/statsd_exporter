@@ -14,6 +14,8 @@
 package mapper
 
 import (
+	"sync"
+
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -38,6 +40,18 @@ var (
 		},
 	)
 )
+
+type cacheOptions struct {
+	cacheType string
+}
+
+type CacheOption func(*cacheOptions)
+
+func WithCacheType(cacheType string) CacheOption {
+	return func(o *cacheOptions) {
+		o.cacheType = cacheType
+	}
+}
 
 type MetricMapperCacheResult struct {
 	Mapping *MetricMapping
@@ -112,6 +126,69 @@ func (m *MetricMapperNoopCache) AddMatch(metricString string, metricType MetricT
 
 func (m *MetricMapperNoopCache) AddMiss(metricString string, metricType MetricType) {
 	return
+}
+
+type MetricMapperRRCache struct {
+	MetricMapperCache
+	lock  sync.RWMutex
+	size  int
+	items map[string]*MetricMapperCacheResult
+}
+
+func NewMetricMapperRRCache(size int) (*MetricMapperRRCache, error) {
+	cacheLength.Set(0)
+	c := &MetricMapperRRCache{
+		items: make(map[string]*MetricMapperCacheResult, size+1),
+		size:  size,
+	}
+	return c, nil
+}
+
+func (m *MetricMapperRRCache) Get(metricString string, metricType MetricType) (*MetricMapperCacheResult, bool) {
+	key := formatKey(metricString, metricType)
+
+	m.lock.RLock()
+	result, ok := m.items[key]
+	m.lock.RUnlock()
+
+	return result, ok
+}
+
+func (m *MetricMapperRRCache) addItem(metricString string, metricType MetricType, result *MetricMapperCacheResult) {
+	go m.trackCacheLength()
+
+	key := formatKey(metricString, metricType)
+
+	m.lock.Lock()
+
+	m.items[key] = result
+
+	// evict an item if needed
+	if len(m.items) > m.size {
+		for k := range m.items {
+			delete(m.items, k)
+			break
+		}
+	}
+
+	m.lock.Unlock()
+}
+
+func (m *MetricMapperRRCache) AddMatch(metricString string, metricType MetricType, mapping *MetricMapping, labels prometheus.Labels) {
+	e := &MetricMapperCacheResult{Mapping: mapping, Matched: true, Labels: labels}
+	m.addItem(metricString, metricType, e)
+}
+
+func (m *MetricMapperRRCache) AddMiss(metricString string, metricType MetricType) {
+	e := &MetricMapperCacheResult{Matched: false}
+	m.addItem(metricString, metricType, e)
+}
+
+func (m *MetricMapperRRCache) trackCacheLength() {
+	m.lock.RLock()
+	length := len(m.items)
+	m.lock.RUnlock()
+	cacheLength.Set(float64(length))
 }
 
 func init() {
