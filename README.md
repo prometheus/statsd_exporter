@@ -431,10 +431,11 @@ There is a cache used to improve the performance of the metric mapping, that can
 The cache has a default maximum of 1000 unique statsd metric names -> prometheus metrics mappings that it can store.
 This maximum can be adjust using the `statsd.cache-size` flag.
 
-If the maximum is reached, entries are rotated using the [least recently used replacement policy](https://en.wikipedia.org/wiki/Cache_replacement_policies#Least_recently_used_(LRU)).
+If the maximum is reached, entries are by default rotated using the [least recently used replacement policy](https://en.wikipedia.org/wiki/Cache_replacement_policies#Least_recently_used_(LRU)). This strategy is optimal when memory is constrained as only the most recent entries are retained.
 
-If you are using this exporter to reduce the cardinality of your data, a high maximum cache size can be a costly use of memory.
+Alternatively, you can choose a [random-replacement cache strategy](https://en.wikipedia.org/wiki/Cache_replacement_policies#Random_replacement_(RR)). This is less optimal if the cache is smaller than the cacheable set, but requires less locking. Use this for very high throughput, but make sure to allow for a cache that holds all metrics.
 
+The optimal cache size is determined by the cardinality of the _incoming_ metrics.
 
 ### Time series expiration
 
