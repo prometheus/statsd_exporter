@@ -1,4 +1,4 @@
-## 0.15.0 / unreleased
+## 0.15.0 / 2020-03-05
 
 * [ENHANCEMENT] Allow setting granularity for summary metrics ([#290](https://github.com/prometheus/statsd_exporter/pull/290))
 * [ENHANCEMENT] Support a random-replacement cache invalidation strategy ([#281](https://github.com/prometheus/statsd_exporter/pull/281)
