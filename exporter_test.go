@@ -24,7 +24,12 @@ import (
 	dto "github.com/prometheus/client_model/go"
 
 	"github.com/prometheus/statsd_exporter/pkg/clock"
+	"github.com/prometheus/statsd_exporter/pkg/event"
+	"github.com/prometheus/statsd_exporter/pkg/exporter"
+	"github.com/prometheus/statsd_exporter/pkg/line"
+	"github.com/prometheus/statsd_exporter/pkg/listener"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
+	"github.com/prometheus/statsd_exporter/pkg/registry"
 )
 
 // TestNegativeCounter validates when we send a negative
@@ -41,12 +46,12 @@ func TestNegativeCounter(t *testing.T) {
 		}
 	}()
 
-	events := make(chan Events)
+	events := make(chan event.Events)
 	go func() {
-		c := Events{
-			&CounterEvent{
-				metricName: "foo",
-				value:      -1,
+		c := event.Events{
+			&event.CounterEvent{
+				CMetricName: "foo",
+				CValue:      -1,
 			},
 		}
 		events <- c
@@ -59,8 +64,8 @@ func TestNegativeCounter(t *testing.T) {
 	testMapper := mapper.MetricMapper{}
 	testMapper.InitCache(0)
 
-	ex := NewExporter(&testMapper, log.NewNopLogger())
-	ex.Listen(events)
+	ex := exporter.NewExporter(&testMapper, log.NewNopLogger())
+	ex.Listen(events, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 
 	updated := getTelemetryCounterValue(errorCounter)
 	if updated-prev != 1 {
@@ -80,48 +85,48 @@ func TestInconsistentLabelSets(t *testing.T) {
 	secondLabelSet["foo"] = "1"
 	secondLabelSet["bar"] = "2"
 
-	events := make(chan Events)
+	events := make(chan event.Events)
 	go func() {
-		c := Events{
-			&CounterEvent{
-				metricName: "counter_test",
-				value:      1,
-				labels:     firstLabelSet,
+		c := event.Events{
+			&event.CounterEvent{
+				CMetricName: "counter_test",
+				CValue:      1,
+				CLabels:     firstLabelSet,
 			},
-			&CounterEvent{
-				metricName: "counter_test",
-				value:      1,
-				labels:     secondLabelSet,
+			&event.CounterEvent{
+				CMetricName: "counter_test",
+				CValue:      1,
+				CLabels:     secondLabelSet,
 			},
-			&GaugeEvent{
-				metricName: "gauge_test",
-				value:      1,
-				labels:     firstLabelSet,
+			&event.GaugeEvent{
+				GMetricName: "gauge_test",
+				GValue:      1,
+				GLabels:     firstLabelSet,
 			},
-			&GaugeEvent{
-				metricName: "gauge_test",
-				value:      1,
-				labels:     secondLabelSet,
+			&event.GaugeEvent{
+				GMetricName: "gauge_test",
+				GValue:      1,
+				GLabels:     secondLabelSet,
 			},
-			&TimerEvent{
-				metricName: "histogram.test",
-				value:      1,
-				labels:     firstLabelSet,
+			&event.TimerEvent{
+				TMetricName: "histogram.test",
+				TValue:      1,
+				TLabels:     firstLabelSet,
 			},
-			&TimerEvent{
-				metricName: "histogram.test",
-				value:      1,
-				labels:     secondLabelSet,
+			&event.TimerEvent{
+				TMetricName: "histogram.test",
+				TValue:      1,
+				TLabels:     secondLabelSet,
 			},
-			&TimerEvent{
-				metricName: "summary_test",
-				value:      1,
-				labels:     firstLabelSet,
+			&event.TimerEvent{
+				TMetricName: "summary_test",
+				TValue:      1,
+				TLabels:     firstLabelSet,
 			},
-			&TimerEvent{
-				metricName: "summary_test",
-				value:      1,
-				labels:     secondLabelSet,
+			&event.TimerEvent{
+				TMetricName: "summary_test",
+				TValue:      1,
+				TLabels:     secondLabelSet,
 			},
 		}
 		events <- c
@@ -140,8 +145,8 @@ mappings:
 		t.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	ex := NewExporter(testMapper, log.NewNopLogger())
-	ex.Listen(events)
+	ex := exporter.NewExporter(testMapper, log.NewNopLogger())
+	ex.Listen(events, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 
 	metrics, err := prometheus.DefaultGatherer.Gather()
 	if err != nil {
@@ -166,18 +171,18 @@ mappings:
 func TestLabelParsing(t *testing.T) {
 	codes := [2]string{"200", "300"}
 
-	events := make(chan Events)
+	events := make(chan event.Events)
 	go func() {
-		c := Events{
-			&CounterEvent{
-				metricName: "counter.test.200",
-				value:      1,
-				labels:     make(map[string]string),
+		c := event.Events{
+			&event.CounterEvent{
+				CMetricName: "counter.test.200",
+				CValue:      1,
+				CLabels:     make(map[string]string),
 			},
-			&CounterEvent{
-				metricName: "counter.test.300",
-				value:      1,
-				labels:     make(map[string]string),
+			&event.CounterEvent{
+				CMetricName: "counter.test.300",
+				CValue:      1,
+				CLabels:     make(map[string]string),
 			},
 		}
 		events <- c
@@ -198,8 +203,8 @@ mappings:
 		t.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	ex := NewExporter(testMapper, log.NewNopLogger())
-	ex.Listen(events)
+	ex := exporter.NewExporter(testMapper, log.NewNopLogger())
+	ex.Listen(events, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 
 	metrics, err := prometheus.DefaultGatherer.Gather()
 	if err != nil {
@@ -222,173 +227,173 @@ func TestConflictingMetrics(t *testing.T) {
 	scenarios := []struct {
 		name     string
 		expected []float64
-		in       Events
+		in       event.Events
 	}{
 		{
 			name:     "counter vs gauge",
 			expected: []float64{1},
-			in: Events{
-				&CounterEvent{
-					metricName: "cvg_test",
-					value:      1,
+			in: event.Events{
+				&event.CounterEvent{
+					CMetricName: "cvg_test",
+					CValue:      1,
 				},
-				&GaugeEvent{
-					metricName: "cvg_test",
-					value:      2,
+				&event.GaugeEvent{
+					GMetricName: "cvg_test",
+					GValue:      2,
 				},
 			},
 		},
 		{
 			name:     "counter vs gauge with different labels",
 			expected: []float64{1, 2},
-			in: Events{
-				&CounterEvent{
-					metricName: "cvgl_test",
-					value:      1,
-					labels:     map[string]string{"tag": "1"},
+			in: event.Events{
+				&event.CounterEvent{
+					CMetricName: "cvgl_test",
+					CValue:      1,
+					CLabels:     map[string]string{"tag": "1"},
 				},
-				&CounterEvent{
-					metricName: "cvgl_test",
-					value:      2,
-					labels:     map[string]string{"tag": "2"},
+				&event.CounterEvent{
+					CMetricName: "cvgl_test",
+					CValue:      2,
+					CLabels:     map[string]string{"tag": "2"},
 				},
-				&GaugeEvent{
-					metricName: "cvgl_test",
-					value:      3,
-					labels:     map[string]string{"tag": "1"},
+				&event.GaugeEvent{
+					GMetricName: "cvgl_test",
+					GValue:      3,
+					GLabels:     map[string]string{"tag": "1"},
 				},
 			},
 		},
 		{
 			name:     "counter vs gauge with same labels",
 			expected: []float64{3},
-			in: Events{
-				&CounterEvent{
-					metricName: "cvgsl_test",
-					value:      1,
-					labels:     map[string]string{"tag": "1"},
+			in: event.Events{
+				&event.CounterEvent{
+					CMetricName: "cvgsl_test",
+					CValue:      1,
+					CLabels:     map[string]string{"tag": "1"},
 				},
-				&CounterEvent{
-					metricName: "cvgsl_test",
-					value:      2,
-					labels:     map[string]string{"tag": "1"},
+				&event.CounterEvent{
+					CMetricName: "cvgsl_test",
+					CValue:      2,
+					CLabels:     map[string]string{"tag": "1"},
 				},
-				&GaugeEvent{
-					metricName: "cvgsl_test",
-					value:      3,
-					labels:     map[string]string{"tag": "1"},
+				&event.GaugeEvent{
+					GMetricName: "cvgsl_test",
+					GValue:      3,
+					GLabels:     map[string]string{"tag": "1"},
 				},
 			},
 		},
 		{
 			name:     "gauge vs counter",
 			expected: []float64{2},
-			in: Events{
-				&GaugeEvent{
-					metricName: "gvc_test",
-					value:      2,
+			in: event.Events{
+				&event.GaugeEvent{
+					GMetricName: "gvc_test",
+					GValue:      2,
 				},
-				&CounterEvent{
-					metricName: "gvc_test",
-					value:      1,
+				&event.CounterEvent{
+					CMetricName: "gvc_test",
+					CValue:      1,
 				},
 			},
 		},
 		{
 			name:     "counter vs histogram",
 			expected: []float64{1},
-			in: Events{
-				&CounterEvent{
-					metricName: "histogram_test1",
-					value:      1,
+			in: event.Events{
+				&event.CounterEvent{
+					CMetricName: "histogram_test1",
+					CValue:      1,
 				},
-				&TimerEvent{
-					metricName: "histogram.test1",
-					value:      2,
+				&event.TimerEvent{
+					TMetricName: "histogram.test1",
+					TValue:      2,
 				},
 			},
 		},
 		{
 			name:     "counter vs histogram sum",
 			expected: []float64{1},
-			in: Events{
-				&CounterEvent{
-					metricName: "histogram_test1_sum",
-					value:      1,
+			in: event.Events{
+				&event.CounterEvent{
+					CMetricName: "histogram_test1_sum",
+					CValue:      1,
 				},
-				&TimerEvent{
-					metricName: "histogram.test1",
-					value:      2,
+				&event.TimerEvent{
+					TMetricName: "histogram.test1",
+					TValue:      2,
 				},
 			},
 		},
 		{
 			name:     "counter vs histogram count",
 			expected: []float64{1},
-			in: Events{
-				&CounterEvent{
-					metricName: "histogram_test2_count",
-					value:      1,
+			in: event.Events{
+				&event.CounterEvent{
+					CMetricName: "histogram_test2_count",
+					CValue:      1,
 				},
-				&TimerEvent{
-					metricName: "histogram.test2",
-					value:      2,
+				&event.TimerEvent{
+					TMetricName: "histogram.test2",
+					TValue:      2,
 				},
 			},
 		},
 		{
 			name:     "counter vs histogram bucket",
 			expected: []float64{1},
-			in: Events{
-				&CounterEvent{
-					metricName: "histogram_test3_bucket",
-					value:      1,
+			in: event.Events{
+				&event.CounterEvent{
+					CMetricName: "histogram_test3_bucket",
+					CValue:      1,
 				},
-				&TimerEvent{
-					metricName: "histogram.test3",
-					value:      2,
+				&event.TimerEvent{
+					TMetricName: "histogram.test3",
+					TValue:      2,
 				},
 			},
 		},
 		{
 			name:     "counter vs summary quantile",
 			expected: []float64{1},
-			in: Events{
-				&CounterEvent{
-					metricName: "cvsq_test",
-					value:      1,
+			in: event.Events{
+				&event.CounterEvent{
+					CMetricName: "cvsq_test",
+					CValue:      1,
 				},
-				&TimerEvent{
-					metricName: "cvsq_test",
-					value:      2,
+				&event.TimerEvent{
+					TMetricName: "cvsq_test",
+					TValue:      2,
 				},
 			},
 		},
 		{
 			name:     "counter vs summary count",
 			expected: []float64{1},
-			in: Events{
-				&CounterEvent{
-					metricName: "cvsc_count",
-					value:      1,
+			in: event.Events{
+				&event.CounterEvent{
+					CMetricName: "cvsc_count",
+					CValue:      1,
 				},
-				&TimerEvent{
-					metricName: "cvsc",
-					value:      2,
+				&event.TimerEvent{
+					TMetricName: "cvsc",
+					TValue:      2,
 				},
 			},
 		},
 		{
 			name:     "counter vs summary sum",
 			expected: []float64{1},
-			in: Events{
-				&CounterEvent{
-					metricName: "cvss_sum",
-					value:      1,
+			in: event.Events{
+				&event.CounterEvent{
+					CMetricName: "cvss_sum",
+					CValue:      1,
 				},
-				&TimerEvent{
-					metricName: "cvss",
-					value:      2,
+				&event.TimerEvent{
+					TMetricName: "cvss",
+					TValue:      2,
 				},
 			},
 		},
@@ -408,13 +413,13 @@ mappings:
 				t.Fatalf("Config load error: %s %s", config, err)
 			}
 
-			events := make(chan Events)
+			events := make(chan event.Events)
 			go func() {
 				events <- s.in
 				close(events)
 			}()
-			ex := NewExporter(testMapper, log.NewNopLogger())
-			ex.Listen(events)
+			ex := exporter.NewExporter(testMapper, log.NewNopLogger())
+			ex.Listen(events, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 
 			metrics, err := prometheus.DefaultGatherer.Gather()
 			if err != nil {
@@ -441,12 +446,12 @@ mappings:
 // being the empty string after applying the match replacements
 // tha we don't panic the Exporter Listener.
 func TestEmptyStringMetric(t *testing.T) {
-	events := make(chan Events)
+	events := make(chan event.Events)
 	go func() {
-		c := Events{
-			&CounterEvent{
-				metricName: "foo_bar",
-				value:      1,
+		c := event.Events{
+			&event.CounterEvent{
+				CMetricName: "foo_bar",
+				CValue:      1,
 			},
 		}
 		events <- c
@@ -468,8 +473,8 @@ mappings:
 	errorCounter := errorEventStats.WithLabelValues("empty_metric_name")
 	prev := getTelemetryCounterValue(errorCounter)
 
-	ex := NewExporter(testMapper, log.NewNopLogger())
-	ex.Listen(events)
+	ex := exporter.NewExporter(testMapper, log.NewNopLogger())
+	ex.Listen(events, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 
 	updated := getTelemetryCounterValue(errorCounter)
 	if updated-prev != 1 {
@@ -489,13 +494,13 @@ func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
 		}
 	}()
 
-	events := make(chan Events)
-	ueh := &unbufferedEventHandler{c: events}
+	events := make(chan event.Events)
+	ueh := &event.UnbufferedEventHandler{C: events}
 
 	go func() {
-		for _, l := range []statsDPacketHandler{&StatsDUDPListener{nil, nil, log.NewNopLogger()}, &mockStatsDTCPListener{StatsDTCPListener{nil, nil, log.NewNopLogger()}, log.NewNopLogger()}} {
+		for _, l := range []statsDPacketHandler{&listener.StatsDUDPListener{nil, nil, log.NewNopLogger()}, &mockStatsDTCPListener{listener.StatsDTCPListener{nil, nil, log.NewNopLogger()}, log.NewNopLogger()}} {
 			l.SetEventHandler(ueh)
-			l.handlePacket([]byte("bar:200|c|#tag:value\nbar:200|c|#tag:\xc3\x28invalid"))
+			l.HandlePacket([]byte("bar:200|c|#tag:value\nbar:200|c|#tag:\xc3\x28invalid"), udpPackets, linesReceived, eventsFlushed, *sampleErrors, samplesReceived, tagErrors, tagsReceived)
 		}
 		close(events)
 	}()
@@ -503,8 +508,8 @@ func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
 	testMapper := mapper.MetricMapper{}
 	testMapper.InitCache(0)
 
-	ex := NewExporter(&testMapper, log.NewNopLogger())
-	ex.Listen(events)
+	ex := exporter.NewExporter(&testMapper, log.NewNopLogger())
+	ex.Listen(events, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 }
 
 // In the case of someone starting the statsd exporter with no mapping file specified
@@ -512,24 +517,24 @@ func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
 // as well as the sum/count metrics
 func TestSummaryWithQuantilesEmptyMapping(t *testing.T) {
 	// Start exporter with a synchronous channel
-	events := make(chan Events)
+	events := make(chan event.Events)
 	go func() {
 		testMapper := mapper.MetricMapper{}
 		testMapper.InitCache(0)
 
-		ex := NewExporter(&testMapper, log.NewNopLogger())
-		ex.Listen(events)
+		ex := exporter.NewExporter(&testMapper, log.NewNopLogger())
+		ex.Listen(events, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 	}()
 
 	name := "default_foo"
-	c := Events{
-		&TimerEvent{
-			metricName: name,
-			value:      300,
+	c := event.Events{
+		&event.TimerEvent{
+			TMetricName: name,
+			TValue:      300,
 		},
 	}
 	events <- c
-	events <- Events{}
+	events <- event.Events{}
 	close(events)
 
 	metrics, err := prometheus.DefaultGatherer.Gather()
@@ -557,26 +562,26 @@ func TestSummaryWithQuantilesEmptyMapping(t *testing.T) {
 
 func TestHistogramUnits(t *testing.T) {
 	// Start exporter with a synchronous channel
-	events := make(chan Events)
+	events := make(chan event.Events)
 	go func() {
 		testMapper := mapper.MetricMapper{}
 		testMapper.InitCache(0)
-		ex := NewExporter(&testMapper, log.NewNopLogger())
-		ex.mapper.Defaults.TimerType = mapper.TimerTypeHistogram
-		ex.Listen(events)
+		ex := exporter.NewExporter(&testMapper, log.NewNopLogger())
+		ex.Mapper.Defaults.TimerType = mapper.TimerTypeHistogram
+		ex.Listen(events, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 	}()
 
 	// Synchronously send a statsd event to wait for handleEvent execution.
 	// Then close events channel to stop a listener.
 	name := "foo"
-	c := Events{
-		&TimerEvent{
-			metricName: name,
-			value:      300,
+	c := event.Events{
+		&event.TimerEvent{
+			TMetricName: name,
+			TValue:      300,
 		},
 	}
 	events <- c
-	events <- Events{}
+	events <- event.Events{}
 	close(events)
 
 	// Check histogram value
@@ -596,12 +601,12 @@ func TestHistogramUnits(t *testing.T) {
 }
 func TestCounterIncrement(t *testing.T) {
 	// Start exporter with a synchronous channel
-	events := make(chan Events)
+	events := make(chan event.Events)
 	go func() {
 		testMapper := mapper.MetricMapper{}
 		testMapper.InitCache(0)
-		ex := NewExporter(&testMapper, log.NewNopLogger())
-		ex.Listen(events)
+		ex := exporter.NewExporter(&testMapper, log.NewNopLogger())
+		ex.Listen(events, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 	}()
 
 	// Synchronously send a statsd event to wait for handleEvent execution.
@@ -610,21 +615,21 @@ func TestCounterIncrement(t *testing.T) {
 	labels := map[string]string{
 		"foo": "bar",
 	}
-	c := Events{
-		&CounterEvent{
-			metricName: name,
-			value:      1,
-			labels:     labels,
+	c := event.Events{
+		&event.CounterEvent{
+			CMetricName: name,
+			CValue:      1,
+			CLabels:     labels,
 		},
-		&CounterEvent{
-			metricName: name,
-			value:      1,
-			labels:     labels,
+		&event.CounterEvent{
+			CMetricName: name,
+			CValue:      1,
+			CLabels:     labels,
 		},
 	}
 	events <- c
 	// Push empty event so that we block until the first event is consumed.
-	events <- Events{}
+	events <- event.Events{}
 	close(events)
 
 	// Check histogram value
@@ -642,16 +647,16 @@ func TestCounterIncrement(t *testing.T) {
 }
 
 type statsDPacketHandler interface {
-	handlePacket(packet []byte)
-	SetEventHandler(eh eventHandler)
+	HandlePacket(packet []byte, udpPackets prometheus.Counter, linesReceived prometheus.Counter, eventsFlushed prometheus.Counter, sampleErrors prometheus.CounterVec, samplesReceived prometheus.Counter, tagErrors prometheus.Counter, tagsReceived prometheus.Counter)
+	SetEventHandler(eh event.EventHandler)
 }
 
 type mockStatsDTCPListener struct {
-	StatsDTCPListener
+	listener.StatsDTCPListener
 	log.Logger
 }
 
-func (ml *mockStatsDTCPListener) handlePacket(packet []byte) {
+func (ml *mockStatsDTCPListener) HandlePacket(packet []byte, udpPackets prometheus.Counter, linesReceived prometheus.Counter, eventsFlushed prometheus.Counter, sampleErrors prometheus.CounterVec, samplesReceived prometheus.Counter, tagErrors prometheus.Counter, tagsReceived prometheus.Counter) {
 	// Forcing IPv4 because the TravisCI build environment does not have IPv6
 	// addresses.
 	lc, err := net.ListenTCP("tcp4", nil)
@@ -679,7 +684,7 @@ func (ml *mockStatsDTCPListener) handlePacket(packet []byte) {
 	if err != nil {
 		panic(fmt.Sprintf("mockStatsDTCPListener: accept failed: %v", err))
 	}
-	ml.handleConn(sc)
+	ml.HandleConn(sc, linesReceived, eventsFlushed, tcpConnections, tcpErrors, tcpLineTooLong, sampleErrors, samplesReceived, tagErrors, tagsReceived)
 }
 
 // TestTtlExpiration validates expiration of time series.
@@ -706,23 +711,23 @@ mappings:
 	if err != nil {
 		t.Fatalf("Config load error: %s %s", config, err)
 	}
-	events := make(chan Events)
+	events := make(chan event.Events)
 	defer close(events)
 	go func() {
-		ex := NewExporter(testMapper, log.NewNopLogger())
-		ex.Listen(events)
+		ex := exporter.NewExporter(testMapper, log.NewNopLogger())
+		ex.Listen(events, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 	}()
 
-	ev := Events{
+	ev := event.Events{
 		// event with default ttl = 1s
-		&GaugeEvent{
-			metricName: "foobar",
-			value:      200,
+		&event.GaugeEvent{
+			GMetricName: "foobar",
+			GValue:      200,
 		},
 		// event with ttl = 2s from a mapping
-		&TimerEvent{
-			metricName: "bazqux.main",
-			value:      42000,
+		&event.TimerEvent{
+			TMetricName: "bazqux.main",
+			TValue:      42000,
 		},
 	}
 
@@ -735,7 +740,7 @@ mappings:
 	// saveLabelValues will use fake instant as a lastRegisteredAt time.
 	clock.ClockInstance.Instant = time.Unix(0, 0)
 	events <- ev
-	events <- Events{}
+	events <- event.Events{}
 
 	// Check values
 	metrics, err = prometheus.DefaultGatherer.Gather()
@@ -757,7 +762,7 @@ mappings:
 	// Step 2. Increase Instant to emulate metrics expiration after 1s
 	clock.ClockInstance.Instant = time.Unix(1, 10)
 	clock.ClockInstance.TickerCh <- time.Unix(0, 0)
-	events <- Events{}
+	events <- event.Events{}
 
 	// Check values
 	metrics, err = prometheus.DefaultGatherer.Gather()
@@ -779,7 +784,7 @@ mappings:
 	// Step 3. Increase Instant to emulate metrics expiration after 2s
 	clock.ClockInstance.Instant = time.Unix(2, 200)
 	clock.ClockInstance.TickerCh <- time.Unix(0, 0)
-	events <- Events{}
+	events <- event.Events{}
 
 	// Check values
 	metrics, err = prometheus.DefaultGatherer.Gather()
@@ -797,32 +802,32 @@ mappings:
 }
 
 func TestHashLabelNames(t *testing.T) {
-	r := newRegistry(nil)
+	r := registry.NewRegistry(nil)
 	// Validate value hash changes and name has doesn't when just the value changes.
-	hash1, _ := r.hashLabels(map[string]string{
+	hash1, _ := r.HashLabels(map[string]string{
 		"label": "value1",
 	})
-	hash2, _ := r.hashLabels(map[string]string{
+	hash2, _ := r.HashLabels(map[string]string{
 		"label": "value2",
 	})
-	if hash1.names != hash2.names {
+	if hash1.Names != hash2.Names {
 		t.Fatal("Hash of label names should match, but doesn't")
 	}
-	if hash1.values == hash2.values {
+	if hash1.Values == hash2.Values {
 		t.Fatal("Hash of label names shouldn't match, but do")
 	}
 
 	// Validate value and name hashes change when the name changes.
-	hash1, _ = r.hashLabels(map[string]string{
+	hash1, _ = r.HashLabels(map[string]string{
 		"label1": "value",
 	})
-	hash2, _ = r.hashLabels(map[string]string{
+	hash2, _ = r.HashLabels(map[string]string{
 		"label2": "value",
 	})
-	if hash1.names == hash2.names {
+	if hash1.Names == hash2.Names {
 		t.Fatal("Hash of label names shouldn't match, but do")
 	}
-	if hash1.values == hash2.values {
+	if hash1.Values == hash2.Values {
 		t.Fatal("Hash of label names shouldn't match, but do")
 	}
 }
@@ -916,7 +921,7 @@ func BenchmarkParseDogStatsDTags(b *testing.B) {
 		b.Run(name, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				labels := map[string]string{}
-				parseDogStatsDTags(tags, labels, log.NewNopLogger())
+				line.ParseDogStatsDTags(tags, labels, tagErrors, log.NewNopLogger())
 			}
 		})
 	}
@@ -953,11 +958,11 @@ func BenchmarkHashNameAndLabels(b *testing.B) {
 		},
 	}
 
-	r := newRegistry(nil)
+	r := registry.NewRegistry(nil)
 	for _, s := range scenarios {
 		b.Run(s.name, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
-				r.hashLabels(s.labels)
+				r.HashLabels(s.labels)
 			}
 		})
 	}
