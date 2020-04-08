@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package exporter
 
 import (
 	"fmt"
@@ -25,11 +25,131 @@ import (
 
 	"github.com/prometheus/statsd_exporter/pkg/clock"
 	"github.com/prometheus/statsd_exporter/pkg/event"
-	"github.com/prometheus/statsd_exporter/pkg/exporter"
 	"github.com/prometheus/statsd_exporter/pkg/line"
 	"github.com/prometheus/statsd_exporter/pkg/listener"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 	"github.com/prometheus/statsd_exporter/pkg/registry"
+)
+
+var (
+	eventStats = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_events_total",
+			Help: "The total number of StatsD events seen.",
+		},
+		[]string{"type"},
+	)
+	eventsFlushed = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_event_queue_flushed_total",
+			Help: "Number of times events were flushed to exporter",
+		},
+	)
+	eventsUnmapped = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_events_unmapped_total",
+			Help: "The total number of StatsD events no mapping was found for.",
+		})
+	udpPackets = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_udp_packets_total",
+			Help: "The total number of StatsD packets received over UDP.",
+		},
+	)
+	tcpConnections = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_tcp_connections_total",
+			Help: "The total number of TCP connections handled.",
+		},
+	)
+	tcpErrors = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_tcp_connection_errors_total",
+			Help: "The number of errors encountered reading from TCP.",
+		},
+	)
+	tcpLineTooLong = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_tcp_too_long_lines_total",
+			Help: "The number of lines discarded due to being too long.",
+		},
+	)
+	unixgramPackets = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_unixgram_packets_total",
+			Help: "The total number of StatsD packets received over Unixgram.",
+		},
+	)
+	linesReceived = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_lines_total",
+			Help: "The total number of StatsD lines received.",
+		},
+	)
+	samplesReceived = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_samples_total",
+			Help: "The total number of StatsD samples received.",
+		},
+	)
+	sampleErrors = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_sample_errors_total",
+			Help: "The total number of errors parsing StatsD samples.",
+		},
+		[]string{"reason"},
+	)
+	tagsReceived = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_tags_total",
+			Help: "The total number of DogStatsD tags processed.",
+		},
+	)
+	tagErrors = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_tag_errors_total",
+			Help: "The number of errors parsing DogStatsD tags.",
+		},
+	)
+	configLoads = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_config_reloads_total",
+			Help: "The number of configuration reloads.",
+		},
+		[]string{"outcome"},
+	)
+	mappingsCount = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "statsd_exporter_loaded_mappings",
+		Help: "The current number of configured metric mappings.",
+	})
+	conflictingEventStats = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_events_conflict_total",
+			Help: "The total number of StatsD events with conflicting names.",
+		},
+		[]string{"type"},
+	)
+	errorEventStats = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_events_error_total",
+			Help: "The total number of StatsD events discarded due to errors.",
+		},
+		[]string{"reason"},
+	)
+	eventsActions = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_events_actions_total",
+			Help: "The total number of StatsD events by action.",
+		},
+		[]string{"action"},
+	)
+	metricsCount = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "statsd_exporter_metrics_total",
+			Help: "The total number of metrics.",
+		},
+		[]string{"type"},
+	)
 )
 
 // TestNegativeCounter validates when we send a negative
@@ -64,8 +184,8 @@ func TestNegativeCounter(t *testing.T) {
 	testMapper := mapper.MetricMapper{}
 	testMapper.InitCache(0)
 
-	ex := exporter.NewExporter(&testMapper, log.NewNopLogger())
-	ex.Listen(events, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	ex := NewExporter(&testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	ex.Listen(events)
 
 	updated := getTelemetryCounterValue(errorCounter)
 	if updated-prev != 1 {
@@ -145,8 +265,8 @@ mappings:
 		t.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	ex := exporter.NewExporter(testMapper, log.NewNopLogger())
-	ex.Listen(events, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	ex := NewExporter(testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	ex.Listen(events)
 
 	metrics, err := prometheus.DefaultGatherer.Gather()
 	if err != nil {
@@ -203,8 +323,8 @@ mappings:
 		t.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	ex := exporter.NewExporter(testMapper, log.NewNopLogger())
-	ex.Listen(events, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	ex := NewExporter(testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	ex.Listen(events)
 
 	metrics, err := prometheus.DefaultGatherer.Gather()
 	if err != nil {
@@ -418,8 +538,8 @@ mappings:
 				events <- s.in
 				close(events)
 			}()
-			ex := exporter.NewExporter(testMapper, log.NewNopLogger())
-			ex.Listen(events, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+			ex := NewExporter(testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+			ex.Listen(events)
 
 			metrics, err := prometheus.DefaultGatherer.Gather()
 			if err != nil {
@@ -473,8 +593,8 @@ mappings:
 	errorCounter := errorEventStats.WithLabelValues("empty_metric_name")
 	prev := getTelemetryCounterValue(errorCounter)
 
-	ex := exporter.NewExporter(testMapper, log.NewNopLogger())
-	ex.Listen(events, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	ex := NewExporter(testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	ex.Listen(events)
 
 	updated := getTelemetryCounterValue(errorCounter)
 	if updated-prev != 1 {
@@ -498,9 +618,33 @@ func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
 	ueh := &event.UnbufferedEventHandler{C: events}
 
 	go func() {
-		for _, l := range []statsDPacketHandler{&listener.StatsDUDPListener{nil, nil, log.NewNopLogger()}, &mockStatsDTCPListener{listener.StatsDTCPListener{nil, nil, log.NewNopLogger()}, log.NewNopLogger()}} {
+		for _, l := range []statsDPacketHandler{&listener.StatsDUDPListener{
+			Conn:            nil,
+			EventHandler:    nil,
+			Logger:          log.NewNopLogger(),
+			UDPPackets:      udpPackets,
+			LinesReceived:   linesReceived,
+			EventsFlushed:   eventsFlushed,
+			SampleErrors:    *sampleErrors,
+			SamplesReceived: samplesReceived,
+			TagErrors:       tagErrors,
+			TagsReceived:    tagsReceived,
+		}, &mockStatsDTCPListener{listener.StatsDTCPListener{
+			Conn:            nil,
+			EventHandler:    nil,
+			Logger:          log.NewNopLogger(),
+			LinesReceived:   linesReceived,
+			EventsFlushed:   eventsFlushed,
+			SampleErrors:    *sampleErrors,
+			SamplesReceived: samplesReceived,
+			TagErrors:       tagErrors,
+			TagsReceived:    tagsReceived,
+			TCPConnections:  tcpConnections,
+			TCPErrors:       tcpErrors,
+			TCPLineTooLong:  tcpLineTooLong,
+		}, log.NewNopLogger()}} {
 			l.SetEventHandler(ueh)
-			l.HandlePacket([]byte("bar:200|c|#tag:value\nbar:200|c|#tag:\xc3\x28invalid"), udpPackets, linesReceived, eventsFlushed, *sampleErrors, samplesReceived, tagErrors, tagsReceived)
+			l.HandlePacket([]byte("bar:200|c|#tag:value\nbar:200|c|#tag:\xc3\x28invalid"))
 		}
 		close(events)
 	}()
@@ -508,8 +652,8 @@ func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
 	testMapper := mapper.MetricMapper{}
 	testMapper.InitCache(0)
 
-	ex := exporter.NewExporter(&testMapper, log.NewNopLogger())
-	ex.Listen(events, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	ex := NewExporter(&testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	ex.Listen(events)
 }
 
 // In the case of someone starting the statsd exporter with no mapping file specified
@@ -522,8 +666,8 @@ func TestSummaryWithQuantilesEmptyMapping(t *testing.T) {
 		testMapper := mapper.MetricMapper{}
 		testMapper.InitCache(0)
 
-		ex := exporter.NewExporter(&testMapper, log.NewNopLogger())
-		ex.Listen(events, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+		ex := NewExporter(&testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+		ex.Listen(events)
 	}()
 
 	name := "default_foo"
@@ -566,9 +710,9 @@ func TestHistogramUnits(t *testing.T) {
 	go func() {
 		testMapper := mapper.MetricMapper{}
 		testMapper.InitCache(0)
-		ex := exporter.NewExporter(&testMapper, log.NewNopLogger())
+		ex := NewExporter(&testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 		ex.Mapper.Defaults.TimerType = mapper.TimerTypeHistogram
-		ex.Listen(events, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+		ex.Listen(events)
 	}()
 
 	// Synchronously send a statsd event to wait for handleEvent execution.
@@ -605,8 +749,8 @@ func TestCounterIncrement(t *testing.T) {
 	go func() {
 		testMapper := mapper.MetricMapper{}
 		testMapper.InitCache(0)
-		ex := exporter.NewExporter(&testMapper, log.NewNopLogger())
-		ex.Listen(events, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+		ex := NewExporter(&testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+		ex.Listen(events)
 	}()
 
 	// Synchronously send a statsd event to wait for handleEvent execution.
@@ -647,7 +791,7 @@ func TestCounterIncrement(t *testing.T) {
 }
 
 type statsDPacketHandler interface {
-	HandlePacket(packet []byte, udpPackets prometheus.Counter, linesReceived prometheus.Counter, eventsFlushed prometheus.Counter, sampleErrors prometheus.CounterVec, samplesReceived prometheus.Counter, tagErrors prometheus.Counter, tagsReceived prometheus.Counter)
+	HandlePacket(packet []byte)
 	SetEventHandler(eh event.EventHandler)
 }
 
@@ -656,7 +800,7 @@ type mockStatsDTCPListener struct {
 	log.Logger
 }
 
-func (ml *mockStatsDTCPListener) HandlePacket(packet []byte, udpPackets prometheus.Counter, linesReceived prometheus.Counter, eventsFlushed prometheus.Counter, sampleErrors prometheus.CounterVec, samplesReceived prometheus.Counter, tagErrors prometheus.Counter, tagsReceived prometheus.Counter) {
+func (ml *mockStatsDTCPListener) HandlePacket(packet []byte) {
 	// Forcing IPv4 because the TravisCI build environment does not have IPv6
 	// addresses.
 	lc, err := net.ListenTCP("tcp4", nil)
@@ -684,7 +828,7 @@ func (ml *mockStatsDTCPListener) HandlePacket(packet []byte, udpPackets promethe
 	if err != nil {
 		panic(fmt.Sprintf("mockStatsDTCPListener: accept failed: %v", err))
 	}
-	ml.HandleConn(sc, linesReceived, eventsFlushed, tcpConnections, tcpErrors, tcpLineTooLong, sampleErrors, samplesReceived, tagErrors, tagsReceived)
+	ml.HandleConn(sc)
 }
 
 // TestTtlExpiration validates expiration of time series.
@@ -714,8 +858,8 @@ mappings:
 	events := make(chan event.Events)
 	defer close(events)
 	go func() {
-		ex := exporter.NewExporter(testMapper, log.NewNopLogger())
-		ex.Listen(events, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+		ex := NewExporter(testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+		ex.Listen(events)
 	}()
 
 	ev := event.Events{

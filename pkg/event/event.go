@@ -69,12 +69,14 @@ type EventQueue struct {
 	C              chan Events
 	q              Events
 	m              sync.Mutex
-	flushThreshold int
 	flushTicker    *time.Ticker
+	flushThreshold int
+	flushInterval  time.Duration
+	eventsFlushed  prometheus.Counter
 }
 
 type EventHandler interface {
-	Queue(event Events, eventsFlushed *prometheus.Counter)
+	Queue(event Events)
 }
 
 func NewEventQueue(c chan Events, flushThreshold int, flushInterval time.Duration, eventsFlushed prometheus.Counter) *EventQueue {
@@ -84,38 +86,39 @@ func NewEventQueue(c chan Events, flushThreshold int, flushInterval time.Duratio
 		flushThreshold: flushThreshold,
 		flushTicker:    ticker,
 		q:              make([]Event, 0, flushThreshold),
+		eventsFlushed:  eventsFlushed,
 	}
 	go func() {
 		for {
 			<-ticker.C
-			eq.Flush(eventsFlushed)
+			eq.Flush()
 		}
 	}()
 	return eq
 }
 
-func (eq *EventQueue) Queue(events Events, eventsFlushed *prometheus.Counter) {
+func (eq *EventQueue) Queue(events Events) {
 	eq.m.Lock()
 	defer eq.m.Unlock()
 
 	for _, e := range events {
 		eq.q = append(eq.q, e)
 		if len(eq.q) >= eq.flushThreshold {
-			eq.FlushUnlocked(*eventsFlushed)
+			eq.FlushUnlocked()
 		}
 	}
 }
 
-func (eq *EventQueue) Flush(eventsFlushed prometheus.Counter) {
+func (eq *EventQueue) Flush() {
 	eq.m.Lock()
 	defer eq.m.Unlock()
-	eq.FlushUnlocked(eventsFlushed)
+	eq.FlushUnlocked()
 }
 
-func (eq *EventQueue) FlushUnlocked(eventsFlushed prometheus.Counter) {
+func (eq *EventQueue) FlushUnlocked() {
 	eq.C <- eq.q
 	eq.q = make([]Event, 0, cap(eq.q))
-	eventsFlushed.Inc()
+	eq.eventsFlushed.Inc()
 }
 
 func (eq *EventQueue) Len() int {
@@ -129,6 +132,6 @@ type UnbufferedEventHandler struct {
 	C chan Events
 }
 
-func (ueh *UnbufferedEventHandler) Queue(events Events, eventsFlushed *prometheus.Counter) {
+func (ueh *UnbufferedEventHandler) Queue(events Events) {
 	ueh.C <- events
 }

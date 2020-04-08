@@ -32,11 +32,11 @@ import (
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
 
+	"github.com/prometheus/statsd_exporter/pkg/address"
 	"github.com/prometheus/statsd_exporter/pkg/event"
 	"github.com/prometheus/statsd_exporter/pkg/exporter"
 	"github.com/prometheus/statsd_exporter/pkg/listener"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
-	"github.com/prometheus/statsd_exporter/pkg/util"
 )
 
 const (
@@ -58,10 +58,11 @@ var (
 			Help: "Number of times events were flushed to exporter",
 		},
 	)
-	eventsUnmapped = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "statsd_exporter_events_unmapped_total",
-		Help: "The total number of StatsD events no mapping was found for.",
-	})
+	eventsUnmapped = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_events_unmapped_total",
+			Help: "The total number of StatsD events no mapping was found for.",
+		})
 	udpPackets = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_udp_packets_total",
@@ -294,7 +295,7 @@ func main() {
 	eventQueue := event.NewEventQueue(events, *eventFlushThreshold, *eventFlushInterval, eventsFlushed)
 
 	if *statsdListenUDP != "" {
-		udpListenAddr, err := util.UDPAddrFromString(*statsdListenUDP)
+		udpListenAddr, err := address.UDPAddrFromString(*statsdListenUDP)
 		if err != nil {
 			level.Error(logger).Log("msg", "invalid UDP listen address", "address", *statsdListenUDP, "error", err)
 			os.Exit(1)
@@ -313,12 +314,24 @@ func main() {
 			}
 		}
 
-		ul := &listener.StatsDUDPListener{Conn: uconn, EventHandler: eventQueue, Logger: logger}
-		go ul.Listen(udpPackets, linesReceived, eventsFlushed, *sampleErrors, samplesReceived, tagErrors, tagsReceived)
+		ul := &listener.StatsDUDPListener{
+			Conn:            uconn,
+			EventHandler:    eventQueue,
+			Logger:          logger,
+			UDPPackets:      udpPackets,
+			LinesReceived:   linesReceived,
+			EventsFlushed:   eventsFlushed,
+			SampleErrors:    *sampleErrors,
+			SamplesReceived: samplesReceived,
+			TagErrors:       tagErrors,
+			TagsReceived:    tagsReceived,
+		}
+
+		go ul.Listen()
 	}
 
 	if *statsdListenTCP != "" {
-		tcpListenAddr, err := util.TCPAddrFromString(*statsdListenTCP)
+		tcpListenAddr, err := address.TCPAddrFromString(*statsdListenTCP)
 		if err != nil {
 			level.Error(logger).Log("msg", "invalid TCP listen address", "address", *statsdListenUDP, "error", err)
 			os.Exit(1)
@@ -330,8 +343,22 @@ func main() {
 		}
 		defer tconn.Close()
 
-		tl := &listener.StatsDTCPListener{Conn: tconn, EventHandler: eventQueue, Logger: logger}
-		go tl.Listen(linesReceived, eventsFlushed, tcpConnections, tcpErrors, tcpLineTooLong, *sampleErrors, samplesReceived, tagErrors, tagsReceived)
+		tl := &listener.StatsDTCPListener{
+			Conn:            tconn,
+			EventHandler:    eventQueue,
+			Logger:          logger,
+			LinesReceived:   linesReceived,
+			EventsFlushed:   eventsFlushed,
+			SampleErrors:    *sampleErrors,
+			SamplesReceived: samplesReceived,
+			TagErrors:       tagErrors,
+			TagsReceived:    tagsReceived,
+			TCPConnections:  tcpConnections,
+			TCPErrors:       tcpErrors,
+			TCPLineTooLong:  tcpLineTooLong,
+		}
+
+		go tl.Listen()
 	}
 
 	if *statsdListenUnixgram != "" {
@@ -360,7 +387,7 @@ func main() {
 		}
 
 		ul := &listener.StatsDUnixgramListener{Conn: uxgconn, EventHandler: eventQueue, Logger: logger}
-		go ul.Listen(unixgramPackets, linesReceived, eventsFlushed, *sampleErrors, samplesReceived, tagErrors, tagsReceived)
+		go ul.Listen()
 
 		// if it's an abstract unix domain socket, it won't exist on fs
 		// so we can't chmod it either
@@ -403,12 +430,12 @@ func main() {
 
 	go configReloader(*mappingConfig, mapper, *cacheSize, logger, cacheOption)
 
-	exporter := exporter.NewExporter(mapper, logger)
+	exporter := exporter.NewExporter(mapper, logger, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 
-	go exporter.Listen(events, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	go exporter.Listen(events)
 
 	<-signals
 }

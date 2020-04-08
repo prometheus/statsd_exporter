@@ -11,23 +11,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package event
 
 import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/statsd_exporter/pkg/clock"
-	"github.com/prometheus/statsd_exporter/pkg/event"
+)
+
+var eventsFlushed = prometheus.NewCounter(
+	prometheus.CounterOpts{
+		Name: "statsd_exporter_event_queue_flushed_total",
+		Help: "Number of times events were flushed to exporter",
+	},
 )
 
 func TestEventThresholdFlush(t *testing.T) {
-	c := make(chan event.Events, 100)
+	c := make(chan Events, 100)
 	// We're not going to flush during this test, so the duration doesn't matter.
-	eq := event.NewEventQueue(c, 5, time.Second, eventsFlushed)
-	e := make(event.Events, 13)
+	eq := NewEventQueue(c, 5, time.Second, eventsFlushed)
+	e := make(Events, 13)
 	go func() {
-		eq.Queue(e, &eventsFlushed)
+		eq.Queue(e)
 	}()
 
 	batch := <-c
@@ -52,10 +59,10 @@ func TestEventIntervalFlush(t *testing.T) {
 	}
 	clock.ClockInstance.Instant = time.Unix(0, 0)
 
-	c := make(chan event.Events, 100)
-	eq := event.NewEventQueue(c, 1000, time.Second*1000, eventsFlushed)
-	e := make(event.Events, 10)
-	eq.Queue(e, &eventsFlushed)
+	c := make(chan Events, 100)
+	eq := NewEventQueue(c, 1000, time.Second*1000, eventsFlushed)
+	e := make(Events, 10)
+	eq.Queue(e)
 
 	if eq.Len() != 10 {
 		t.Fatal("Expected 10 events to be queued, but got", eq.Len())

@@ -28,16 +28,23 @@ import (
 )
 
 type StatsDUDPListener struct {
-	Conn         *net.UDPConn
-	EventHandler event.EventHandler
-	Logger       log.Logger
+	Conn            *net.UDPConn
+	EventHandler    event.EventHandler
+	Logger          log.Logger
+	UDPPackets      prometheus.Counter
+	LinesReceived   prometheus.Counter
+	EventsFlushed   prometheus.Counter
+	SampleErrors    prometheus.CounterVec
+	SamplesReceived prometheus.Counter
+	TagErrors       prometheus.Counter
+	TagsReceived    prometheus.Counter
 }
 
 func (l *StatsDUDPListener) SetEventHandler(eh event.EventHandler) {
 	l.EventHandler = eh
 }
 
-func (l *StatsDUDPListener) Listen(udpPackets prometheus.Counter, linesReceived prometheus.Counter, eventsFlushed prometheus.Counter, sampleErrors prometheus.CounterVec, samplesReceived prometheus.Counter, tagErrors prometheus.Counter, tagsReceived prometheus.Counter) {
+func (l *StatsDUDPListener) Listen() {
 	buf := make([]byte, 65535)
 	for {
 		n, _, err := l.Conn.ReadFromUDP(buf)
@@ -50,30 +57,39 @@ func (l *StatsDUDPListener) Listen(udpPackets prometheus.Counter, linesReceived 
 			level.Error(l.Logger).Log("error", err)
 			return
 		}
-		l.HandlePacket(buf[0:n], udpPackets, linesReceived, eventsFlushed, sampleErrors, samplesReceived, tagErrors, tagsReceived)
+		l.HandlePacket(buf[0:n])
 	}
 }
 
-func (l *StatsDUDPListener) HandlePacket(packet []byte, udpPackets prometheus.Counter, linesReceived prometheus.Counter, eventsFlushed prometheus.Counter, sampleErrors prometheus.CounterVec, samplesReceived prometheus.Counter, tagErrors prometheus.Counter, tagsReceived prometheus.Counter) {
-	udpPackets.Inc()
+func (l *StatsDUDPListener) HandlePacket(packet []byte) {
+	l.UDPPackets.Inc()
 	lines := strings.Split(string(packet), "\n")
 	for _, line := range lines {
-		linesReceived.Inc()
-		l.EventHandler.Queue(pkgLine.LineToEvents(line, sampleErrors, samplesReceived, tagErrors, tagsReceived, l.Logger), &eventsFlushed)
+		l.LinesReceived.Inc()
+		l.EventHandler.Queue(pkgLine.LineToEvents(line, l.SampleErrors, l.SamplesReceived, l.TagErrors, l.TagsReceived, l.Logger))
 	}
 }
 
 type StatsDTCPListener struct {
-	Conn         *net.TCPListener
-	EventHandler event.EventHandler
-	Logger       log.Logger
+	Conn            *net.TCPListener
+	EventHandler    event.EventHandler
+	Logger          log.Logger
+	LinesReceived   prometheus.Counter
+	EventsFlushed   prometheus.Counter
+	SampleErrors    prometheus.CounterVec
+	SamplesReceived prometheus.Counter
+	TagErrors       prometheus.Counter
+	TagsReceived    prometheus.Counter
+	TCPConnections  prometheus.Counter
+	TCPErrors       prometheus.Counter
+	TCPLineTooLong  prometheus.Counter
 }
 
 func (l *StatsDTCPListener) SetEventHandler(eh event.EventHandler) {
 	l.EventHandler = eh
 }
 
-func (l *StatsDTCPListener) Listen(linesReceived prometheus.Counter, eventsFlushed prometheus.Counter, tcpConnections prometheus.Counter, tcpErrors prometheus.Counter, tcpLineTooLong prometheus.Counter, sampleErrors prometheus.CounterVec, samplesReceived prometheus.Counter, tagErrors prometheus.Counter, tagsReceived prometheus.Counter) {
+func (l *StatsDTCPListener) Listen() {
 	for {
 		c, err := l.Conn.AcceptTCP()
 		if err != nil {
@@ -85,46 +101,53 @@ func (l *StatsDTCPListener) Listen(linesReceived prometheus.Counter, eventsFlush
 			level.Error(l.Logger).Log("msg", "AcceptTCP failed", "error", err)
 			os.Exit(1)
 		}
-		go l.HandleConn(c, linesReceived, eventsFlushed, tcpConnections, tcpErrors, tcpLineTooLong, sampleErrors, samplesReceived, tagErrors, tagsReceived)
+		go l.HandleConn(c)
 	}
 }
 
-func (l *StatsDTCPListener) HandleConn(c *net.TCPConn, linesReceived prometheus.Counter, eventsFlushed prometheus.Counter, tcpConnections prometheus.Counter, tcpErrors prometheus.Counter, tcpLineTooLong prometheus.Counter, sampleErrors prometheus.CounterVec, samplesReceived prometheus.Counter, tagErrors prometheus.Counter, tagsReceived prometheus.Counter) {
+func (l *StatsDTCPListener) HandleConn(c *net.TCPConn) {
 	defer c.Close()
 
-	tcpConnections.Inc()
+	l.TCPConnections.Inc()
 
 	r := bufio.NewReader(c)
 	for {
 		line, isPrefix, err := r.ReadLine()
 		if err != nil {
 			if err != io.EOF {
-				tcpErrors.Inc()
+				l.TCPErrors.Inc()
 				level.Debug(l.Logger).Log("msg", "Read failed", "addr", c.RemoteAddr(), "error", err)
 			}
 			break
 		}
 		if isPrefix {
-			tcpLineTooLong.Inc()
+			l.TCPLineTooLong.Inc()
 			level.Debug(l.Logger).Log("msg", "Read failed: line too long", "addr", c.RemoteAddr())
 			break
 		}
-		linesReceived.Inc()
-		l.EventHandler.Queue(pkgLine.LineToEvents(string(line), sampleErrors, samplesReceived, tagErrors, tagsReceived, l.Logger), &eventsFlushed)
+		l.LinesReceived.Inc()
+		l.EventHandler.Queue(pkgLine.LineToEvents(string(line), l.SampleErrors, l.SamplesReceived, l.TagErrors, l.TagsReceived, l.Logger))
 	}
 }
 
 type StatsDUnixgramListener struct {
-	Conn         *net.UnixConn
-	EventHandler event.EventHandler
-	Logger       log.Logger
+	Conn            *net.UnixConn
+	EventHandler    event.EventHandler
+	Logger          log.Logger
+	UnixgramPackets prometheus.Counter
+	LinesReceived   prometheus.Counter
+	EventsFlushed   prometheus.Counter
+	SampleErrors    prometheus.CounterVec
+	SamplesReceived prometheus.Counter
+	TagErrors       prometheus.Counter
+	TagsReceived    prometheus.Counter
 }
 
 func (l *StatsDUnixgramListener) SetEventHandler(eh event.EventHandler) {
 	l.EventHandler = eh
 }
 
-func (l *StatsDUnixgramListener) Listen(unixgramPackets prometheus.Counter, linesReceived prometheus.Counter, eventsFlushed prometheus.Counter, sampleErrors prometheus.CounterVec, samplesReceived prometheus.Counter, tagErrors prometheus.Counter, tagsReceived prometheus.Counter) {
+func (l *StatsDUnixgramListener) Listen() {
 	buf := make([]byte, 65535)
 	for {
 		n, _, err := l.Conn.ReadFromUnix(buf)
@@ -137,15 +160,15 @@ func (l *StatsDUnixgramListener) Listen(unixgramPackets prometheus.Counter, line
 			level.Error(l.Logger).Log(err)
 			os.Exit(1)
 		}
-		l.HandlePacket(buf[:n], unixgramPackets, linesReceived, eventsFlushed, sampleErrors, samplesReceived, tagErrors, tagsReceived)
+		l.HandlePacket(buf[:n])
 	}
 }
 
-func (l *StatsDUnixgramListener) HandlePacket(packet []byte, unixgramPackets prometheus.Counter, linesReceived prometheus.Counter, eventsFlushed prometheus.Counter, sampleErrors prometheus.CounterVec, samplesReceived prometheus.Counter, tagErrors prometheus.Counter, tagsReceived prometheus.Counter) {
-	unixgramPackets.Inc()
+func (l *StatsDUnixgramListener) HandlePacket(packet []byte) {
+	l.UnixgramPackets.Inc()
 	lines := strings.Split(string(packet), "\n")
 	for _, line := range lines {
-		linesReceived.Inc()
-		l.EventHandler.Queue(pkgLine.LineToEvents(line, sampleErrors, samplesReceived, tagErrors, tagsReceived, l.Logger), &eventsFlushed)
+		l.LinesReceived.Inc()
+		l.EventHandler.Queue(pkgLine.LineToEvents(line, l.SampleErrors, l.SamplesReceived, l.TagErrors, l.TagsReceived, l.Logger))
 	}
 }

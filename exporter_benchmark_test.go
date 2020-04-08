@@ -50,7 +50,7 @@ func benchmarkUDPListener(times int, b *testing.B) {
 
 		for i := 0; i < times; i++ {
 			for _, line := range bytesInput {
-				l.HandlePacket([]byte(line), udpPackets, linesReceived, eventsFlushed, *sampleErrors, samplesReceived, tagErrors, tagsReceived)
+				l.HandlePacket([]byte(line))
 			}
 		}
 	}
@@ -142,7 +142,7 @@ mappings:
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	ex := exporter.NewExporter(testMapper, log.NewNopLogger())
+	ex := exporter.NewExporter(testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 	for i := 0; i < b.N; i++ {
 		ec := make(chan event.Events, 1000)
 		go func() {
@@ -152,6 +152,6 @@ mappings:
 			close(ec)
 		}()
 
-		ex.Listen(ec, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+		ex.Listen(ec)
 	}
 }
