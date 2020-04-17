@@ -467,6 +467,16 @@ docker run -d -p 9102:9102 -p 9125:9125 -p 9125:9125/udp \
         prom/statsd-exporter --statsd.mapping-config=/tmp/statsd_mapping.yml
 ```
 
+## Library packages
+
+Parts of the implementation of this exporter are available as separate packages.
+See the [documentation](https://pkg.go.dev/github.com/prometheus/statsd_exporter/pkg) for details.
+
+For the time being, there are *no stability guarantees* for library interfaces.
+We will try to call out any significant changes in the [changelog](https://github.com/prometheus/statsd_exporter/blob/master/CHANGELOG.md).
+Semantic versioning of the exporter is based on the impact on users of the exporter, not users of the library.
+
+We encourage re-use of these packages and welcome [issues](https://github.com/prometheus/statsd_exporter/issues?q=is%3Aopen+is%3Aissue+label%3Alibrary) related to their usability as a library.
 
 [travis]: https://travis-ci.org/prometheus/statsd_exporter
 [circleci]: https://circleci.com/gh/prometheus/statsd_exporter
