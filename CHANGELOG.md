@@ -1,3 +1,18 @@
+## 0.16.0 / unreleased
+
+* [CHANGE] Break out much of the exporter into reusable packages ([#298](https://github.com/prometheus/statsd_exporter/pull/298))
+
+This release mainly consists of an internal reorganization of the exporter.
+This should not have any impact on users of the binary, if it does, please file
+an issue.
+
+For users of the existing library packages, nothing changes.
+
+There are now multiple new packages available, exposing functionality that had
+been locked away in the main package. Consider the interfaces of these
+libraries preliminary; we will change them as we gain experience in how they
+are used.
+
 ## 0.15.0 / 2020-03-05
 
 * [ENHANCEMENT] Allow setting granularity for summary metrics ([#290](https://github.com/prometheus/statsd_exporter/pull/290))
