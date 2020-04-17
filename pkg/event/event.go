@@ -11,12 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package event
 
 import (
 	"sync"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/statsd_exporter/pkg/clock"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
@@ -29,105 +30,108 @@ type Event interface {
 }
 
 type CounterEvent struct {
-	metricName string
-	value      float64
-	labels     map[string]string
+	CMetricName string
+	CValue      float64
+	CLabels     map[string]string
 }
 
-func (c *CounterEvent) MetricName() string            { return c.metricName }
-func (c *CounterEvent) Value() float64                { return c.value }
-func (c *CounterEvent) Labels() map[string]string     { return c.labels }
+func (c *CounterEvent) MetricName() string            { return c.CMetricName }
+func (c *CounterEvent) Value() float64                { return c.CValue }
+func (c *CounterEvent) Labels() map[string]string     { return c.CLabels }
 func (c *CounterEvent) MetricType() mapper.MetricType { return mapper.MetricTypeCounter }
 
 type GaugeEvent struct {
-	metricName string
-	value      float64
-	relative   bool
-	labels     map[string]string
+	GMetricName string
+	GValue      float64
+	GRelative   bool
+	GLabels     map[string]string
 }
 
-func (g *GaugeEvent) MetricName() string            { return g.metricName }
-func (g *GaugeEvent) Value() float64                { return g.value }
-func (c *GaugeEvent) Labels() map[string]string     { return c.labels }
+func (g *GaugeEvent) MetricName() string            { return g.GMetricName }
+func (g *GaugeEvent) Value() float64                { return g.GValue }
+func (c *GaugeEvent) Labels() map[string]string     { return c.GLabels }
 func (c *GaugeEvent) MetricType() mapper.MetricType { return mapper.MetricTypeGauge }
 
 type TimerEvent struct {
-	metricName string
-	value      float64
-	labels     map[string]string
+	TMetricName string
+	TValue      float64
+	TLabels     map[string]string
 }
 
-func (t *TimerEvent) MetricName() string            { return t.metricName }
-func (t *TimerEvent) Value() float64                { return t.value }
-func (c *TimerEvent) Labels() map[string]string     { return c.labels }
+func (t *TimerEvent) MetricName() string            { return t.TMetricName }
+func (t *TimerEvent) Value() float64                { return t.TValue }
+func (c *TimerEvent) Labels() map[string]string     { return c.TLabels }
 func (c *TimerEvent) MetricType() mapper.MetricType { return mapper.MetricTypeTimer }
 
 type Events []Event
 
-type eventQueue struct {
-	c              chan Events
+type EventQueue struct {
+	C              chan Events
 	q              Events
 	m              sync.Mutex
-	flushThreshold int
 	flushTicker    *time.Ticker
+	flushThreshold int
+	flushInterval  time.Duration
+	eventsFlushed  prometheus.Counter
 }
 
-type eventHandler interface {
-	queue(event Events)
+type EventHandler interface {
+	Queue(event Events)
 }
 
-func newEventQueue(c chan Events, flushThreshold int, flushInterval time.Duration) *eventQueue {
+func NewEventQueue(c chan Events, flushThreshold int, flushInterval time.Duration, eventsFlushed prometheus.Counter) *EventQueue {
 	ticker := clock.NewTicker(flushInterval)
-	eq := &eventQueue{
-		c:              c,
+	eq := &EventQueue{
+		C:              c,
 		flushThreshold: flushThreshold,
 		flushTicker:    ticker,
 		q:              make([]Event, 0, flushThreshold),
+		eventsFlushed:  eventsFlushed,
 	}
 	go func() {
 		for {
 			<-ticker.C
-			eq.flush()
+			eq.Flush()
 		}
 	}()
 	return eq
 }
 
-func (eq *eventQueue) queue(events Events) {
+func (eq *EventQueue) Queue(events Events) {
 	eq.m.Lock()
 	defer eq.m.Unlock()
 
 	for _, e := range events {
 		eq.q = append(eq.q, e)
 		if len(eq.q) >= eq.flushThreshold {
-			eq.flushUnlocked()
+			eq.FlushUnlocked()
 		}
 	}
 }
 
-func (eq *eventQueue) flush() {
+func (eq *EventQueue) Flush() {
 	eq.m.Lock()
 	defer eq.m.Unlock()
-	eq.flushUnlocked()
+	eq.FlushUnlocked()
 }
 
-func (eq *eventQueue) flushUnlocked() {
-	eq.c <- eq.q
+func (eq *EventQueue) FlushUnlocked() {
+	eq.C <- eq.q
 	eq.q = make([]Event, 0, cap(eq.q))
-	eventsFlushed.Inc()
+	eq.eventsFlushed.Inc()
 }
 
-func (eq *eventQueue) len() int {
+func (eq *EventQueue) Len() int {
 	eq.m.Lock()
 	defer eq.m.Unlock()
 
 	return len(eq.q)
 }
 
-type unbufferedEventHandler struct {
-	c chan Events
+type UnbufferedEventHandler struct {
+	C chan Events
 }
 
-func (ueh *unbufferedEventHandler) queue(events Events) {
-	ueh.c <- events
+func (ueh *UnbufferedEventHandler) Queue(events Events) {
+	ueh.C <- events
 }

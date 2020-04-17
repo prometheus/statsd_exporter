@@ -18,6 +18,9 @@ import (
 	"testing"
 
 	"github.com/go-kit/kit/log"
+	"github.com/prometheus/statsd_exporter/pkg/event"
+	"github.com/prometheus/statsd_exporter/pkg/exporter"
+	"github.com/prometheus/statsd_exporter/pkg/listener"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
 
@@ -42,12 +45,12 @@ func benchmarkUDPListener(times int, b *testing.B) {
 	}
 	for n := 0; n < b.N; n++ {
 		// there are more events than input lines, need bigger buffer
-		events := make(chan Events, len(bytesInput)*times*2)
-		l := StatsDUDPListener{eventHandler: &unbufferedEventHandler{c: events}}
+		events := make(chan event.Events, len(bytesInput)*times*2)
+		l := listener.StatsDUDPListener{EventHandler: &event.UnbufferedEventHandler{C: events}}
 
 		for i := 0; i < times; i++ {
 			for _, line := range bytesInput {
-				l.handlePacket([]byte(line))
+				l.HandlePacket([]byte(line))
 			}
 		}
 	}
@@ -64,52 +67,52 @@ func BenchmarkUDPListener50(b *testing.B) {
 }
 
 func BenchmarkExporterListener(b *testing.B) {
-	events := Events{
-		&CounterEvent{ // simple counter
-			metricName: "counter",
-			value:      2,
+	events := event.Events{
+		&event.CounterEvent{ // simple counter
+			CMetricName: "counter",
+			CValue:      2,
 		},
-		&GaugeEvent{ // simple gauge
-			metricName: "gauge",
-			value:      10,
+		&event.GaugeEvent{ // simple gauge
+			GMetricName: "gauge",
+			GValue:      10,
 		},
-		&TimerEvent{ // simple timer
-			metricName: "timer",
-			value:      200,
+		&event.TimerEvent{ // simple timer
+			TMetricName: "timer",
+			TValue:      200,
 		},
-		&TimerEvent{ // simple histogram
-			metricName: "histogram.test",
-			value:      200,
+		&event.TimerEvent{ // simple histogram
+			TMetricName: "histogram.test",
+			TValue:      200,
 		},
-		&CounterEvent{ // simple_tags
-			metricName: "simple_tags",
-			value:      100,
-			labels: map[string]string{
+		&event.CounterEvent{ // simple_tags
+			CMetricName: "simple_tags",
+			CValue:      100,
+			CLabels: map[string]string{
 				"alpha": "bar",
 				"bravo": "baz",
 			},
 		},
-		&CounterEvent{ // slightly different tags
-			metricName: "simple_tags",
-			value:      100,
-			labels: map[string]string{
+		&event.CounterEvent{ // slightly different tags
+			CMetricName: "simple_tags",
+			CValue:      100,
+			CLabels: map[string]string{
 				"alpha":   "bar",
 				"charlie": "baz",
 			},
 		},
-		&CounterEvent{ // and even more different tags
-			metricName: "simple_tags",
-			value:      100,
-			labels: map[string]string{
+		&event.CounterEvent{ // and even more different tags
+			CMetricName: "simple_tags",
+			CValue:      100,
+			CLabels: map[string]string{
 				"alpha": "bar",
 				"bravo": "baz",
 				"golf":  "looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong",
 			},
 		},
-		&CounterEvent{ // datadog tag extension with complex tags
-			metricName: "foo",
-			value:      100,
-			labels: map[string]string{
+		&event.CounterEvent{ // datadog tag extension with complex tags
+			CMetricName: "foo",
+			CValue:      100,
+			CLabels: map[string]string{
 				"action":                "test",
 				"application":           "testapp",
 				"application_component": "testcomp",
@@ -139,9 +142,9 @@ mappings:
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	ex := NewExporter(testMapper, log.NewNopLogger())
+	ex := exporter.NewExporter(testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 	for i := 0; i < b.N; i++ {
-		ec := make(chan Events, 1000)
+		ec := make(chan event.Events, 1000)
 		go func() {
 			for i := 0; i < 1000; i++ {
 				ec <- events

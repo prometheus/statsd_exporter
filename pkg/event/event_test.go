@@ -11,22 +11,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package event
 
 import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/statsd_exporter/pkg/clock"
+)
+
+var eventsFlushed = prometheus.NewCounter(
+	prometheus.CounterOpts{
+		Name: "statsd_exporter_event_queue_flushed_total",
+		Help: "Number of times events were flushed to exporter",
+	},
 )
 
 func TestEventThresholdFlush(t *testing.T) {
 	c := make(chan Events, 100)
 	// We're not going to flush during this test, so the duration doesn't matter.
-	eq := newEventQueue(c, 5, time.Second)
+	eq := NewEventQueue(c, 5, time.Second, eventsFlushed)
 	e := make(Events, 13)
 	go func() {
-		eq.queue(e)
+		eq.Queue(e)
 	}()
 
 	batch := <-c
@@ -52,25 +60,25 @@ func TestEventIntervalFlush(t *testing.T) {
 	clock.ClockInstance.Instant = time.Unix(0, 0)
 
 	c := make(chan Events, 100)
-	eq := newEventQueue(c, 1000, time.Second*1000)
+	eq := NewEventQueue(c, 1000, time.Second*1000, eventsFlushed)
 	e := make(Events, 10)
-	eq.queue(e)
+	eq.Queue(e)
 
-	if eq.len() != 10 {
-		t.Fatal("Expected 10 events to be queued, but got", eq.len())
+	if eq.Len() != 10 {
+		t.Fatal("Expected 10 events to be queued, but got", eq.Len())
 	}
 
-	if len(eq.c) != 0 {
-		t.Fatal("Expected 0 events in the event channel, but got", len(eq.c))
+	if len(eq.C) != 0 {
+		t.Fatal("Expected 0 events in the event channel, but got", len(eq.C))
 	}
 
 	// Tick time forward to trigger a flush
 	clock.ClockInstance.Instant = time.Unix(10000, 0)
 	clock.ClockInstance.TickerCh <- time.Unix(10000, 0)
 
-	events := <-eq.c
-	if eq.len() != 0 {
-		t.Fatal("Expected 0 events to be queued, but got", eq.len())
+	events := <-eq.C
+	if eq.Len() != 0 {
+		t.Fatal("Expected 0 events to be queued, but got", eq.Len())
 	}
 
 	if len(events) != 10 {
