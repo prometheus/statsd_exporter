@@ -84,6 +84,7 @@ func NewEventQueue(c chan Events, flushThreshold int, flushInterval time.Duratio
 	eq := &EventQueue{
 		C:              c,
 		flushThreshold: flushThreshold,
+		flushInterval:  flushInterval,
 		flushTicker:    ticker,
 		q:              make([]Event, 0, flushThreshold),
 		eventsFlushed:  eventsFlushed,

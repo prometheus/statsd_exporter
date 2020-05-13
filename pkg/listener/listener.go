@@ -65,6 +65,7 @@ func (l *StatsDUDPListener) HandlePacket(packet []byte) {
 	l.UDPPackets.Inc()
 	lines := strings.Split(string(packet), "\n")
 	for _, line := range lines {
+		level.Debug(l.Logger).Log("msg", "Incoming line", "line", line)
 		l.LinesReceived.Inc()
 		l.EventHandler.Queue(pkgLine.LineToEvents(line, l.SampleErrors, l.SamplesReceived, l.TagErrors, l.TagsReceived, l.Logger))
 	}
@@ -120,6 +121,7 @@ func (l *StatsDTCPListener) HandleConn(c *net.TCPConn) {
 			}
 			break
 		}
+		level.Debug(l.Logger).Log("msg", "Incoming line", "line", line)
 		if isPrefix {
 			l.TCPLineTooLong.Inc()
 			level.Debug(l.Logger).Log("msg", "Read failed: line too long", "addr", c.RemoteAddr())
@@ -168,6 +170,7 @@ func (l *StatsDUnixgramListener) HandlePacket(packet []byte) {
 	l.UnixgramPackets.Inc()
 	lines := strings.Split(string(packet), "\n")
 	for _, line := range lines {
+		level.Debug(l.Logger).Log("msg", "Incoming line", "line", line)
 		l.LinesReceived.Inc()
 		l.EventHandler.Queue(pkgLine.LineToEvents(line, l.SampleErrors, l.SamplesReceived, l.TagErrors, l.TagsReceived, l.Logger))
 	}
