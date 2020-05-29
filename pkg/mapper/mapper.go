@@ -27,7 +27,7 @@ import (
 )
 
 var (
-	statsdMetricRE    = `[a-zA-Z_](-?[a-zA-Z0-9_])+`
+	statsdMetricRE    = `[a-zA-Z_](-?[a-zA-Z0-9_])*`
 	templateReplaceRE = `(\$\{?\d+\}?)`
 
 	metricLineRE = regexp.MustCompile(`^(\*\.|` + statsdMetricRE + `\.)+(\*|` + statsdMetricRE + `)$`)
