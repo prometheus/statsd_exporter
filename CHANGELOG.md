@@ -1,6 +1,7 @@
-## 0.16.0 / unreleased
+## 0.16.0 / 2020-05-29
 
 * [CHANGE] Break out much of the exporter into reusable packages ([#298](https://github.com/prometheus/statsd_exporter/pull/298))
+* [ENHANCEMENT] Log ingested lines at debug level ([#305](https://github.com/prometheus/statsd_exporter/pull/305))
 
 This release mainly consists of an internal reorganization of the exporter.
 This should not have any impact on users of the binary, if it does, please file
