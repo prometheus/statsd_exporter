@@ -1,3 +1,7 @@
+## 0.17.0 / unreleased
+
+* [FEATURE] Offline configuration check ([#312](https://github.com/prometheus/statsd_exporter/pull/312))
+
 ## 0.16.0 / 2020-05-29
 
 * [CHANGE] Break out much of the exporter into reusable packages ([#298](https://github.com/prometheus/statsd_exporter/pull/298))
