@@ -267,6 +267,7 @@ func main() {
 		eventFlushThreshold  = kingpin.Flag("statsd.event-flush-threshold", "Number of events to hold in queue before flushing").Default("1000").Int()
 		eventFlushInterval   = kingpin.Flag("statsd.event-flush-interval", "Number of events to hold in queue before flushing").Default("200ms").Duration()
 		dumpFSMPath          = kingpin.Flag("debug.dump-fsm", "The path to dump internal FSM generated for glob matching as Dot file.").Default("").String()
+		checkConfig          = kingpin.Flag("check-config", "Check configuration and exit.").Default("false").Bool()
 	)
 
 	promlogConfig := &promlog.Config{}
@@ -440,13 +441,17 @@ func main() {
 		mapper.InitCache(*cacheSize, cacheOption)
 	}
 
-	go configReloader(*mappingConfig, mapper, *cacheSize, logger, cacheOption)
-
 	exporter := exporter.NewExporter(mapper, logger, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+
+	if *checkConfig {
+		level.Info(logger).Log("msg", "Configuration check successful, exiting")
+		return
+	}
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 
+	go configReloader(*mappingConfig, mapper, *cacheSize, logger, cacheOption)
 	go exporter.Listen(events)
 
 	<-signals

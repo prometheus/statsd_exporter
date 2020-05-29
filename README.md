@@ -81,42 +81,56 @@ NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/king
 * flag processing stops at the first `--`
 
     ```
-    $ go build
-    $ ./statsd_exporter --help
     usage: statsd_exporter [<flags>]
 
     Flags:
-      -h, --help                    Show context-sensitive help (also try --help-long and --help-man).
+      -h, --help                    Show context-sensitive help (also try
+                                    --help-long and --help-man).
           --web.listen-address=":9102"
-                                    The address on which to expose the web interface and generated Prometheus     metrics.
+                                    The address on which to expose the web interface
+                                    and generated Prometheus metrics.
           --web.telemetry-path="/metrics"
                                     Path under which to expose metrics.
           --statsd.listen-udp=":9125"
-                                    The UDP address on which to receive statsd metric lines. "" disables it.
+                                    The UDP address on which to receive statsd
+                                    metric lines. "" disables it.
           --statsd.listen-tcp=":9125"
-                                    The TCP address on which to receive statsd metric lines. "" disables it.
+                                    The TCP address on which to receive statsd
+                                    metric lines. "" disables it.
           --statsd.listen-unixgram=""
-                                    The Unixgram socket path to receive statsd metric lines in datagram. ""     disables it.
+                                    The Unixgram socket path to receive statsd
+                                    metric lines in datagram. "" disables it.
           --statsd.unixsocket-mode="755"
                                     The permission mode of the unix socket.
           --statsd.mapping-config=STATSD.MAPPING-CONFIG
                                     Metric mapping configuration file name.
           --statsd.read-buffer=STATSD.READ-BUFFER
-                                    Size (in bytes) of the operating system's transmit read buffer associated     with the UDP or Unixgram connection. Please make sure the kernel     parameters net.core.rmem_max is set to
-                                    a value greater than the value specified.
-          --statsd.cache-size=1000  Maximum size of your metric mapping cache. Relies on least recently used     replacement policy if max size is reached.
+                                    Size (in bytes) of the operating system's
+                                    transmit read buffer associated with the UDP or
+                                    Unixgram connection. Please make sure the kernel
+                                    parameters net.core.rmem_max is set to a value
+                                    greater than the value specified.
+          --statsd.cache-size=1000  Maximum size of your metric mapping cache.
+                                    Relies on least recently used replacement policy
+                                    if max size is reached.
+          --statsd.cache-type=lru   Metric mapping cache type. Valid options are
+                                    "lru" and "random"
           --statsd.event-queue-size=10000
                                     Size of internal queue for processing events
           --statsd.event-flush-threshold=1000
-                                    Number of events to hold in queue before flushing
+                                    Number of events to hold in queue before
+                                    flushing
           --statsd.event-flush-interval=200ms
-                                    Number of events to hold in queue before flushing
-          --debug.dump-fsm=""       The path to dump internal FSM generated for glob matching as Dot file.
-          --log.level="info"        Only log messages with the given severity or above. Valid levels: [debug,     info, warn, error, fatal]
-          --log.format="logger:stderr"
-                                    Set the log target and format. Example: "logger:syslog?appname=bob&    local=7" or "logger:stdout?json=true"
+                                    Number of events to hold in queue before
+                                    flushing
+          --debug.dump-fsm=""       The path to dump internal FSM generated for glob
+                                    matching as Dot file.
+          --check-config            Check configuration and exit.
+          --log.level=info          Only log messages with the given severity or
+                                    above. One of: [debug, info, warn, error]
+          --log.format=logfmt       Output format of log messages. One of: [logfmt,
+                                    json]
           --version                 Show application version.
-
     ```
 
 ## Tests
@@ -207,8 +221,8 @@ mappings:
     provider: "$1"
 ```
 
-Be aware about yaml escape rules as a mapping like the following one will not work. 
-```yaml 
+Be aware about yaml escape rules as a mapping like the following one will not work.
+```yaml
 mappings:
 - match: "test\.(\w+)\.(\w+)\.counter"
   match_type: regex
