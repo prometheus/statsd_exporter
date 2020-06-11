@@ -52,6 +52,7 @@ func (g *GaugeEvent) Value() float64                { return g.GValue }
 func (c *GaugeEvent) Labels() map[string]string     { return c.GLabels }
 func (c *GaugeEvent) MetricType() mapper.MetricType { return mapper.MetricTypeGauge }
 
+// TimerEvent now defaults to seconds units
 type TimerEvent struct {
 	TMetricName string
 	TValue      float64

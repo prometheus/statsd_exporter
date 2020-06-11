@@ -85,7 +85,7 @@ func TestHandlePacket(t *testing.T) {
 			out: event.Events{
 				&event.TimerEvent{
 					TMetricName: "foo",
-					TValue:      200,
+					TValue:      0.2, // convert statsd ms to seconds in parsing
 					TLabels:     map[string]string{},
 				},
 			},
@@ -323,12 +323,12 @@ func TestHandlePacket(t *testing.T) {
 			out: event.Events{
 				&event.TimerEvent{
 					TMetricName: "foo",
-					TValue:      200,
+					TValue:      .200,
 					TLabels:     map[string]string{},
 				},
 				&event.TimerEvent{
 					TMetricName: "foo",
-					TValue:      300,
+					TValue:      .300,
 					TLabels:     map[string]string{},
 				},
 				&event.CounterEvent{
@@ -348,7 +348,7 @@ func TestHandlePacket(t *testing.T) {
 				},
 				&event.TimerEvent{
 					TMetricName: "bar",
-					TValue:      5,
+					TValue:      .005,
 					TLabels:     map[string]string{},
 				},
 			},
@@ -356,16 +356,16 @@ func TestHandlePacket(t *testing.T) {
 			name: "timings with sampling factor",
 			in:   "foo.timing:0.5|ms|@0.1",
 			out: event.Events{
-				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.5, TLabels: map[string]string{}},
-				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.5, TLabels: map[string]string{}},
-				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.5, TLabels: map[string]string{}},
-				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.5, TLabels: map[string]string{}},
-				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.5, TLabels: map[string]string{}},
-				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.5, TLabels: map[string]string{}},
-				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.5, TLabels: map[string]string{}},
-				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.5, TLabels: map[string]string{}},
-				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.5, TLabels: map[string]string{}},
-				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.5, TLabels: map[string]string{}},
+				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.0005, TLabels: map[string]string{}},
+				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.0005, TLabels: map[string]string{}},
+				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.0005, TLabels: map[string]string{}},
+				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.0005, TLabels: map[string]string{}},
+				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.0005, TLabels: map[string]string{}},
+				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.0005, TLabels: map[string]string{}},
+				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.0005, TLabels: map[string]string{}},
+				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.0005, TLabels: map[string]string{}},
+				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.0005, TLabels: map[string]string{}},
+				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.0005, TLabels: map[string]string{}},
 			},
 		}, {
 			name: "bad line",
@@ -420,6 +420,36 @@ func TestHandlePacket(t *testing.T) {
 					CMetricName: "valid_utf8",
 					CValue:      1,
 					CLabels:     map[string]string{},
+				},
+			},
+		}, {
+			name: "ms timer with conversion to seconds",
+			in:   "foo:200|ms",
+			out: event.Events{
+				&event.TimerEvent{
+					TMetricName: "foo",
+					TValue:      0.2,
+					TLabels:     map[string]string{},
+				},
+			},
+		}, {
+			name: "histogram with no unit conversion",
+			in:   "foo:200|h",
+			out: event.Events{
+				&event.TimerEvent{
+					TMetricName: "foo",
+					TValue:      200,
+					TLabels:     map[string]string{},
+				},
+			},
+		}, {
+			name: "distribution with no unit conversion",
+			in:   "foo:200|d",
+			out: event.Events{
+				&event.TimerEvent{
+					TMetricName: "foo",
+					TValue:      200, // convert statsd ms to seconds in parsing
+					TLabels:     map[string]string{},
 				},
 			},
 		},
@@ -556,7 +586,7 @@ mappings:
 		// event with ttl = 2s from a mapping
 		&event.TimerEvent{
 			TMetricName: "bazqux.main",
-			TValue:      42000,
+			TValue:      42,
 		},
 	}
 

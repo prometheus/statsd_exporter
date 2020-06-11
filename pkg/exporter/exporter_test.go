@@ -721,7 +721,7 @@ func TestHistogramUnits(t *testing.T) {
 	c := event.Events{
 		&event.TimerEvent{
 			TMetricName: name,
-			TValue:      300,
+			TValue:      .300,
 		},
 	}
 	events <- c
@@ -737,9 +737,7 @@ func TestHistogramUnits(t *testing.T) {
 	if value == nil {
 		t.Fatal("Histogram value should not be nil")
 	}
-	if *value == 300 {
-		t.Fatalf("Histogram observations not scaled into Seconds")
-	} else if *value != .300 {
+	if *value != .300 {
 		t.Fatalf("Received unexpected value for histogram observation %f != .300", *value)
 	}
 }
@@ -871,7 +869,7 @@ mappings:
 		// event with ttl = 2s from a mapping
 		&event.TimerEvent{
 			TMetricName: "bazqux.main",
-			TValue:      42000,
+			TValue:      42,
 		},
 	}
 

@@ -42,7 +42,13 @@ func buildEvent(statType, metric string, value float64, relative bool, labels ma
 			GRelative:   relative,
 			GLabels:     labels,
 		}, nil
-	case "ms", "h", "d":
+	case "ms":
+		return &event.TimerEvent{
+			TMetricName: metric,
+			TValue:      float64(value) / 1000, // prometheus presumes seconds, statsd millisecond
+			TLabels:     labels,
+		}, nil
+	case "h", "d":
 		return &event.TimerEvent{
 			TMetricName: metric,
 			TValue:      float64(value),

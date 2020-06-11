@@ -153,7 +153,7 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 		case mapper.TimerTypeHistogram:
 			histogram, err := b.Registry.GetHistogram(metricName, prometheusLabels, help, mapping, b.MetricsCount)
 			if err == nil {
-				histogram.Observe(thisEvent.Value() / 1000) // prometheus presumes seconds, statsd millisecond
+				histogram.Observe(thisEvent.Value())
 				b.EventStats.WithLabelValues("timer").Inc()
 			} else {
 				level.Debug(b.Logger).Log("msg", regErrF, "metric", metricName, "error", err)
@@ -163,7 +163,7 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 		case mapper.TimerTypeDefault, mapper.TimerTypeSummary:
 			summary, err := b.Registry.GetSummary(metricName, prometheusLabels, help, mapping, b.MetricsCount)
 			if err == nil {
-				summary.Observe(thisEvent.Value() / 1000) // prometheus presumes seconds, statsd millisecond
+				summary.Observe(thisEvent.Value())
 				b.EventStats.WithLabelValues("timer").Inc()
 			} else {
 				level.Debug(b.Logger).Log("msg", regErrF, "metric", metricName, "error", err)
