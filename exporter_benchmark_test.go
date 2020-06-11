@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/go-kit/kit/log"
+
 	"github.com/prometheus/statsd_exporter/pkg/event"
 	"github.com/prometheus/statsd_exporter/pkg/exporter"
 	"github.com/prometheus/statsd_exporter/pkg/listener"
@@ -38,6 +39,7 @@ func benchmarkUDPListener(times int, b *testing.B) {
 		"some_very_useful_metrics_with_quite_a_log_name:13|c",
 	}
 	bytesInput := make([]string, len(input)*times)
+	logger := log.NewNopLogger()
 	for run := 0; run < times; run++ {
 		for i := 0; i < len(input); i++ {
 			bytesInput[run*len(input)+i] = fmt.Sprintf("run%d%s", run, input[i])
@@ -46,7 +48,15 @@ func benchmarkUDPListener(times int, b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		// there are more events than input lines, need bigger buffer
 		events := make(chan event.Events, len(bytesInput)*times*2)
-		l := listener.StatsDUDPListener{EventHandler: &event.UnbufferedEventHandler{C: events}}
+
+		l := listener.StatsDUDPListener{
+			EventHandler:    &event.UnbufferedEventHandler{C: events},
+			Logger:          logger,
+			UDPPackets:      udpPackets,
+			LinesReceived:   linesReceived,
+			SamplesReceived: samplesReceived,
+			TagsReceived:    tagsReceived,
+		}
 
 		for i := 0; i < times; i++ {
 			for _, line := range bytesInput {
