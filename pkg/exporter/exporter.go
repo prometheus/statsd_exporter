@@ -140,7 +140,7 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 			b.ConflictingEventStats.WithLabelValues("gauge").Inc()
 		}
 
-	case *event.TimerEvent:
+	case *event.ObserverEvent:
 		t := mapper.TimerTypeDefault
 		if mapping != nil {
 			t = mapping.TimerType
