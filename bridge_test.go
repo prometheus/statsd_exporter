@@ -85,7 +85,7 @@ func TestHandlePacket(t *testing.T) {
 			out: event.Events{
 				&event.TimerEvent{
 					TMetricName: "foo",
-					TValue:      0.2, // convert statsd ms to seconds in parsing
+					TValue:      0.2,
 					TLabels:     map[string]string{},
 				},
 			},
@@ -448,7 +448,7 @@ func TestHandlePacket(t *testing.T) {
 			out: event.Events{
 				&event.TimerEvent{
 					TMetricName: "foo",
-					TValue:      200, // convert statsd ms to seconds in parsing
+					TValue:      200,
 					TLabels:     map[string]string{},
 				},
 			},
