@@ -18,9 +18,9 @@ import "fmt"
 type MetricType string
 
 const (
-	MetricTypeCounter MetricType = "counter"
-	MetricTypeGauge   MetricType = "gauge"
-	MetricTypeTimer   MetricType = "timer"
+	MetricTypeCounter  MetricType = "counter"
+	MetricTypeGauge    MetricType = "gauge"
+	MetricTypeObserver MetricType = "observer"
 )
 
 func (m *MetricType) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -34,8 +34,8 @@ func (m *MetricType) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		*m = MetricTypeCounter
 	case MetricTypeGauge:
 		*m = MetricTypeGauge
-	case MetricTypeTimer:
-		*m = MetricTypeTimer
+	case MetricTypeObserver:
+		*m = MetricTypeObserver
 	default:
 		return fmt.Errorf("invalid metric type '%s'", v)
 	}

@@ -36,7 +36,7 @@ var (
 )
 
 type mapperConfigDefaults struct {
-	TimerType           TimerType         `yaml:"timer_type"`
+	ObsereverType       ObserverType      `yaml:"observer_type"`
 	Buckets             []float64         `yaml:"buckets"`
 	Quantiles           []metricObjective `yaml:"quantiles"`
 	MatchType           MatchType         `yaml:"match_type"`
@@ -64,7 +64,7 @@ type MetricMapping struct {
 	Labels           prometheus.Labels `yaml:"labels"`
 	labelKeys        []string
 	labelFormatters  []*fsm.TemplateFormatter
-	TimerType        TimerType         `yaml:"timer_type"`
+	ObserverType     ObserverType      `yaml:"observer_type"`
 	LegacyBuckets    []float64         `yaml:"buckets"`
 	LegacyQuantiles  []metricObjective `yaml:"quantiles"`
 	MatchType        MatchType         `yaml:"match_type"`
@@ -119,7 +119,7 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int, op
 
 	remainingMappingsCount := len(n.Mappings)
 
-	n.FSM = fsm.NewFSM([]string{string(MetricTypeCounter), string(MetricTypeGauge), string(MetricTypeTimer)},
+	n.FSM = fsm.NewFSM([]string{string(MetricTypeCounter), string(MetricTypeGauge), string(MetricTypeObserver)},
 		remainingMappingsCount, n.Defaults.GlobDisableOrdering)
 
 	for i := range n.Mappings {
@@ -181,8 +181,8 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int, op
 			n.doRegex = true
 		}
 
-		if currentMapping.TimerType == "" {
-			currentMapping.TimerType = n.Defaults.TimerType
+		if currentMapping.ObserverType == "" {
+			currentMapping.ObserverType = n.Defaults.ObsereverType
 		}
 
 		if currentMapping.LegacyQuantiles != nil &&
@@ -207,9 +207,9 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int, op
 			return fmt.Errorf("cannot use buckets in both the top level and histogram options at the same time in %s", currentMapping.Match)
 		}
 
-		if currentMapping.TimerType == TimerTypeHistogram {
+		if currentMapping.ObserverType == ObserverTypeHistogram {
 			if currentMapping.SummaryOptions != nil {
-				return fmt.Errorf("cannot use histogram timer and summary options at the same time")
+				return fmt.Errorf("cannot use histogram observer and summary options at the same time")
 			}
 			if currentMapping.HistogramOptions == nil {
 				currentMapping.HistogramOptions = &HistogramOptions{}
@@ -222,9 +222,9 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int, op
 			}
 		}
 
-		if currentMapping.TimerType == TimerTypeSummary {
+		if currentMapping.ObserverType == ObserverTypeSummary {
 			if currentMapping.HistogramOptions != nil {
-				return fmt.Errorf("cannot use summary timer and histogram options at the same time")
+				return fmt.Errorf("cannot use summary observer and histogram options at the same time")
 			}
 			if currentMapping.SummaryOptions == nil {
 				currentMapping.SummaryOptions = &SummaryOptions{}

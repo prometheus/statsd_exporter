@@ -141,16 +141,16 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 		}
 
 	case *event.ObserverEvent:
-		t := mapper.TimerTypeDefault
+		t := mapper.ObserverTypeDefault
 		if mapping != nil {
-			t = mapping.TimerType
+			t = mapping.ObserverType
 		}
-		if t == mapper.TimerTypeDefault {
-			t = b.Mapper.Defaults.TimerType
+		if t == mapper.ObserverTypeDefault {
+			t = b.Mapper.Defaults.ObsereverType
 		}
 
 		switch t {
-		case mapper.TimerTypeHistogram:
+		case mapper.ObserverTypeHistogram:
 			histogram, err := b.Registry.GetHistogram(metricName, prometheusLabels, help, mapping, b.MetricsCount)
 			if err == nil {
 				histogram.Observe(thisEvent.Value())
@@ -160,7 +160,7 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 				b.ConflictingEventStats.WithLabelValues("observer").Inc()
 			}
 
-		case mapper.TimerTypeDefault, mapper.TimerTypeSummary:
+		case mapper.ObserverTypeDefault, mapper.ObserverTypeSummary:
 			summary, err := b.Registry.GetSummary(metricName, prometheusLabels, help, mapping, b.MetricsCount)
 			if err == nil {
 				summary.Observe(thisEvent.Value())

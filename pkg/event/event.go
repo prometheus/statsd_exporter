@@ -61,7 +61,7 @@ type ObserverEvent struct {
 func (t *ObserverEvent) MetricName() string            { return t.OMetricName }
 func (t *ObserverEvent) Value() float64                { return t.OValue }
 func (c *ObserverEvent) Labels() map[string]string     { return c.OLabels }
-func (c *ObserverEvent) MetricType() mapper.MetricType { return mapper.MetricTypeTimer }
+func (c *ObserverEvent) MetricType() mapper.MetricType { return mapper.MetricTypeObserver }
 
 type Events []Event
 

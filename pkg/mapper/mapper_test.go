@@ -441,12 +441,12 @@ mappings:
 				},
 			},
 		},
-		// Config with good timer type.
+		// Config with good observer type.
 		{
 			config: `---
 mappings:
 - match: test.*.*
-  timer_type: summary
+  observer_type: summary
   name: "foo"
   labels: {}
   quantiles:
@@ -471,7 +471,7 @@ mappings:
 			config: `---
 mappings:
 - match: test1.*.*
-  timer_type: summary
+  observer_type: summary
   name: "foo"
   labels: {}
   `,
@@ -488,12 +488,12 @@ mappings:
 				},
 			},
 		},
-		// Config with bad timer type.
+		// Config with bad observer type.
 		{
 			config: `---
 mappings:
 - match: test.*.*
-  timer_type: wrong
+  observer_type: wrong
   name: "foo"
   labels: {}
     `,
@@ -504,7 +504,7 @@ mappings:
 			config: `---
 mappings:
 - match: test.*.*
-  timer_type: summary
+  observer_type: summary
   name: "foo"
   labels: {}
   summary_options:
@@ -531,7 +531,7 @@ mappings:
 			config: `---
 mappings:
 - match: test.*.*
-  timer_type: summary
+  observer_type: summary
   name: "foo"
   labels: {}
   summary_options:
@@ -564,7 +564,7 @@ mappings:
 			config: `---
 mappings:
 - match: test.*.*
-  timer_type: summary
+  observer_type: summary
   name: "foo"
   labels: {}
   quantiles:
@@ -638,7 +638,7 @@ mappings:
 			config: `---
 mappings:
 - match: foo.*.*
-  timer_type: summary
+  observer_type: summary
   name: "foo"
   labels: {}
   `,
