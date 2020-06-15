@@ -154,24 +154,24 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 			histogram, err := b.Registry.GetHistogram(metricName, prometheusLabels, help, mapping, b.MetricsCount)
 			if err == nil {
 				histogram.Observe(thisEvent.Value())
-				b.EventStats.WithLabelValues("timer").Inc()
+				b.EventStats.WithLabelValues("observer").Inc()
 			} else {
 				level.Debug(b.Logger).Log("msg", regErrF, "metric", metricName, "error", err)
-				b.ConflictingEventStats.WithLabelValues("timer").Inc()
+				b.ConflictingEventStats.WithLabelValues("observer").Inc()
 			}
 
 		case mapper.TimerTypeDefault, mapper.TimerTypeSummary:
 			summary, err := b.Registry.GetSummary(metricName, prometheusLabels, help, mapping, b.MetricsCount)
 			if err == nil {
 				summary.Observe(thisEvent.Value())
-				b.EventStats.WithLabelValues("timer").Inc()
+				b.EventStats.WithLabelValues("observer").Inc()
 			} else {
 				level.Debug(b.Logger).Log("msg", regErrF, "metric", metricName, "error", err)
-				b.ConflictingEventStats.WithLabelValues("timer").Inc()
+				b.ConflictingEventStats.WithLabelValues("observer").Inc()
 			}
 
 		default:
-			level.Error(b.Logger).Log("msg", "unknown timer type", "type", t)
+			level.Error(b.Logger).Log("msg", "unknown observer type", "type", t)
 			os.Exit(1)
 		}
 
