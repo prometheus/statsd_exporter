@@ -647,6 +647,26 @@ mappings:
   labels: {}
     `,
 		},
+		// Config with good metric type observer.
+		{
+			config: `---
+mappings:
+- match: test.*.*
+  match_metric_type: observer
+  name: "foo"
+  labels: {}
+    `,
+		},
+		// Config with good metric type timer.
+		{
+			config: `---
+mappings:
+- match: test.*.*
+  match_metric_type: timer
+  name: "foo"
+  labels: {}
+    `,
+		},
 		// Config with bad metric type matcher.
 		{
 			config: `---
