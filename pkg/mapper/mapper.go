@@ -65,7 +65,7 @@ type MetricMapping struct {
 	Labels           prometheus.Labels `yaml:"labels"`
 	labelKeys        []string
 	labelFormatters  []*fsm.TemplateFormatter
-	ObserverType     ObserverType      `yaml:"observer_type,omitempty"`
+	ObserverType     ObserverType      `yaml:"observer_type"`
 	TimerType        ObserverType      `yaml:"timer_type,omitempty"` // DEPRECATED - field only present to preserve backwards compatibility in configs. Always empty
 	LegacyBuckets    []float64         `yaml:"buckets"`
 	LegacyQuantiles  []metricObjective `yaml:"quantiles"`
