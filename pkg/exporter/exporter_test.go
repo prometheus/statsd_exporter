@@ -711,7 +711,7 @@ func TestHistogramUnits(t *testing.T) {
 		testMapper := mapper.MetricMapper{}
 		testMapper.InitCache(0)
 		ex := NewExporter(&testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
-		ex.Mapper.Defaults.ObsereverType = mapper.ObserverTypeHistogram
+		ex.Mapper.Defaults.ObserverType = mapper.ObserverTypeHistogram
 		ex.Listen(events)
 	}()
 

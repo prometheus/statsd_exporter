@@ -467,11 +467,60 @@ mappings:
 				},
 			},
 		},
+		// Config with good observer type and unused timer type
+		{
+			config: `---
+mappings:
+- match: test.*.*
+  observer_type: summary
+  timer_type: histogram
+  name: "foo"
+  labels: {}
+  quantiles:
+    - quantile: 0.42
+      error: 0.04
+    - quantile: 0.7
+      error: 0.002
+  `,
+			mappings: mappings{
+				{
+					statsdMetric: "test.*.*",
+					name:         "foo",
+					labels:       map[string]string{},
+					quantiles: []metricObjective{
+						{Quantile: 0.42, Error: 0.04},
+						{Quantile: 0.7, Error: 0.002},
+					},
+				},
+			},
+		},
 		{
 			config: `---
 mappings:
 - match: test1.*.*
   observer_type: summary
+  name: "foo"
+  labels: {}
+  `,
+			mappings: mappings{
+				{
+					statsdMetric: "test1.*.*",
+					name:         "foo",
+					labels:       map[string]string{},
+					quantiles: []metricObjective{
+						{Quantile: 0.5, Error: 0.05},
+						{Quantile: 0.9, Error: 0.01},
+						{Quantile: 0.99, Error: 0.001},
+					},
+				},
+			},
+		},
+		// Config with good deprecated timer type
+		{
+			config: `---
+mappings:
+- match: test1.*.*
+  timer_type: summary
   name: "foo"
   labels: {}
   `,
@@ -494,6 +543,17 @@ mappings:
 mappings:
 - match: test.*.*
   observer_type: wrong
+  name: "foo"
+  labels: {}
+    `,
+			configBad: true,
+		},
+		// Config with bad deprecated timer type.
+		{
+			config: `---
+mappings:
+- match: test.*.*
+  timer_type: wrong
   name: "foo"
   labels: {}
     `,

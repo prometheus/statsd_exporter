@@ -146,7 +146,7 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 			t = mapping.ObserverType
 		}
 		if t == mapper.ObserverTypeDefault {
-			t = b.Mapper.Defaults.ObsereverType
+			t = b.Mapper.Defaults.ObserverType
 		}
 
 		switch t {
