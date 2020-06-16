@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/go-kit/kit/log"
+
 	"github.com/prometheus/statsd_exporter/pkg/event"
 	"github.com/prometheus/statsd_exporter/pkg/exporter"
 	"github.com/prometheus/statsd_exporter/pkg/listener"
@@ -34,10 +35,12 @@ func benchmarkUDPListener(times int, b *testing.B) {
 		"foo6:100|c|#09digits:0,tag.with.dots:1",
 		"foo10:100|c|@0.1|#tag1:bar,#tag2:baz",
 		"foo11:100|c|@0.1|#tag1:foo:bar",
+		"foo.[foo=bar,dim=val]test:1|g",
 		"foo15:200|ms:300|ms:5|c|@0.1:6|g\nfoo15a:1|c:5|ms",
 		"some_very_useful_metrics_with_quite_a_log_name:13|c",
 	}
 	bytesInput := make([]string, len(input)*times)
+	logger := log.NewNopLogger()
 	for run := 0; run < times; run++ {
 		for i := 0; i < len(input); i++ {
 			bytesInput[run*len(input)+i] = fmt.Sprintf("run%d%s", run, input[i])
@@ -46,7 +49,15 @@ func benchmarkUDPListener(times int, b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		// there are more events than input lines, need bigger buffer
 		events := make(chan event.Events, len(bytesInput)*times*2)
-		l := listener.StatsDUDPListener{EventHandler: &event.UnbufferedEventHandler{C: events}}
+
+		l := listener.StatsDUDPListener{
+			EventHandler:    &event.UnbufferedEventHandler{C: events},
+			Logger:          logger,
+			UDPPackets:      udpPackets,
+			LinesReceived:   linesReceived,
+			SamplesReceived: samplesReceived,
+			TagsReceived:    tagsReceived,
+		}
 
 		for i := 0; i < times; i++ {
 			for _, line := range bytesInput {

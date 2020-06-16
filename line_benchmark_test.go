@@ -47,7 +47,6 @@ func benchmarkLineToEvents(times int, b *testing.B) {
 	}
 }
 
-
 func BenchmarkLineToEvents1(b *testing.B) {
 	benchmarkLineToEvents(1, b)
 }
