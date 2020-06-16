@@ -170,6 +170,16 @@ func TestHandlePacket(t *testing.T) {
 				},
 			},
 		}, {
+			name: "SignalFx tag extension",
+			in:   "foo.[tag1=bar,tag2=baz]test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		}, {
 			name: "influxdb tag extension with tag keys unsupported by prometheus",
 			in:   "foo,09digits=0,tag.with.dots=1:100|c",
 			out: event.Events{

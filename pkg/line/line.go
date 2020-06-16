@@ -21,8 +21,8 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-
 	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/prometheus/statsd_exporter/pkg/event"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
@@ -126,6 +126,18 @@ func ParseDogStatsDTags(component string, labels map[string]string, tagErrors pr
 }
 
 func parseNameAndTags(name string, labels map[string]string, tagErrors prometheus.Counter, logger log.Logger) string {
+	// check for SignalFx tags first
+	// `[` delimits start of tags by SignalFx
+	// `]` delimits end of tags by SignalFx
+	// https://docs.signalfx.com/en/latest/integrations/agent/monitors/collectd-statsd.html
+	startIdx := strings.IndexRune(name, '[')
+	endIdx := strings.IndexRune(name, ']')
+
+	if startIdx != -1 && endIdx != -1 {
+		parseNameTags(name[startIdx+1:endIdx], labels, tagErrors, logger)
+		return name[:startIdx] + name[endIdx+1:]
+	}
+
 	for i, c := range name {
 		// `#` delimits start of tags by Librato
 		// https://www.librato.com/docs/kb/collect/collection_agents/stastd/#stat-level-tags
