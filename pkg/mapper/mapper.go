@@ -35,16 +35,6 @@ var (
 	labelNameRE  = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]+$`)
 )
 
-type mapperConfigDefaults struct {
-	ObserverType        ObserverType      `yaml:"observer_type"`
-	TimerType           ObserverType      `yaml:"timer_type,omitempty"` // DEPRECATED - field only present to preserve backwards compatibility in configs. Always empty
-	Buckets             []float64         `yaml:"buckets"`
-	Quantiles           []metricObjective `yaml:"quantiles"`
-	MatchType           MatchType         `yaml:"match_type"`
-	GlobDisableOrdering bool              `yaml:"glob_disable_ordering"`
-	Ttl                 time.Duration     `yaml:"ttl"`
-}
-
 type MetricMapper struct {
 	Defaults mapperConfigDefaults `yaml:"defaults"`
 	Mappings []MetricMapping      `yaml:"mappings"`
@@ -55,27 +45,6 @@ type MetricMapper struct {
 	mutex    sync.RWMutex
 
 	MappingsCount prometheus.Gauge
-}
-
-type MetricMapping struct {
-	Match            string `yaml:"match"`
-	Name             string `yaml:"name"`
-	nameFormatter    *fsm.TemplateFormatter
-	regex            *regexp.Regexp
-	Labels           prometheus.Labels `yaml:"labels"`
-	labelKeys        []string
-	labelFormatters  []*fsm.TemplateFormatter
-	ObserverType     ObserverType      `yaml:"observer_type"`
-	TimerType        ObserverType      `yaml:"timer_type,omitempty"` // DEPRECATED - field only present to preserve backwards compatibility in configs. Always empty
-	LegacyBuckets    []float64         `yaml:"buckets"`
-	LegacyQuantiles  []metricObjective `yaml:"quantiles"`
-	MatchType        MatchType         `yaml:"match_type"`
-	HelpText         string            `yaml:"help"`
-	Action           ActionType        `yaml:"action"`
-	MatchMetricType  MetricType        `yaml:"match_metric_type"`
-	Ttl              time.Duration     `yaml:"ttl"`
-	SummaryOptions   *SummaryOptions   `yaml:"summary_options"`
-	HistogramOptions *HistogramOptions `yaml:"histogram_options"`
 }
 
 type SummaryOptions struct {
@@ -98,63 +67,6 @@ var defaultQuantiles = []metricObjective{
 	{Quantile: 0.5, Error: 0.05},
 	{Quantile: 0.9, Error: 0.01},
 	{Quantile: 0.99, Error: 0.001},
-}
-
-// UnmarshalYAML is a custom unmarshal function to allow use of deprecated config keys
-// observer_type will override timer_type
-func (d *mapperConfigDefaults) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	type mapperConfigDefaultsAlias mapperConfigDefaults
-	var tmp mapperConfigDefaultsAlias
-	if err := unmarshal(&tmp); err != nil {
-		return err
-	}
-
-	// Copy defaults
-	d.ObserverType = tmp.ObserverType
-	d.Buckets = tmp.Buckets
-	d.Quantiles = tmp.Quantiles
-	d.MatchType = tmp.MatchType
-	d.GlobDisableOrdering = tmp.GlobDisableOrdering
-	d.Ttl = tmp.Ttl
-
-	// Use deprecated TimerType if necessary
-	if tmp.ObserverType == "" {
-		d.ObserverType = tmp.TimerType
-	}
-
-	return nil
-}
-
-// UnmarshalYAML is a custom unmarshal function to allow use of deprecated config keys
-// observer_type will override timer_type
-func (m *MetricMapping) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	type MetricMappingAlias MetricMapping
-	var tmp MetricMappingAlias
-	if err := unmarshal(&tmp); err != nil {
-		return err
-	}
-
-	// Copy defaults
-	m.Match = tmp.Match
-	m.Name = tmp.Name
-	m.Labels = tmp.Labels
-	m.ObserverType = tmp.ObserverType
-	m.LegacyBuckets = tmp.LegacyBuckets
-	m.LegacyQuantiles = tmp.LegacyQuantiles
-	m.MatchType = tmp.MatchType
-	m.HelpText = tmp.HelpText
-	m.Action = tmp.Action
-	m.MatchMetricType = tmp.MatchMetricType
-	m.Ttl = tmp.Ttl
-	m.SummaryOptions = tmp.SummaryOptions
-	m.HistogramOptions = tmp.HistogramOptions
-
-	// Use deprecated TimerType if necessary
-	if tmp.ObserverType == "" {
-		m.ObserverType = tmp.TimerType
-	}
-
-	return nil
 }
 
 func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int, options ...CacheOption) error {
