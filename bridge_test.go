@@ -23,6 +23,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
+
 	"github.com/prometheus/statsd_exporter/pkg/clock"
 	"github.com/prometheus/statsd_exporter/pkg/event"
 	"github.com/prometheus/statsd_exporter/pkg/exporter"
@@ -282,6 +283,10 @@ func TestHandlePacket(t *testing.T) {
 		}, {
 			name: "librato/dogstatsd mixed tag styles without sampling",
 			in:   "foo#tag1=foo,tag3=bing:100|c|#tag1:bar,#tag2:baz",
+			out:  event.Events{},
+		}, {
+			name: "signalfx/dogstatsd mixed tag styles without sampling",
+			in:   "foo[tag1=foo,tag3=bing]:100|c|#tag1:bar,#tag2:baz",
 			out:  event.Events{},
 		}, {
 			name: "influxdb/dogstatsd mixed tag styles without sampling",

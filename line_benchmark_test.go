@@ -38,7 +38,6 @@ func benchmarkLineToEvents(times int, b *testing.B) {
 	logger := log.NewNopLogger()
 
 	for n := 0; n < b.N; n++ {
-
 		for i := 0; i < times; i++ {
 			for _, l := range input {
 				line.LineToEvents(l, *sampleErrors, samplesReceived, tagErrors, tagsReceived, logger)
