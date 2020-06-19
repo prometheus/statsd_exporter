@@ -83,60 +83,60 @@ func TestHandlePacket(t *testing.T) {
 			name: "simple timer",
 			in:   "foo:200|ms",
 			out: event.Events{
-				&event.TimerEvent{
-					TMetricName: "foo",
-					TValue:      200,
-					TLabels:     map[string]string{},
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      0.2,
+					OLabels:     map[string]string{},
 				},
 			},
 		}, {
 			name: "simple histogram",
 			in:   "foo:200|h",
 			out: event.Events{
-				&event.TimerEvent{
-					TMetricName: "foo",
-					TValue:      200,
-					TLabels:     map[string]string{},
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      200,
+					OLabels:     map[string]string{},
 				},
 			},
 		}, {
 			name: "simple distribution",
 			in:   "foo:200|d",
 			out: event.Events{
-				&event.TimerEvent{
-					TMetricName: "foo",
-					TValue:      200,
-					TLabels:     map[string]string{},
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      200,
+					OLabels:     map[string]string{},
 				},
 			},
 		}, {
 			name: "distribution with sampling",
 			in:   "foo:0.01|d|@0.2|#tag1:bar,#tag2:baz",
 			out: event.Events{
-				&event.TimerEvent{
-					TMetricName: "foo",
-					TValue:      0.01,
-					TLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      0.01,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
-				&event.TimerEvent{
-					TMetricName: "foo",
-					TValue:      0.01,
-					TLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      0.01,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
-				&event.TimerEvent{
-					TMetricName: "foo",
-					TValue:      0.01,
-					TLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      0.01,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
-				&event.TimerEvent{
-					TMetricName: "foo",
-					TValue:      0.01,
-					TLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      0.01,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
-				&event.TimerEvent{
-					TMetricName: "foo",
-					TValue:      0.01,
-					TLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      0.01,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
 			},
 		}, {
@@ -265,30 +265,30 @@ func TestHandlePacket(t *testing.T) {
 			name: "histogram with sampling",
 			in:   "foo:0.01|h|@0.2|#tag1:bar,#tag2:baz",
 			out: event.Events{
-				&event.TimerEvent{
-					TMetricName: "foo",
-					TValue:      0.01,
-					TLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      0.01,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
-				&event.TimerEvent{
-					TMetricName: "foo",
-					TValue:      0.01,
-					TLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      0.01,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
-				&event.TimerEvent{
-					TMetricName: "foo",
-					TValue:      0.01,
-					TLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      0.01,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
-				&event.TimerEvent{
-					TMetricName: "foo",
-					TValue:      0.01,
-					TLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      0.01,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
-				&event.TimerEvent{
-					TMetricName: "foo",
-					TValue:      0.01,
-					TLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      0.01,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
 			},
 		}, {
@@ -321,15 +321,15 @@ func TestHandlePacket(t *testing.T) {
 			name: "combined multiline metrics",
 			in:   "foo:200|ms:300|ms:5|c|@0.1:6|g\nbar:1|c:5|ms",
 			out: event.Events{
-				&event.TimerEvent{
-					TMetricName: "foo",
-					TValue:      200,
-					TLabels:     map[string]string{},
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      .200,
+					OLabels:     map[string]string{},
 				},
-				&event.TimerEvent{
-					TMetricName: "foo",
-					TValue:      300,
-					TLabels:     map[string]string{},
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      .300,
+					OLabels:     map[string]string{},
 				},
 				&event.CounterEvent{
 					CMetricName: "foo",
@@ -346,26 +346,26 @@ func TestHandlePacket(t *testing.T) {
 					CValue:      1,
 					CLabels:     map[string]string{},
 				},
-				&event.TimerEvent{
-					TMetricName: "bar",
-					TValue:      5,
-					TLabels:     map[string]string{},
+				&event.ObserverEvent{
+					OMetricName: "bar",
+					OValue:      .005,
+					OLabels:     map[string]string{},
 				},
 			},
 		}, {
 			name: "timings with sampling factor",
 			in:   "foo.timing:0.5|ms|@0.1",
 			out: event.Events{
-				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.5, TLabels: map[string]string{}},
-				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.5, TLabels: map[string]string{}},
-				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.5, TLabels: map[string]string{}},
-				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.5, TLabels: map[string]string{}},
-				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.5, TLabels: map[string]string{}},
-				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.5, TLabels: map[string]string{}},
-				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.5, TLabels: map[string]string{}},
-				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.5, TLabels: map[string]string{}},
-				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.5, TLabels: map[string]string{}},
-				&event.TimerEvent{TMetricName: "foo.timing", TValue: 0.5, TLabels: map[string]string{}},
+				&event.ObserverEvent{OMetricName: "foo.timing", OValue: 0.0005, OLabels: map[string]string{}},
+				&event.ObserverEvent{OMetricName: "foo.timing", OValue: 0.0005, OLabels: map[string]string{}},
+				&event.ObserverEvent{OMetricName: "foo.timing", OValue: 0.0005, OLabels: map[string]string{}},
+				&event.ObserverEvent{OMetricName: "foo.timing", OValue: 0.0005, OLabels: map[string]string{}},
+				&event.ObserverEvent{OMetricName: "foo.timing", OValue: 0.0005, OLabels: map[string]string{}},
+				&event.ObserverEvent{OMetricName: "foo.timing", OValue: 0.0005, OLabels: map[string]string{}},
+				&event.ObserverEvent{OMetricName: "foo.timing", OValue: 0.0005, OLabels: map[string]string{}},
+				&event.ObserverEvent{OMetricName: "foo.timing", OValue: 0.0005, OLabels: map[string]string{}},
+				&event.ObserverEvent{OMetricName: "foo.timing", OValue: 0.0005, OLabels: map[string]string{}},
+				&event.ObserverEvent{OMetricName: "foo.timing", OValue: 0.0005, OLabels: map[string]string{}},
 			},
 		}, {
 			name: "bad line",
@@ -420,6 +420,36 @@ func TestHandlePacket(t *testing.T) {
 					CMetricName: "valid_utf8",
 					CValue:      1,
 					CLabels:     map[string]string{},
+				},
+			},
+		}, {
+			name: "ms timer with conversion to seconds",
+			in:   "foo:200|ms",
+			out: event.Events{
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      0.2,
+					OLabels:     map[string]string{},
+				},
+			},
+		}, {
+			name: "histogram with no unit conversion",
+			in:   "foo:200|h",
+			out: event.Events{
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      200,
+					OLabels:     map[string]string{},
+				},
+			},
+		}, {
+			name: "distribution with no unit conversion",
+			in:   "foo:200|d",
+			out: event.Events{
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      200,
+					OLabels:     map[string]string{},
 				},
 			},
 		},
@@ -554,9 +584,9 @@ mappings:
 			GValue:      200,
 		},
 		// event with ttl = 2s from a mapping
-		&event.TimerEvent{
-			TMetricName: "bazqux.main",
-			TValue:      42000,
+		&event.ObserverEvent{
+			OMetricName: "bazqux.main",
+			OValue:      42,
 		},
 	}
 

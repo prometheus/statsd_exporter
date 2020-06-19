@@ -228,25 +228,25 @@ func TestInconsistentLabelSets(t *testing.T) {
 				GValue:      1,
 				GLabels:     secondLabelSet,
 			},
-			&event.TimerEvent{
-				TMetricName: "histogram.test",
-				TValue:      1,
-				TLabels:     firstLabelSet,
+			&event.ObserverEvent{
+				OMetricName: "histogram.test",
+				OValue:      1,
+				OLabels:     firstLabelSet,
 			},
-			&event.TimerEvent{
-				TMetricName: "histogram.test",
-				TValue:      1,
-				TLabels:     secondLabelSet,
+			&event.ObserverEvent{
+				OMetricName: "histogram.test",
+				OValue:      1,
+				OLabels:     secondLabelSet,
 			},
-			&event.TimerEvent{
-				TMetricName: "summary_test",
-				TValue:      1,
-				TLabels:     firstLabelSet,
+			&event.ObserverEvent{
+				OMetricName: "summary_test",
+				OValue:      1,
+				OLabels:     firstLabelSet,
 			},
-			&event.TimerEvent{
-				TMetricName: "summary_test",
-				TValue:      1,
-				TLabels:     secondLabelSet,
+			&event.ObserverEvent{
+				OMetricName: "summary_test",
+				OValue:      1,
+				OLabels:     secondLabelSet,
 			},
 		}
 		events <- c
@@ -427,9 +427,9 @@ func TestConflictingMetrics(t *testing.T) {
 					CMetricName: "histogram_test1",
 					CValue:      1,
 				},
-				&event.TimerEvent{
-					TMetricName: "histogram.test1",
-					TValue:      2,
+				&event.ObserverEvent{
+					OMetricName: "histogram.test1",
+					OValue:      2,
 				},
 			},
 		},
@@ -441,9 +441,9 @@ func TestConflictingMetrics(t *testing.T) {
 					CMetricName: "histogram_test1_sum",
 					CValue:      1,
 				},
-				&event.TimerEvent{
-					TMetricName: "histogram.test1",
-					TValue:      2,
+				&event.ObserverEvent{
+					OMetricName: "histogram.test1",
+					OValue:      2,
 				},
 			},
 		},
@@ -455,9 +455,9 @@ func TestConflictingMetrics(t *testing.T) {
 					CMetricName: "histogram_test2_count",
 					CValue:      1,
 				},
-				&event.TimerEvent{
-					TMetricName: "histogram.test2",
-					TValue:      2,
+				&event.ObserverEvent{
+					OMetricName: "histogram.test2",
+					OValue:      2,
 				},
 			},
 		},
@@ -469,9 +469,9 @@ func TestConflictingMetrics(t *testing.T) {
 					CMetricName: "histogram_test3_bucket",
 					CValue:      1,
 				},
-				&event.TimerEvent{
-					TMetricName: "histogram.test3",
-					TValue:      2,
+				&event.ObserverEvent{
+					OMetricName: "histogram.test3",
+					OValue:      2,
 				},
 			},
 		},
@@ -483,9 +483,9 @@ func TestConflictingMetrics(t *testing.T) {
 					CMetricName: "cvsq_test",
 					CValue:      1,
 				},
-				&event.TimerEvent{
-					TMetricName: "cvsq_test",
-					TValue:      2,
+				&event.ObserverEvent{
+					OMetricName: "cvsq_test",
+					OValue:      2,
 				},
 			},
 		},
@@ -497,9 +497,9 @@ func TestConflictingMetrics(t *testing.T) {
 					CMetricName: "cvsc_count",
 					CValue:      1,
 				},
-				&event.TimerEvent{
-					TMetricName: "cvsc",
-					TValue:      2,
+				&event.ObserverEvent{
+					OMetricName: "cvsc",
+					OValue:      2,
 				},
 			},
 		},
@@ -511,9 +511,9 @@ func TestConflictingMetrics(t *testing.T) {
 					CMetricName: "cvss_sum",
 					CValue:      1,
 				},
-				&event.TimerEvent{
-					TMetricName: "cvss",
-					TValue:      2,
+				&event.ObserverEvent{
+					OMetricName: "cvss",
+					OValue:      2,
 				},
 			},
 		},
@@ -672,9 +672,9 @@ func TestSummaryWithQuantilesEmptyMapping(t *testing.T) {
 
 	name := "default_foo"
 	c := event.Events{
-		&event.TimerEvent{
-			TMetricName: name,
-			TValue:      300,
+		&event.ObserverEvent{
+			OMetricName: name,
+			OValue:      300,
 		},
 	}
 	events <- c
@@ -711,7 +711,7 @@ func TestHistogramUnits(t *testing.T) {
 		testMapper := mapper.MetricMapper{}
 		testMapper.InitCache(0)
 		ex := NewExporter(&testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
-		ex.Mapper.Defaults.TimerType = mapper.TimerTypeHistogram
+		ex.Mapper.Defaults.ObserverType = mapper.ObserverTypeHistogram
 		ex.Listen(events)
 	}()
 
@@ -719,9 +719,9 @@ func TestHistogramUnits(t *testing.T) {
 	// Then close events channel to stop a listener.
 	name := "foo"
 	c := event.Events{
-		&event.TimerEvent{
-			TMetricName: name,
-			TValue:      300,
+		&event.ObserverEvent{
+			OMetricName: name,
+			OValue:      .300,
 		},
 	}
 	events <- c
@@ -737,9 +737,7 @@ func TestHistogramUnits(t *testing.T) {
 	if value == nil {
 		t.Fatal("Histogram value should not be nil")
 	}
-	if *value == 300 {
-		t.Fatalf("Histogram observations not scaled into Seconds")
-	} else if *value != .300 {
+	if *value != .300 {
 		t.Fatalf("Received unexpected value for histogram observation %f != .300", *value)
 	}
 }
@@ -869,9 +867,9 @@ mappings:
 			GValue:      200,
 		},
 		// event with ttl = 2s from a mapping
-		&event.TimerEvent{
-			TMetricName: "bazqux.main",
-			TValue:      42000,
+		&event.ObserverEvent{
+			OMetricName: "bazqux.main",
+			OValue:      42,
 		},
 	}
 
