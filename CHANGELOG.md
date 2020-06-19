@@ -1,6 +1,18 @@
-## 0.17.0 / unreleased
+## 0.17.0 / Unreleased
 
-* [FEATURE] Offline configuration check ([#312](https://github.com/prometheus/statsd_exporter/pull/312))
+* [CHANGE] Support non-timer distributions without unit conversion ([#314](https://github.com/prometheus/statsd_exporter/pull/314))
+* [ENHANCEMENT] Offline configuration check ([#312](https://github.com/prometheus/statsd_exporter/pull/312))
+* [BUGFIX] Allow matching single-letter metric name components ([#309](https://github.com/prometheus/statsd_exporter/pull/309))
+
+Distribution and histogram events (type `d`, `h`) are now treated as distinct from timer events (type `ms`).
+Their values are observed as they are, while timer events are converted from milliseconds to seconds.
+
+To reflect this generalization, the `observer_type` mapping option replaces `timer_type`.
+Similary, change `match_metric_type: timer` to `match_metric_type: observer`.
+The old name remains available for compatibility.
+
+For users of the mapper library, the `ObserverEvent` replaces `TimerEvent`.
+For timer metrics, it is emitted by the mapper already converted to seconds.
 
 ## 0.16.0 / 2020-05-29
 

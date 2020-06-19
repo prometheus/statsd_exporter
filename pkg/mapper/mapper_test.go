@@ -441,12 +441,39 @@ mappings:
 				},
 			},
 		},
-		// Config with good timer type.
+		// Config with good observer type.
 		{
 			config: `---
 mappings:
 - match: test.*.*
-  timer_type: summary
+  observer_type: summary
+  name: "foo"
+  labels: {}
+  quantiles:
+    - quantile: 0.42
+      error: 0.04
+    - quantile: 0.7
+      error: 0.002
+  `,
+			mappings: mappings{
+				{
+					statsdMetric: "test.*.*",
+					name:         "foo",
+					labels:       map[string]string{},
+					quantiles: []metricObjective{
+						{Quantile: 0.42, Error: 0.04},
+						{Quantile: 0.7, Error: 0.002},
+					},
+				},
+			},
+		},
+		// Config with good observer type and unused timer type
+		{
+			config: `---
+mappings:
+- match: test.*.*
+  observer_type: summary
+  timer_type: histogram
   name: "foo"
   labels: {}
   quantiles:
@@ -471,6 +498,28 @@ mappings:
 			config: `---
 mappings:
 - match: test1.*.*
+  observer_type: summary
+  name: "foo"
+  labels: {}
+  `,
+			mappings: mappings{
+				{
+					statsdMetric: "test1.*.*",
+					name:         "foo",
+					labels:       map[string]string{},
+					quantiles: []metricObjective{
+						{Quantile: 0.5, Error: 0.05},
+						{Quantile: 0.9, Error: 0.01},
+						{Quantile: 0.99, Error: 0.001},
+					},
+				},
+			},
+		},
+		// Config with good deprecated timer type
+		{
+			config: `---
+mappings:
+- match: test1.*.*
   timer_type: summary
   name: "foo"
   labels: {}
@@ -488,7 +537,18 @@ mappings:
 				},
 			},
 		},
-		// Config with bad timer type.
+		// Config with bad observer type.
+		{
+			config: `---
+mappings:
+- match: test.*.*
+  observer_type: wrong
+  name: "foo"
+  labels: {}
+    `,
+			configBad: true,
+		},
+		// Config with bad deprecated timer type.
 		{
 			config: `---
 mappings:
@@ -504,7 +564,7 @@ mappings:
 			config: `---
 mappings:
 - match: test.*.*
-  timer_type: summary
+  observer_type: summary
   name: "foo"
   labels: {}
   summary_options:
@@ -531,7 +591,7 @@ mappings:
 			config: `---
 mappings:
 - match: test.*.*
-  timer_type: summary
+  observer_type: summary
   name: "foo"
   labels: {}
   summary_options:
@@ -564,7 +624,7 @@ mappings:
 			config: `---
 mappings:
 - match: test.*.*
-  timer_type: summary
+  observer_type: summary
   name: "foo"
   labels: {}
   quantiles:
@@ -583,6 +643,26 @@ mappings:
 mappings:
 - match: test.*.*
   match_metric_type: counter
+  name: "foo"
+  labels: {}
+    `,
+		},
+		// Config with good metric type observer.
+		{
+			config: `---
+mappings:
+- match: test.*.*
+  match_metric_type: observer
+  name: "foo"
+  labels: {}
+    `,
+		},
+		// Config with good metric type timer.
+		{
+			config: `---
+mappings:
+- match: test.*.*
+  match_metric_type: timer
   name: "foo"
   labels: {}
     `,
@@ -638,7 +718,7 @@ mappings:
 			config: `---
 mappings:
 - match: foo.*.*
-  timer_type: summary
+  observer_type: summary
   name: "foo"
   labels: {}
   `,
@@ -661,6 +741,29 @@ mappings:
     bar: "foo"
     `,
 			configBad: true,
+		},
+		{
+			config: `---
+mappings:
+- match: p.*.*.c.*
+  match_type: glob
+  name: issue_256
+  labels:
+    one: $1
+    two: $2
+    three: $3
+`,
+			mappings: mappings{
+				{
+					statsdMetric: "p.one.two.c.three",
+					name:         "issue_256",
+					labels: map[string]string{
+						"one":   "one",
+						"two":   "two",
+						"three": "three",
+					},
+				},
+			},
 		},
 		// Example from the README.
 		{

@@ -140,38 +140,38 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 			b.ConflictingEventStats.WithLabelValues("gauge").Inc()
 		}
 
-	case *event.TimerEvent:
-		t := mapper.TimerTypeDefault
+	case *event.ObserverEvent:
+		t := mapper.ObserverTypeDefault
 		if mapping != nil {
-			t = mapping.TimerType
+			t = mapping.ObserverType
 		}
-		if t == mapper.TimerTypeDefault {
-			t = b.Mapper.Defaults.TimerType
+		if t == mapper.ObserverTypeDefault {
+			t = b.Mapper.Defaults.ObserverType
 		}
 
 		switch t {
-		case mapper.TimerTypeHistogram:
+		case mapper.ObserverTypeHistogram:
 			histogram, err := b.Registry.GetHistogram(metricName, prometheusLabels, help, mapping, b.MetricsCount)
 			if err == nil {
-				histogram.Observe(thisEvent.Value() / 1000) // prometheus presumes seconds, statsd millisecond
-				b.EventStats.WithLabelValues("timer").Inc()
+				histogram.Observe(thisEvent.Value())
+				b.EventStats.WithLabelValues("observer").Inc()
 			} else {
 				level.Debug(b.Logger).Log("msg", regErrF, "metric", metricName, "error", err)
-				b.ConflictingEventStats.WithLabelValues("timer").Inc()
+				b.ConflictingEventStats.WithLabelValues("observer").Inc()
 			}
 
-		case mapper.TimerTypeDefault, mapper.TimerTypeSummary:
+		case mapper.ObserverTypeDefault, mapper.ObserverTypeSummary:
 			summary, err := b.Registry.GetSummary(metricName, prometheusLabels, help, mapping, b.MetricsCount)
 			if err == nil {
-				summary.Observe(thisEvent.Value() / 1000) // prometheus presumes seconds, statsd millisecond
-				b.EventStats.WithLabelValues("timer").Inc()
+				summary.Observe(thisEvent.Value())
+				b.EventStats.WithLabelValues("observer").Inc()
 			} else {
 				level.Debug(b.Logger).Log("msg", regErrF, "metric", metricName, "error", err)
-				b.ConflictingEventStats.WithLabelValues("timer").Inc()
+				b.ConflictingEventStats.WithLabelValues("observer").Inc()
 			}
 
 		default:
-			level.Error(b.Logger).Log("msg", "unknown timer type", "type", t)
+			level.Error(b.Logger).Log("msg", "unknown observer type", "type", t)
 			os.Exit(1)
 		}
 

@@ -87,13 +87,13 @@ func BenchmarkExporterListener(b *testing.B) {
 			GMetricName: "gauge",
 			GValue:      10,
 		},
-		&event.TimerEvent{ // simple timer
-			TMetricName: "timer",
-			TValue:      200,
+		&event.ObserverEvent{ // simple timer
+			OMetricName: "timer",
+			OValue:      200,
 		},
-		&event.TimerEvent{ // simple histogram
-			TMetricName: "histogram.test",
-			TValue:      200,
+		&event.ObserverEvent{ // simple histogram
+			OMetricName: "histogram.test",
+			OValue:      200,
 		},
 		&event.CounterEvent{ // simple_tags
 			CMetricName: "simple_tags",

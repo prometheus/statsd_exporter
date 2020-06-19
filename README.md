@@ -162,9 +162,7 @@ In general, the different metric types are translated as follows:
 
     StatsD counter -> Prometheus counter
 
-    StatsD timer   -> Prometheus summary                    <-- indicates timer quantiles
-                   -> Prometheus counter (suffix `_total`)  <-- indicates total time spent
-                   -> Prometheus counter (suffix `_count`)  <-- indicates total number of timer events
+    StatsD timer, histogram, distribution   -> Prometheus summary or histogram
 
 An example mapping configuration:
 
@@ -246,17 +244,18 @@ mappings:
     code: "$1"
 ```
 
-### StatsD timers
+### StatsD timers and distributions
 
-By default, statsd timers are represented as a Prometheus summary with
-quantiles. You may optionally configure the [quantiles and acceptable
-error](https://prometheus.io/docs/practices/histograms/#quantiles), as
-well as adjusting how the summary metric is aggregated:
+By default, statsd timers and distributions (collectively "observers") are
+represented as a Prometheus summary with quantiles. You may optionally
+configure the [quantiles and acceptable
+error](https://prometheus.io/docs/practices/histograms/#quantiles), as well
+as adjusting how the summary metric is aggregated:
 
 ```yaml
 mappings:
 - match: "test.timing.*.*.*"
-  timer_type: summary
+  observer_type: summary
   name: "my_timer"
   labels:
     provider: "$2"
@@ -280,19 +279,17 @@ mappings:
 The default quantiles are 0.99, 0.9, and 0.5.
 
 The default summary age is 10 minutes, the default number of buckets
-is 5 and the default buffer size is 500.  See also the
-[`golang_client` docs](https://godoc.org/github.com/prometheus/client_golang/prometheus#SummaryOpts).
-The `max_summary_age` corresponds to `SummaryOptions.MaxAge`, `summary_age_buckets`
-to `SummaryOptions.AgeBuckets` and `stream_buffer_size` to `SummaryOptions.BufCap`.
+is 5 and the default buffer size is 500.
+See also the [`golang_client` docs](https://godoc.org/github.com/prometheus/client_golang/prometheus#SummaryOpts).
+The `max_summary_age` corresponds to `SummaryOptions.MaxAge`, `summary_age_buckets` to `SummaryOptions.AgeBuckets` and `stream_buffer_size` to `SummaryOptions.BufCap`.
 
-In the configuration, one may also set the timer type to "histogram". The
-default is "summary" as in the plain text configuration format.  For example,
-to set the timer type for a single metric:
+In the configuration, one may also set the observer type to "histogram". For example,
+to set the observer type for a single timer metric:
 
 ```yaml
 mappings:
 - match: "test.timing.*.*.*"
-  timer_type: histogram
+  observer_type: histogram
   histogram_options:
     buckets: [ 0.01, 0.025, 0.05, 0.1 ]
   name: "my_timer"
@@ -302,18 +299,18 @@ mappings:
     job: "${1}_server"
 ```
 
-Note that timers will be accepted with the `ms`, `h`, and `d` statsd types.  The first two are timers and histograms and the `d` type is for DataDog's "distribution" type.  The distribution type is treated identically to timers and histograms.
+Timers will be accepted with the `ms` statsd type.
+Statsd timer data is transmitted in milliseconds, while Prometheus expects the unit to be seconds.
+The exporter converts all timer observations to seconds.
 
-It should be noted that whereas timers in statsd expects the unit of timing data to be in milliseconds,
-prometheus expects the unit to be seconds. Hence, the exporter converts all timers to seconds
-before exporting them.
+Histogram and distribution events (`h` and `d` metric type) are not subject to unit conversion.
 
 ### DogStatsD Client Behavior
 
 #### `timed()` decorator
 
-If you are using the DogStatsD client's [timed](https://datadogpy.readthedocs.io/en/latest/#datadog.threadstats.base.ThreadStats.timed) decorator,
-it emits the metric in seconds, set [use_ms](https://datadogpy.readthedocs.io/en/latest/index.html?highlight=use_ms) to `True` to fix this.
+The DogStatsD client's [timed](https://datadogpy.readthedocs.io/en/latest/#datadog.threadstats.base.ThreadStats.timed) decorator emits the metric in seconds but uses the `ms` type.
+Set [`use_ms=True`](https://datadogpy.readthedocs.io/en/latest/index.html?highlight=use_ms) to send the correct units.
 
 ### Regular expression matching
 
@@ -339,20 +336,20 @@ Note, that one may also set the histogram buckets.  If not set, then the default
 [Prometheus client values](https://godoc.org/github.com/prometheus/client_golang/prometheus#pkg-variables) are used: `[.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10]`. `+Inf` is added
 automatically.
 
-`timer_type` is only used when the statsd metric type is a timer. `buckets` is
-only used when the statsd metric type is a timerand the `timer_type` is set to
-"histogram."
+`observer_type` is only used when the statsd metric type is a timer, histogram, or distribution.
+`buckets` is only used when the statsd metric type is one of these, and the `observer_type` is set to `histogram`.
 
 ### Global defaults
 
-One may also set defaults for the timer type, buckets or quantiles, and match_type. These will be used
-by all mappings that do not define these.
+One may also set defaults for the observer type, buckets or quantiles, and match type.
+These will be used by all mappings that do not define them.
 
-An option that can only be configured in `defaults` is `glob_disable_ordering`, which is `false` if omitted. By setting this to `true`, `glob` match type will not honor the occurance of rules in the mapping rules file and always treat `*` as lower priority than a general string.
+An option that can only be configured in `defaults` is `glob_disable_ordering`, which is `false` if omitted.
+By setting this to `true`, `glob` match type will not honor the occurance of rules in the mapping rules file and always treat `*` as lower priority than a concrete string.
 
 ```yaml
 defaults:
-  timer_type: histogram
+  observer_type: histogram
   buckets: [.005, .01, .025, .05, .1, .25, .5, 1, 2.5 ]
   match_type: glob
   glob_disable_ordering: false
@@ -366,9 +363,9 @@ mappings:
     outcome: "$3"
     job: "${1}_server"
 # This will be a summary timer.
-- match: "other.timing.*.*.*"
-  timer_type: summary
-  name: "other_timer"
+- match: "other.distribution.*.*.*"
+  observer_type: summary
+  name: "other_distribution"
   labels:
     provider: "$2"
     outcome: "$3"
@@ -437,7 +434,7 @@ mappings:
     provider: "$1"
 ```
 
-Possible values for `match_metric_type` are `gauge`, `counter` and `timer`.
+Possible values for `match_metric_type` are `gauge`, `counter` and `observer`.
 
 ### Mapping cache size and cache replacement policy
 

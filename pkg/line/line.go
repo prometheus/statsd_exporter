@@ -42,11 +42,17 @@ func buildEvent(statType, metric string, value float64, relative bool, labels ma
 			GRelative:   relative,
 			GLabels:     labels,
 		}, nil
-	case "ms", "h", "d":
-		return &event.TimerEvent{
-			TMetricName: metric,
-			TValue:      float64(value),
-			TLabels:     labels,
+	case "ms":
+		return &event.ObserverEvent{
+			OMetricName: metric,
+			OValue:      float64(value) / 1000, // prometheus presumes seconds, statsd millisecond
+			OLabels:     labels,
+		}, nil
+	case "h", "d":
+		return &event.ObserverEvent{
+			OMetricName: metric,
+			OValue:      float64(value),
+			OLabels:     labels,
 		}, nil
 	case "s":
 		return nil, fmt.Errorf("no support for StatsD sets")
