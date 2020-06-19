@@ -742,6 +742,29 @@ mappings:
     `,
 			configBad: true,
 		},
+		{
+			config: `---
+mappings:
+- match: p.*.*.c.*
+  match_type: glob
+  name: issue_256
+  labels:
+    one: $1
+    two: $2
+    three: $3
+`,
+			mappings: mappings{
+				{
+					statsdMetric: "p.one.two.c.three",
+					name:         "issue_256",
+					labels: map[string]string{
+						"one":   "one",
+						"two":   "two",
+						"three": "three",
+					},
+				},
+			},
+		},
 		// Example from the README.
 		{
 			config: `
