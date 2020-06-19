@@ -139,9 +139,16 @@ func parseNameAndTags(name string, labels map[string]string, tagErrors prometheu
 	startIdx := strings.IndexRune(name, '[')
 	endIdx := strings.IndexRune(name, ']')
 
-	if startIdx != -1 && endIdx != -1 {
+	switch {
+	case startIdx != -1 && endIdx != -1:
+		// good signalfx tags
 		parseNameTags(name[startIdx+1:endIdx], labels, tagErrors, logger)
 		return name[:startIdx] + name[endIdx+1:]
+	case (startIdx != -1) != (endIdx != -1):
+		// only one bracket, return unparsed
+		level.Debug(logger).Log("msg", "invalid SignalFx tags, not parsing", "metric", name)
+		tagErrors.Inc()
+		return name
 	}
 
 	for i, c := range name {

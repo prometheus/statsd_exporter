@@ -221,6 +221,26 @@ func TestHandlePacket(t *testing.T) {
 				},
 			},
 		}, {
+			name: "SignalFx tag extension, missing closing bracket",
+			in:   "[tag1=bar,tag2=bazfoo.test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "[tag1=bar,tag2=bazfoo.test",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		}, {
+			name: "SignalFx tag extension, missing opening bracket",
+			in:   "tag1=bar,tag2=baz]foo.test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "tag1=bar,tag2=baz]foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		}, {
 			name: "influxdb tag extension with tag keys unsupported by prometheus",
 			in:   "foo,09digits=0,tag.with.dots=1:100|c",
 			out: event.Events{
