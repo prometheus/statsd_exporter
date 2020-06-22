@@ -49,8 +49,8 @@ type GaugeEvent struct {
 
 func (g *GaugeEvent) MetricName() string            { return g.GMetricName }
 func (g *GaugeEvent) Value() float64                { return g.GValue }
-func (c *GaugeEvent) Labels() map[string]string     { return c.GLabels }
-func (c *GaugeEvent) MetricType() mapper.MetricType { return mapper.MetricTypeGauge }
+func (g *GaugeEvent) Labels() map[string]string     { return g.GLabels }
+func (g *GaugeEvent) MetricType() mapper.MetricType { return mapper.MetricTypeGauge }
 
 type ObserverEvent struct {
 	OMetricName string
@@ -58,10 +58,10 @@ type ObserverEvent struct {
 	OLabels     map[string]string
 }
 
-func (t *ObserverEvent) MetricName() string            { return t.OMetricName }
-func (t *ObserverEvent) Value() float64                { return t.OValue }
-func (c *ObserverEvent) Labels() map[string]string     { return c.OLabels }
-func (c *ObserverEvent) MetricType() mapper.MetricType { return mapper.MetricTypeObserver }
+func (o *ObserverEvent) MetricName() string            { return o.OMetricName }
+func (o *ObserverEvent) Value() float64                { return o.OValue }
+func (o *ObserverEvent) Labels() map[string]string     { return o.OLabels }
+func (o *ObserverEvent) MetricType() mapper.MetricType { return mapper.MetricTypeObserver }
 
 type Events []Event
 
