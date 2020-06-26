@@ -2,6 +2,7 @@
 
 * [CHANGE] Support non-timer distributions without unit conversion ([#314](https://github.com/prometheus/statsd_exporter/pull/314))
 * [ENHANCEMENT] Offline configuration check ([#312](https://github.com/prometheus/statsd_exporter/pull/312))
+* [ENHANCEMENT] Support the SignalFX tagging extension ([#315](https://github.com/prometheus/statsd_exporter/pull/315))
 * [BUGFIX] Allow matching single-letter metric name components ([#309](https://github.com/prometheus/statsd_exporter/pull/309))
 
 Distribution and histogram events (type `d`, `h`) are now treated as distinct from timer events (type `ms`).

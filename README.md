@@ -31,7 +31,7 @@ in the long term.
 
 ### Tagging Extensions
 
-The exporter supports Librato, InfluxDB, and DogStatsD-style tags,
+The exporter supports Librato, InfluxDB, DogStatsD, and SignalFX-style tags,
 which will be converted into Prometheus labels.
 
 For Librato-style tags, they must be appended to the metric name with a
@@ -68,9 +68,14 @@ in the DogStatsD documentation for the concept description and
 If you encounter problems, note that this tagging style is incompatible with
 the original `statsd` implementation.
 
-Be aware: If you mix tag styles (e.g., Librato/InfluxDB with DogStatsD), the
-exporter will consider this an error and the sample will be discarded. Also,
-tags without values (`#some_tag`) are not supported and will be ignored.
+For [SignalFX dimension](https://docs.signalfx.com/en/latest/integrations/agent/monitors/collectd-statsd.html#adding-dimensions-to-statsd-metrics), add the tags to the metric name in square brackets, as so:
+
+```
+metric.name[tagName=val,tag2Name=val2]:0|c
+```
+
+Be aware: If you mix tag styles (e.g., Librato/InfluxDB with DogStatsD), the exporter will consider this an error and the behavior is undefined.
+Also, tags without values (`#some_tag`) are not supported and will be ignored.
 
 ## Building and Running
 
