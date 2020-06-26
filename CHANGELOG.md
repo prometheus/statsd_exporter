@@ -1,4 +1,4 @@
-## 0.17.0 / Unreleased
+## 0.17.0 / 2020-06-26
 
 * [CHANGE] Support non-timer distributions without unit conversion ([#314](https://github.com/prometheus/statsd_exporter/pull/314))
 * [ENHANCEMENT] Offline configuration check ([#312](https://github.com/prometheus/statsd_exporter/pull/312))
