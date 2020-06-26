@@ -23,6 +23,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
+
 	"github.com/prometheus/statsd_exporter/pkg/clock"
 	"github.com/prometheus/statsd_exporter/pkg/event"
 	"github.com/prometheus/statsd_exporter/pkg/exporter"
@@ -170,6 +171,76 @@ func TestHandlePacket(t *testing.T) {
 				},
 			},
 		}, {
+			name: "SignalFx tag extension",
+			in:   "foo.[tag1=bar,tag2=baz]test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		}, {
+			name: "SignalFx tag extension, tags at end of name",
+			in:   "foo.test[tag1=bar,tag2=baz]:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		}, {
+			name: "SignalFx tag extension, tags at beginning of name",
+			in:   "[tag1=bar,tag2=baz]foo.test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		}, {
+			name: "SignalFx tag extension, no tags",
+			in:   "foo.[]test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		}, {
+			name: "SignalFx tag extension, non-kv tags",
+			in:   "foo.[tag1,tag2]test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		}, {
+			name: "SignalFx tag extension, missing closing bracket",
+			in:   "[tag1=bar,tag2=bazfoo.test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "[tag1=bar,tag2=bazfoo.test",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		}, {
+			name: "SignalFx tag extension, missing opening bracket",
+			in:   "tag1=bar,tag2=baz]foo.test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "tag1=bar,tag2=baz]foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		}, {
 			name: "influxdb tag extension with tag keys unsupported by prometheus",
 			in:   "foo,09digits=0,tag.with.dots=1:100|c",
 			out: event.Events{
@@ -252,6 +323,10 @@ func TestHandlePacket(t *testing.T) {
 		}, {
 			name: "librato/dogstatsd mixed tag styles without sampling",
 			in:   "foo#tag1=foo,tag3=bing:100|c|#tag1:bar,#tag2:baz",
+			out:  event.Events{},
+		}, {
+			name: "signalfx/dogstatsd mixed tag styles without sampling",
+			in:   "foo[tag1=foo,tag3=bing]:100|c|#tag1:bar,#tag2:baz",
 			out:  event.Events{},
 		}, {
 			name: "influxdb/dogstatsd mixed tag styles without sampling",

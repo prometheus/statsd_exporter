@@ -35,6 +35,7 @@ func benchmarkUDPListener(times int, b *testing.B) {
 		"foo6:100|c|#09digits:0,tag.with.dots:1",
 		"foo10:100|c|@0.1|#tag1:bar,#tag2:baz",
 		"foo11:100|c|@0.1|#tag1:foo:bar",
+		"foo.[foo=bar,dim=val]test:1|g",
 		"foo15:200|ms:300|ms:5|c|@0.1:6|g\nfoo15a:1|c:5|ms",
 		"some_very_useful_metrics_with_quite_a_log_name:13|c",
 	}
