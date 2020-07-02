@@ -46,7 +46,14 @@ func benchmarkUDPListener(times int, b *testing.B) {
 			bytesInput[run*len(input)+i] = fmt.Sprintf("run%d%s", run, input[i])
 		}
 	}
+
+	// reset benchmark timer to not measure startup costs
+	b.ResetTimer()
+
 	for n := 0; n < b.N; n++ {
+		// pause benchmark timer for creating the chan and listener
+		b.StopTimer()
+
 		// there are more events than input lines, need bigger buffer
 		events := make(chan event.Events, len(bytesInput)*times*2)
 
@@ -58,6 +65,9 @@ func benchmarkUDPListener(times int, b *testing.B) {
 			SamplesReceived: samplesReceived,
 			TagsReceived:    tagsReceived,
 		}
+
+		// resume benchmark timer
+		b.StartTimer()
 
 		for i := 0; i < times; i++ {
 			for _, line := range bytesInput {
@@ -154,8 +164,19 @@ mappings:
 	}
 
 	ex := exporter.NewExporter(testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+
+	// reset benchmark timer to not measure startup costs
+	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
+		// pause benchmark timer for creating the chan
+		b.StopTimer()
+
 		ec := make(chan event.Events, 1000)
+
+		// resume benchmark timer
+		b.StartTimer()
+
 		go func() {
 			for i := 0; i < 1000; i++ {
 				ec <- events
