@@ -37,6 +37,9 @@ func benchmarkLineToEvents(times int, b *testing.B) {
 	}
 	logger := log.NewNopLogger()
 
+	// reset benchmark timer to not measure startup costs
+	b.ResetTimer()
+
 	for n := 0; n < b.N; n++ {
 		for i := 0; i < times; i++ {
 			for _, l := range input {
