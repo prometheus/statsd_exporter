@@ -36,18 +36,7 @@ var (
 		"foo15:200|ms:300|ms:5|c|@0.1:6|g\nfoo15a:1|c:5|ms",
 		"some_very_useful_metrics_with_quite_a_log_name:13|c",
 	}
-
-	// The format specific lines have only one line each so the benchmark accurately reflects the time taken to process one line
-	statsdLine           = "foo1:2|c"
-	statsdInvalidLine    = "foo1:2|c||"
-	dogStatsdLine        = "foo1:100|c|#tag1:bar,tag2:baz"
-	dogStatsdInvalidLine = "foo3:100|c|#09digits:0,tag.with.dots:1"
-	signalFxLine         = "foo1.[foo=bar1,dim=val1]test:1|g"
-	signalFxInvalidLine  = "foo1.[foo=bar1,dim=val1test:1|g"
-	influxDbLine         = "foo1,tag1=bar,tag2=baz:100|c"
-	influxDbInvalidLine  = "foo3,tag1=bar,tag2:100|c"
-
-	logger = log.NewNopLogger()
+	nopLogger = log.NewNopLogger()
 )
 
 func benchmarkLinesToEvents(times int, b *testing.B, input []string) {
@@ -57,18 +46,9 @@ func benchmarkLinesToEvents(times int, b *testing.B, input []string) {
 	for n := 0; n < b.N; n++ {
 		for i := 0; i < times; i++ {
 			for _, l := range input {
-				line.LineToEvents(l, *sampleErrors, samplesReceived, tagErrors, tagsReceived, logger)
+				line.LineToEvents(l, *sampleErrors, samplesReceived, tagErrors, tagsReceived, nopLogger)
 			}
 		}
-	}
-}
-
-func benchmarkLineToEvents(b *testing.B, inputLine string) {
-	// always report allocations since this is a hot path
-	b.ReportAllocs()
-
-	for n := 0; n < b.N; n++ {
-		line.LineToEvents(inputLine, *sampleErrors, samplesReceived, tagErrors, tagsReceived, logger)
 	}
 }
 
@@ -83,31 +63,28 @@ func BenchmarkLineToEventsMixed50(b *testing.B) {
 	benchmarkLinesToEvents(50, b, mixedLines)
 }
 
-// Individual format benchmarks
-// Valid Lines
-func BenchmarkLineToEventsStatsd(b *testing.B) {
-	benchmarkLineToEvents(b, statsdLine)
-}
-func BenchmarkLineToEventsDogStatsd(b *testing.B) {
-	benchmarkLineToEvents(b, dogStatsdLine)
-}
-func BenchmarkLineToEventsSignalFx(b *testing.B) {
-	benchmarkLineToEvents(b, signalFxLine)
-}
-func BenchmarkLineToEventsInfluxDb(b *testing.B) {
-	benchmarkLineToEvents(b, influxDbLine)
-}
+func BenchmarkLineFormats(b *testing.B) {
+	input := map[string]string{
+		"statsd":           "foo1:2|c",
+		"invalidStatsd":    "foo1:2|c||",
+		"dogStatsd":        "foo1:100|c|#tag1:bar,tag2:baz",
+		"invalidDogStatsd": "foo3:100|c|#09digits:0,tag.with.dots:1",
+		"signalFx":         "foo1.[foo=bar1,dim=val1]test:1|g",
+		"invalidSignalFx":  "foo1.[foo=bar1,dim=val1test:1|g",
+		"influxDb":         "foo1,tag1=bar,tag2=baz:100|c",
+		"invalidInfluxDb":  "foo3,tag1=bar,tag2:100|c",
+	}
 
-// Invalid lines
-func BenchmarkLineToEventsStatsdInvalid(b *testing.B) {
-	benchmarkLineToEvents(b, statsdInvalidLine)
-}
-func BenchmarkLineToEventsDogStatsdInvalid(b *testing.B) {
-	benchmarkLineToEvents(b, dogStatsdInvalidLine)
-}
-func BenchmarkLineToEventsSignalFxInvalid(b *testing.B) {
-	benchmarkLineToEvents(b, signalFxInvalidLine)
-}
-func BenchmarkLineToEventsInfluxDbInvalid(b *testing.B) {
-	benchmarkLineToEvents(b, influxDbInvalidLine)
+	// reset benchmark timer to not measure startup costs
+	b.ResetTimer()
+
+	for name, l := range input {
+		b.Run(name, func(b *testing.B) {
+			// always report allocations since this is a hot path
+			b.ReportAllocs()
+			for n := 0; n < b.N; n++ {
+				line.LineToEvents(l, *sampleErrors, samplesReceived, tagErrors, tagsReceived, nopLogger)
+			}
+		})
+	}
 }
