@@ -21,8 +21,9 @@ import (
 	"github.com/prometheus/statsd_exporter/pkg/line"
 )
 
-func benchmarkLineToEvents(times int, b *testing.B) {
-	input := []string{
+var (
+	// just a grab bag of mixed formats, valid, invalid
+	mixedLines = []string{
 		"foo1:2|c",
 		"foo2:3|g",
 		"foo3:200|ms",
@@ -35,26 +36,55 @@ func benchmarkLineToEvents(times int, b *testing.B) {
 		"foo15:200|ms:300|ms:5|c|@0.1:6|g\nfoo15a:1|c:5|ms",
 		"some_very_useful_metrics_with_quite_a_log_name:13|c",
 	}
-	logger := log.NewNopLogger()
+	nopLogger = log.NewNopLogger()
+)
 
-	// reset benchmark timer to not measure startup costs
-	b.ResetTimer()
+func benchmarkLinesToEvents(times int, b *testing.B, input []string) {
+	// always report allocations since this is a hot path
+	b.ReportAllocs()
 
 	for n := 0; n < b.N; n++ {
 		for i := 0; i < times; i++ {
 			for _, l := range input {
-				line.LineToEvents(l, *sampleErrors, samplesReceived, tagErrors, tagsReceived, logger)
+				line.LineToEvents(l, *sampleErrors, samplesReceived, tagErrors, tagsReceived, nopLogger)
 			}
 		}
 	}
 }
 
-func BenchmarkLineToEvents1(b *testing.B) {
-	benchmarkLineToEvents(1, b)
+// Mixed statsd formats
+func BenchmarkLineToEventsMixed1(b *testing.B) {
+	benchmarkLinesToEvents(1, b, mixedLines)
 }
-func BenchmarkLineToEvents5(b *testing.B) {
-	benchmarkLineToEvents(5, b)
+func BenchmarkLineToEventsMixed5(b *testing.B) {
+	benchmarkLinesToEvents(5, b, mixedLines)
 }
-func BenchmarkLineToEvents50(b *testing.B) {
-	benchmarkLineToEvents(50, b)
+func BenchmarkLineToEventsMixed50(b *testing.B) {
+	benchmarkLinesToEvents(50, b, mixedLines)
+}
+
+func BenchmarkLineFormats(b *testing.B) {
+	input := map[string]string{
+		"statsd":           "foo1:2|c",
+		"invalidStatsd":    "foo1:2|c||",
+		"dogStatsd":        "foo1:100|c|#tag1:bar,tag2:baz",
+		"invalidDogStatsd": "foo3:100|c|#09digits:0,tag.with.dots:1",
+		"signalFx":         "foo1.[foo=bar1,dim=val1]test:1|g",
+		"invalidSignalFx":  "foo1.[foo=bar1,dim=val1test:1|g",
+		"influxDb":         "foo1,tag1=bar,tag2=baz:100|c",
+		"invalidInfluxDb":  "foo3,tag1=bar,tag2:100|c",
+	}
+
+	// reset benchmark timer to not measure startup costs
+	b.ResetTimer()
+
+	for name, l := range input {
+		b.Run(name, func(b *testing.B) {
+			// always report allocations since this is a hot path
+			b.ReportAllocs()
+			for n := 0; n < b.N; n++ {
+				line.LineToEvents(l, *sampleErrors, samplesReceived, tagErrors, tagsReceived, nopLogger)
+			}
+		})
+	}
 }
