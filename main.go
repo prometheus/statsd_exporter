@@ -35,6 +35,7 @@ import (
 	"github.com/prometheus/statsd_exporter/pkg/address"
 	"github.com/prometheus/statsd_exporter/pkg/event"
 	"github.com/prometheus/statsd_exporter/pkg/exporter"
+	"github.com/prometheus/statsd_exporter/pkg/line"
 	"github.com/prometheus/statsd_exporter/pkg/listener"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
@@ -268,6 +269,10 @@ func main() {
 		eventFlushInterval   = kingpin.Flag("statsd.event-flush-interval", "Number of events to hold in queue before flushing").Default("200ms").Duration()
 		dumpFSMPath          = kingpin.Flag("debug.dump-fsm", "The path to dump internal FSM generated for glob matching as Dot file.").Default("").String()
 		checkConfig          = kingpin.Flag("check-config", "Check configuration and exit.").Default("false").Bool()
+		dogstatsdTagsEnabled = kingpin.Flag("statsd.dogstatsd-tags-enabled", "Parse DogStatsd style tags").Default("true").Bool()
+		influxdbTagsEnabled  = kingpin.Flag("statsd.influxdb-tags-enabled", "Parse InfluxDB style tags").Default("true").Bool()
+		libratoTagsEnabled   = kingpin.Flag("statsd.librato-tags-enabled", "Parse Librato style tags").Default("true").Bool()
+		signalFXTagsEnabled  = kingpin.Flag("statsd.signalfx-tags-enabled", "Parse SignalFX style tags").Default("true").Bool()
 	)
 
 	promlogConfig := &promlog.Config{}
@@ -276,6 +281,12 @@ func main() {
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 	logger := promlog.New(promlogConfig)
+
+	// Set line parsing options
+	line.DogstatsdTagsEnabled = *dogstatsdTagsEnabled
+	line.InfluxdbTagsEnabled = *influxdbTagsEnabled
+	line.LibratoTagsEnabled = *libratoTagsEnabled
+	line.SignalFXTagsEnabled = *signalFXTagsEnabled
 
 	cacheOption := mapper.WithCacheType(*cacheType)
 

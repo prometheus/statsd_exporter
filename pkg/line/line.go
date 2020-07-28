@@ -27,6 +27,14 @@ import (
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
 
+// These globals can be used to control parsing behavior
+var (
+	DogstatsdTagsEnabled = true
+	InfluxdbTagsEnabled  = true
+	LibratoTagsEnabled   = true
+	SignalFXTagsEnabled  = true
+)
+
 func buildEvent(statType, metric string, value float64, relative bool, labels map[string]string) (event.Event, error) {
 	switch statType {
 	case "c":
@@ -115,40 +123,44 @@ func trimLeftHash(s string) string {
 }
 
 func ParseDogStatsDTags(component string, labels map[string]string, tagErrors prometheus.Counter, logger log.Logger) {
-	lastTagEndIndex := 0
-	for i, c := range component {
-		if c == ',' {
-			tag := component[lastTagEndIndex:i]
-			lastTagEndIndex = i + 1
+	if DogstatsdTagsEnabled {
+		lastTagEndIndex := 0
+		for i, c := range component {
+			if c == ',' {
+				tag := component[lastTagEndIndex:i]
+				lastTagEndIndex = i + 1
+				parseTag(component, trimLeftHash(tag), ':', labels, tagErrors, logger)
+			}
+		}
+
+		// If we're not off the end of the string, add the last tag
+		if lastTagEndIndex < len(component) {
+			tag := component[lastTagEndIndex:]
 			parseTag(component, trimLeftHash(tag), ':', labels, tagErrors, logger)
 		}
-	}
-
-	// If we're not off the end of the string, add the last tag
-	if lastTagEndIndex < len(component) {
-		tag := component[lastTagEndIndex:]
-		parseTag(component, trimLeftHash(tag), ':', labels, tagErrors, logger)
 	}
 }
 
 func parseNameAndTags(name string, labels map[string]string, tagErrors prometheus.Counter, logger log.Logger) string {
-	// check for SignalFx tags first
-	// `[` delimits start of tags by SignalFx
-	// `]` delimits end of tags by SignalFx
-	// https://docs.signalfx.com/en/latest/integrations/agent/monitors/collectd-statsd.html
-	startIdx := strings.IndexRune(name, '[')
-	endIdx := strings.IndexRune(name, ']')
+	if SignalFXTagsEnabled {
+		// check for SignalFx tags first
+		// `[` delimits start of tags by SignalFx
+		// `]` delimits end of tags by SignalFx
+		// https://docs.signalfx.com/en/latest/integrations/agent/monitors/collectd-statsd.html
+		startIdx := strings.IndexRune(name, '[')
+		endIdx := strings.IndexRune(name, ']')
 
-	switch {
-	case startIdx != -1 && endIdx != -1:
-		// good signalfx tags
-		parseNameTags(name[startIdx+1:endIdx], labels, tagErrors, logger)
-		return name[:startIdx] + name[endIdx+1:]
-	case (startIdx != -1) != (endIdx != -1):
-		// only one bracket, return unparsed
-		level.Debug(logger).Log("msg", "invalid SignalFx tags, not parsing", "metric", name)
-		tagErrors.Inc()
-		return name
+		switch {
+		case startIdx != -1 && endIdx != -1:
+			// good signalfx tags
+			parseNameTags(name[startIdx+1:endIdx], labels, tagErrors, logger)
+			return name[:startIdx] + name[endIdx+1:]
+		case (startIdx != -1) != (endIdx != -1):
+			// only one bracket, return unparsed
+			level.Debug(logger).Log("msg", "invalid SignalFx tags, not parsing", "metric", name)
+			tagErrors.Inc()
+			return name
+		}
 	}
 
 	for i, c := range name {
@@ -156,7 +168,7 @@ func parseNameAndTags(name string, labels map[string]string, tagErrors prometheu
 		// https://www.librato.com/docs/kb/collect/collection_agents/stastd/#stat-level-tags
 		// `,` delimits start of tags by InfluxDB
 		// https://www.influxdata.com/blog/getting-started-with-sending-statsd-metrics-to-telegraf-influxdb/#introducing-influx-statsd
-		if c == '#' || c == ',' {
+		if (c == '#' && LibratoTagsEnabled) || (c == ',' && InfluxdbTagsEnabled) {
 			parseNameTags(name[i+1:], labels, tagErrors, logger)
 			return name[:i]
 		}
