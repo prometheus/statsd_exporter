@@ -747,3 +747,959 @@ func TestDisableParsingLineToEvents(t *testing.T) {
 		})
 	}
 }
+
+func TestDisableParsingDogstatsdLineToEvents(t *testing.T) {
+	type testCase struct {
+		in  string
+		out event.Events
+	}
+
+	testCases := map[string]testCase{
+		"librato tag extension": {
+			in: "foo#tag1=bar,tag2=baz:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"librato tag extension with tag keys unsupported by prometheus": {
+			in: "foo#09digits=0,tag.with.dots=1:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"_09digits": "0", "tag_with_dots": "1"},
+				},
+			},
+		},
+		"influxdb tag extension": {
+			in: "foo,tag1=bar,tag2=baz:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"SignalFx tag extension": {
+			in: "foo.[tag1=bar,tag2=baz]test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"SignalFx tag extension, tags at end of name": {
+			in: "foo.test[tag1=bar,tag2=baz]:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"SignalFx tag extension, tags at beginning of name": {
+			in: "[tag1=bar,tag2=baz]foo.test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"SignalFx tag extension, no tags": {
+			in: "foo.[]test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"SignalFx tag extension, non-kv tags": {
+			in: "foo.[tag1,tag2]test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"SignalFx tag extension, missing closing bracket": {
+			in: "[tag1=bar,tag2=bazfoo.test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "[tag1=bar,tag2=bazfoo.test",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"SignalFx tag extension, missing opening bracket": {
+			in: "tag1=bar,tag2=baz]foo.test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "tag1=bar,tag2=baz]foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"influxdb tag extension with tag keys unsupported by prometheus": {
+			in: "foo,09digits=0,tag.with.dots=1:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"_09digits": "0", "tag_with_dots": "1"},
+				},
+			},
+		},
+		"datadog tag extension": {
+			in: "foo:100|c|#tag1:bar,tag2:baz",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"datadog tag extension with # in all keys (as sent by datadog php client)": {
+			in: "foo:100|c|#tag1:bar,#tag2:baz",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"datadog tag extension with tag keys unsupported by prometheus": {
+			in: "foo:100|c|#09digits:0,tag.with.dots:1",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"datadog tag extension with valueless tags: ignored": {
+			in: "foo:100|c|#tag_without_a_value",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"datadog tag extension with valueless tags (edge case)": {
+			in: "foo:100|c|#tag_without_a_value,tag:value",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"datadog tag extension with empty tags (edge case)": {
+			in: "foo:100|c|#tag:value,,",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"datadog tag extension with sampling": {
+			in: "foo:100|c|@0.1|#tag1:bar,#tag2:baz",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      1000,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"librato/dogstatsd mixed tag styles without sampling": {
+			in:  "foo#tag1=foo,tag3=bing:100|c|#tag1:bar,#tag2:baz",
+			out: event.Events{},
+		},
+		"signalfx/dogstatsd mixed tag styles without sampling": {
+			in:  "foo[tag1=foo,tag3=bing]:100|c|#tag1:bar,#tag2:baz",
+			out: event.Events{},
+		},
+		"influxdb/dogstatsd mixed tag styles without sampling": {
+			in:  "foo,tag1=foo,tag3=bing:100|c|#tag1:bar,#tag2:baz",
+			out: event.Events{},
+		},
+		"mixed tag styles with sampling": {
+			in:  "foo#tag1=foo,tag3=bing:100|c|@0.1|#tag1:bar,#tag2:baz",
+			out: event.Events{},
+		},
+		"datadog tag extension with multiple colons": {
+			in: "foo:100|c|@0.1|#tag1:foo:bar",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      1000,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"datadog tag extension with invalid utf8 tag values": {
+			in: "foo:100|c|@0.1|#tag:\xc3\x28invalid",
+		},
+		"datadog tag extension with both valid and invalid utf8 tag values": {
+			in: "foo:100|c|@0.1|#tag1:valid,tag2:\xc3\x28invalid",
+		},
+	}
+
+	DogstatsdTagsEnabled = false
+	InfluxdbTagsEnabled = true
+	SignalFXTagsEnabled = true
+	LibratoTagsEnabled = true
+
+	for name, testCase := range testCases {
+		t.Run(name, func(t *testing.T) {
+			events := LineToEvents(testCase.in, *nopSampleErrors, nopSamplesReceived, nopTagErrors, nopTagsReceived, nopLogger)
+
+			for j, expected := range testCase.out {
+				if !reflect.DeepEqual(&expected, &events[j]) {
+					t.Fatalf("Expected %#v, got %#v in scenario '%s'", expected, events[j], name)
+				}
+			}
+		})
+	}
+}
+
+func TestDisableParsingInfluxdbLineToEvents(t *testing.T) {
+	type testCase struct {
+		in  string
+		out event.Events
+	}
+
+	testCases := map[string]testCase{
+		"librato tag extension": {
+			in: "foo#tag1=bar,tag2=baz:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"librato tag extension with tag keys unsupported by prometheus": {
+			in: "foo#09digits=0,tag.with.dots=1:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"_09digits": "0", "tag_with_dots": "1"},
+				},
+			},
+		},
+		"influxdb tag extension": {
+			in: "foo,tag1=bar,tag2=baz:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo,tag1=bar,tag2=baz",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"SignalFx tag extension": {
+			in: "foo.[tag1=bar,tag2=baz]test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"SignalFx tag extension, tags at end of name": {
+			in: "foo.test[tag1=bar,tag2=baz]:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"SignalFx tag extension, tags at beginning of name": {
+			in: "[tag1=bar,tag2=baz]foo.test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"SignalFx tag extension, no tags": {
+			in: "foo.[]test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"SignalFx tag extension, non-kv tags": {
+			in: "foo.[tag1,tag2]test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"SignalFx tag extension, missing closing bracket": {
+			in: "[tag1=bar,tag2=bazfoo.test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "[tag1=bar,tag2=bazfoo.test",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"SignalFx tag extension, missing opening bracket": {
+			in: "tag1=bar,tag2=baz]foo.test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "tag1=bar,tag2=baz]foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"influxdb tag extension with tag keys unsupported by prometheus": {
+			in: "foo,09digits=0,tag.with.dots=1:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo,09digits=0,tag.with.dots=1",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"datadog tag extension": {
+			in: "foo:100|c|#tag1:bar,tag2:baz",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"datadog tag extension with # in all keys (as sent by datadog php client)": {
+			in: "foo:100|c|#tag1:bar,#tag2:baz",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"datadog tag extension with tag keys unsupported by prometheus": {
+			in: "foo:100|c|#09digits:0,tag.with.dots:1",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"_09digits": "0", "tag_with_dots": "1"},
+				},
+			},
+		},
+		"datadog tag extension with valueless tags: ignored": {
+			in: "foo:100|c|#tag_without_a_value",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"datadog tag extension with valueless tags (edge case)": {
+			in: "foo:100|c|#tag_without_a_value,tag:value",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag": "value"},
+				},
+			},
+		},
+		"datadog tag extension with empty tags (edge case)": {
+			in: "foo:100|c|#tag:value,,",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag": "value"},
+				},
+			},
+		},
+		"datadog tag extension with sampling": {
+			in: "foo:100|c|@0.1|#tag1:bar,#tag2:baz",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      1000,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"librato/dogstatsd mixed tag styles without sampling": {
+			in:  "foo#tag1=foo,tag3=bing:100|c|#tag1:bar,#tag2:baz",
+			out: event.Events{},
+		},
+		"signalfx/dogstatsd mixed tag styles without sampling": {
+			in:  "foo[tag1=foo,tag3=bing]:100|c|#tag1:bar,#tag2:baz",
+			out: event.Events{},
+		},
+		"influxdb/dogstatsd mixed tag styles without sampling": {
+			in:  "foo,tag1=foo,tag3=bing:100|c|#tag1:bar,#tag2:baz",
+			out: event.Events{},
+		},
+		"mixed tag styles with sampling": {
+			in:  "foo#tag1=foo,tag3=bing:100|c|@0.1|#tag1:bar,#tag2:baz",
+			out: event.Events{},
+		},
+		"datadog tag extension with multiple colons": {
+			in: "foo:100|c|@0.1|#tag1:foo:bar",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      1000,
+					CLabels:     map[string]string{"tag1": "foo:bar"},
+				},
+			},
+		},
+		"datadog tag extension with invalid utf8 tag values": {
+			in: "foo:100|c|@0.1|#tag:\xc3\x28invalid",
+		},
+		"datadog tag extension with both valid and invalid utf8 tag values": {
+			in: "foo:100|c|@0.1|#tag1:valid,tag2:\xc3\x28invalid",
+		},
+	}
+
+	DogstatsdTagsEnabled = true
+	InfluxdbTagsEnabled = false
+	SignalFXTagsEnabled = true
+	LibratoTagsEnabled = true
+
+	for name, testCase := range testCases {
+		t.Run(name, func(t *testing.T) {
+			events := LineToEvents(testCase.in, *nopSampleErrors, nopSamplesReceived, nopTagErrors, nopTagsReceived, nopLogger)
+
+			for j, expected := range testCase.out {
+				if !reflect.DeepEqual(&expected, &events[j]) {
+					t.Fatalf("Expected %#v, got %#v in scenario '%s'", expected, events[j], name)
+				}
+			}
+		})
+	}
+}
+
+func TestDisableParsingSignalfxLineToEvents(t *testing.T) {
+	type testCase struct {
+		in  string
+		out event.Events
+	}
+
+	testCases := map[string]testCase{
+		"librato tag extension": {
+			in: "foo#tag1=bar,tag2=baz:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"librato tag extension with tag keys unsupported by prometheus": {
+			in: "foo#09digits=0,tag.with.dots=1:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"_09digits": "0", "tag_with_dots": "1"},
+				},
+			},
+		},
+		"influxdb tag extension": {
+			in: "foo,tag1=bar,tag2=baz:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"SignalFx tag extension": { // parsed as influxdb tags
+			in: "foo.[tag1=bar,tag2=baz]test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.[tag1=bar",
+					CValue:      100,
+					CLabels:     map[string]string{"tag2": "baz]test"},
+				},
+			},
+		},
+		"SignalFx tag extension, tags at end of name": { // parsed as influxdb tags
+			in: "foo.test[tag1=bar,tag2=baz]:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.test[tag1=bar",
+					CValue:      100,
+					CLabels:     map[string]string{"tag2": "baz]"},
+				},
+			},
+		},
+		"SignalFx tag extension, tags at beginning of name": { // parsed as influxdb tags
+			in: "[tag1=bar,tag2=baz]foo.test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "[tag1=bar",
+					CValue:      100,
+					CLabels:     map[string]string{"tag2": "baz]foo.test"},
+				},
+			},
+		},
+		"SignalFx tag extension, no tags": {
+			in: "foo.[]test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.[]test",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"SignalFx tag extension, non-kv tags": { // parsed as influxdb tags
+			in: "foo.[tag1,tag2]test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.[tag1",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"SignalFx tag extension, missing closing bracket": { // parsed as influxdb tags
+			in: "[tag1=bar,tag2=bazfoo.test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "[tag1=bar",
+					CValue:      100,
+					CLabels:     map[string]string{"tag2": "bazfoo.test"},
+				},
+			},
+		},
+		"SignalFx tag extension, missing opening bracket": { // parsed as influxdb tags
+			in: "tag1=bar,tag2=baz]foo.test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "tag1=bar",
+					CValue:      100,
+					CLabels:     map[string]string{"tag2": "baz]foo.test"},
+				},
+			},
+		},
+		"influxdb tag extension with tag keys unsupported by prometheus": {
+			in: "foo,09digits=0,tag.with.dots=1:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"_09digits": "0", "tag_with_dots": "1"},
+				},
+			},
+		},
+		"datadog tag extension": {
+			in: "foo:100|c|#tag1:bar,tag2:baz",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"datadog tag extension with # in all keys (as sent by datadog php client)": {
+			in: "foo:100|c|#tag1:bar,#tag2:baz",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"datadog tag extension with tag keys unsupported by prometheus": {
+			in: "foo:100|c|#09digits:0,tag.with.dots:1",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"_09digits": "0", "tag_with_dots": "1"},
+				},
+			},
+		},
+		"datadog tag extension with valueless tags: ignored": {
+			in: "foo:100|c|#tag_without_a_value",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"datadog tag extension with valueless tags (edge case)": {
+			in: "foo:100|c|#tag_without_a_value,tag:value",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag": "value"},
+				},
+			},
+		},
+		"datadog tag extension with empty tags (edge case)": {
+			in: "foo:100|c|#tag:value,,",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag": "value"},
+				},
+			},
+		},
+		"datadog tag extension with sampling": {
+			in: "foo:100|c|@0.1|#tag1:bar,#tag2:baz",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      1000,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"librato/dogstatsd mixed tag styles without sampling": {
+			in:  "foo#tag1=foo,tag3=bing:100|c|#tag1:bar,#tag2:baz",
+			out: event.Events{},
+		},
+		"signalfx/dogstatsd mixed tag styles without sampling": {
+			in:  "foo[tag1=foo,tag3=bing]:100|c|#tag1:bar,#tag2:baz",
+			out: event.Events{},
+		},
+		"influxdb/dogstatsd mixed tag styles without sampling": {
+			in:  "foo,tag1=foo,tag3=bing:100|c|#tag1:bar,#tag2:baz",
+			out: event.Events{},
+		},
+		"mixed tag styles with sampling": {
+			in:  "foo#tag1=foo,tag3=bing:100|c|@0.1|#tag1:bar,#tag2:baz",
+			out: event.Events{},
+		},
+		"datadog tag extension with multiple colons": {
+			in: "foo:100|c|@0.1|#tag1:foo:bar",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      1000,
+					CLabels:     map[string]string{"tag1": "foo:bar"},
+				},
+			},
+		},
+		"datadog tag extension with invalid utf8 tag values": {
+			in: "foo:100|c|@0.1|#tag:\xc3\x28invalid",
+		},
+		"datadog tag extension with both valid and invalid utf8 tag values": {
+			in: "foo:100|c|@0.1|#tag1:valid,tag2:\xc3\x28invalid",
+		},
+	}
+
+	DogstatsdTagsEnabled = true
+	InfluxdbTagsEnabled = true
+	SignalFXTagsEnabled = false
+	LibratoTagsEnabled = true
+
+	for name, testCase := range testCases {
+		t.Run(name, func(t *testing.T) {
+			events := LineToEvents(testCase.in, *nopSampleErrors, nopSamplesReceived, nopTagErrors, nopTagsReceived, nopLogger)
+
+			for j, expected := range testCase.out {
+				if !reflect.DeepEqual(&expected, &events[j]) {
+					t.Fatalf("Expected %#v, got %#v in scenario '%s'", expected, events[j], name)
+				}
+			}
+		})
+	}
+}
+
+func TestDisableParsingLibratoLineToEvents(t *testing.T) {
+	type testCase struct {
+		in  string
+		out event.Events
+	}
+
+	testCases := map[string]testCase{
+		"librato tag extension": { // parsed as influxdb tags
+			in: "foo#tag1=bar,tag2=baz:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo#tag1=bar",
+					CValue:      100,
+					CLabels:     map[string]string{"tag2": "baz"},
+				},
+			},
+		},
+		"librato tag extension with tag keys unsupported by prometheus": { // parsed as influxdb tags
+			in: "foo#09digits=0,tag.with.dots=1:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo#09digits=0",
+					CValue:      100,
+					CLabels:     map[string]string{"tag_with_dots": "1"},
+				},
+			},
+		},
+		"influxdb tag extension": {
+			in: "foo,tag1=bar,tag2=baz:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"SignalFx tag extension": {
+			in: "foo.[tag1=bar,tag2=baz]test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"SignalFx tag extension, tags at end of name": {
+			in: "foo.test[tag1=bar,tag2=baz]:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"SignalFx tag extension, tags at beginning of name": {
+			in: "[tag1=bar,tag2=baz]foo.test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"SignalFx tag extension, no tags": {
+			in: "foo.[]test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"SignalFx tag extension, non-kv tags": {
+			in: "foo.[tag1,tag2]test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"SignalFx tag extension, missing closing bracket": {
+			in: "[tag1=bar,tag2=bazfoo.test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "[tag1=bar,tag2=bazfoo.test",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"SignalFx tag extension, missing opening bracket": {
+			in: "tag1=bar,tag2=baz]foo.test:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "tag1=bar,tag2=baz]foo.test",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"influxdb tag extension with tag keys unsupported by prometheus": {
+			in: "foo,09digits=0,tag.with.dots=1:100|c",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"_09digits": "0", "tag_with_dots": "1"},
+				},
+			},
+		},
+		"datadog tag extension": {
+			in: "foo:100|c|#tag1:bar,tag2:baz",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"datadog tag extension with # in all keys (as sent by datadog php client)": {
+			in: "foo:100|c|#tag1:bar,#tag2:baz",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"datadog tag extension with tag keys unsupported by prometheus": {
+			in: "foo:100|c|#09digits:0,tag.with.dots:1",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"_09digits": "0", "tag_with_dots": "1"},
+				},
+			},
+		},
+		"datadog tag extension with valueless tags: ignored": {
+			in: "foo:100|c|#tag_without_a_value",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{},
+				},
+			},
+		},
+		"datadog tag extension with valueless tags (edge case)": {
+			in: "foo:100|c|#tag_without_a_value,tag:value",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag": "value"},
+				},
+			},
+		},
+		"datadog tag extension with empty tags (edge case)": {
+			in: "foo:100|c|#tag:value,,",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag": "value"},
+				},
+			},
+		},
+		"datadog tag extension with sampling": {
+			in: "foo:100|c|@0.1|#tag1:bar,#tag2:baz",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      1000,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"librato/dogstatsd mixed tag styles without sampling": {
+			in:  "foo#tag1=foo,tag3=bing:100|c|#tag1:bar,#tag2:baz",
+			out: event.Events{},
+		},
+		"signalfx/dogstatsd mixed tag styles without sampling": {
+			in:  "foo[tag1=foo,tag3=bing]:100|c|#tag1:bar,#tag2:baz",
+			out: event.Events{},
+		},
+		"influxdb/dogstatsd mixed tag styles without sampling": {
+			in:  "foo,tag1=foo,tag3=bing:100|c|#tag1:bar,#tag2:baz",
+			out: event.Events{},
+		},
+		"mixed tag styles with sampling": {
+			in:  "foo#tag1=foo,tag3=bing:100|c|@0.1|#tag1:bar,#tag2:baz",
+			out: event.Events{},
+		},
+		"datadog tag extension with multiple colons": {
+			in: "foo:100|c|@0.1|#tag1:foo:bar",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      1000,
+					CLabels:     map[string]string{"tag1": "foo:bar"},
+				},
+			},
+		},
+		"datadog tag extension with invalid utf8 tag values": {
+			in: "foo:100|c|@0.1|#tag:\xc3\x28invalid",
+		},
+		"datadog tag extension with both valid and invalid utf8 tag values": {
+			in: "foo:100|c|@0.1|#tag1:valid,tag2:\xc3\x28invalid",
+		},
+	}
+
+	DogstatsdTagsEnabled = true
+	InfluxdbTagsEnabled = true
+	SignalFXTagsEnabled = true
+	LibratoTagsEnabled = false
+
+	for name, testCase := range testCases {
+		t.Run(name, func(t *testing.T) {
+			events := LineToEvents(testCase.in, *nopSampleErrors, nopSamplesReceived, nopTagErrors, nopTagsReceived, nopLogger)
+
+			for j, expected := range testCase.out {
+				if !reflect.DeepEqual(&expected, &events[j]) {
+					t.Fatalf("Expected %#v, got %#v in scenario '%s'", expected, events[j], name)
+				}
+			}
+		})
+	}
+}
