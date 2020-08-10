@@ -269,10 +269,10 @@ func main() {
 		eventFlushInterval   = kingpin.Flag("statsd.event-flush-interval", "Number of events to hold in queue before flushing").Default("200ms").Duration()
 		dumpFSMPath          = kingpin.Flag("debug.dump-fsm", "The path to dump internal FSM generated for glob matching as Dot file.").Default("").String()
 		checkConfig          = kingpin.Flag("check-config", "Check configuration and exit.").Default("false").Bool()
-		dogstatsdTagsEnabled = kingpin.Flag("statsd.dogstatsd-tags-enabled", "Parse DogStatsd style tags").Default("true").Bool()
-		influxdbTagsEnabled  = kingpin.Flag("statsd.influxdb-tags-enabled", "Parse InfluxDB style tags").Default("true").Bool()
-		libratoTagsEnabled   = kingpin.Flag("statsd.librato-tags-enabled", "Parse Librato style tags").Default("true").Bool()
-		signalFXTagsEnabled  = kingpin.Flag("statsd.signalfx-tags-enabled", "Parse SignalFX style tags").Default("true").Bool()
+		dogstatsdTagsEnabled = kingpin.Flag("statsd.parse-dogstatsd-tags", "Parse DogStatsd style tags").Default("true").Bool()
+		influxdbTagsEnabled  = kingpin.Flag("statsd.parse-influxdb-tags", "Parse InfluxDB style tags").Default("true").Bool()
+		libratoTagsEnabled   = kingpin.Flag("statsd.parse-librato-tags", "Parse Librato style tags").Default("true").Bool()
+		signalFXTagsEnabled  = kingpin.Flag("statsd.parse-signalfx-tags", "Parse SignalFX style tags").Default("true").Bool()
 	)
 
 	promlogConfig := &promlog.Config{}

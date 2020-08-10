@@ -77,6 +77,14 @@ metric.name[tagName=val,tag2Name=val2]:0|c
 Be aware: If you mix tag styles (e.g., Librato/InfluxDB with DogStatsD), the exporter will consider this an error and the behavior is undefined.
 Also, tags without values (`#some_tag`) are not supported and will be ignored.
 
+The exporter parses all tagging formats by default, but individual tagging formats can be disabled with command line flags:
+```
+--no-statsd.parse-dogstatsd-tags
+--no-statsd.parse-influxdb-tags
+--no-statsd.parse-librato-tags
+--no-statsd.parse-signalfx-tags
+```
+
 ## Building and Running
 
 NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/kingpin) flags library. With this change, flag behaviour is POSIX-ish:
