@@ -199,23 +199,12 @@ func (u uncheckedCollector) Collect(c chan<- prometheus.Metric) {
 	u.c.Collect(c)
 }
 
-func serveHTTP(listenAddress, metricsEndpoint string, logger log.Logger) {
-	http.Handle(metricsEndpoint, promhttp.Handler())
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`<html>
-			<head><title>StatsD Exporter</title></head>
-			<body>
-			<h1>StatsD Exporter</h1>
-			<p><a href="` + metricsEndpoint + `">Metrics</a></p>
-			</body>
-			</html>`))
-	})
-	level.Error(logger).Log("msg", http.ListenAndServe(listenAddress, nil))
+func serveHTTP(mux http.Handler, listenAddress string, logger log.Logger) {
+	level.Error(logger).Log("msg", http.ListenAndServe(listenAddress, mux))
 	os.Exit(1)
 }
 
-func configReloader(fileName string, mapper *mapper.MetricMapper, cacheSize int, logger log.Logger, option mapper.CacheOption) {
-
+func sighupConfigReloader(fileName string, mapper *mapper.MetricMapper, cacheSize int, logger log.Logger, option mapper.CacheOption) {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGHUP)
 
@@ -224,15 +213,21 @@ func configReloader(fileName string, mapper *mapper.MetricMapper, cacheSize int,
 			level.Warn(logger).Log("msg", "Received signal but no mapping config to reload", "signal", s)
 			continue
 		}
+
 		level.Info(logger).Log("msg", "Received signal, attempting reload", "signal", s)
-		err := mapper.InitFromFile(fileName, cacheSize, option)
-		if err != nil {
-			level.Info(logger).Log("msg", "Error reloading config", "error", err)
-			configLoads.WithLabelValues("failure").Inc()
-		} else {
-			level.Info(logger).Log("msg", "Config reloaded successfully")
-			configLoads.WithLabelValues("success").Inc()
-		}
+
+		reloadConfig(fileName, mapper, cacheSize, logger, option)
+	}
+}
+
+func reloadConfig(fileName string, mapper *mapper.MetricMapper, cacheSize int, logger log.Logger, option mapper.CacheOption) {
+	err := mapper.InitFromFile(fileName, cacheSize, option)
+	if err != nil {
+		level.Info(logger).Log("msg", "Error reloading config", "error", err)
+		configLoads.WithLabelValues("failure").Inc()
+	} else {
+		level.Info(logger).Log("msg", "Config reloaded successfully")
+		configLoads.WithLabelValues("success").Inc()
 	}
 }
 
@@ -253,6 +248,7 @@ func dumpFSM(mapper *mapper.MetricMapper, dumpFilename string, logger log.Logger
 func main() {
 	var (
 		listenAddress        = kingpin.Flag("web.listen-address", "The address on which to expose the web interface and generated Prometheus metrics.").Default(":9102").String()
+		enableLifecycle      = kingpin.Flag("web.enable-lifecycle", "Enable shutdown and reload via HTTP request.").Default("false").Bool()
 		metricsEndpoint      = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
 		statsdListenUDP      = kingpin.Flag("statsd.listen-udp", "The UDP address on which to receive statsd metric lines. \"\" disables it.").Default(":9125").String()
 		statsdListenTCP      = kingpin.Flag("statsd.listen-tcp", "The TCP address on which to receive statsd metric lines. \"\" disables it.").Default(":9125").String()
@@ -288,8 +284,6 @@ func main() {
 	level.Info(logger).Log("msg", "Build context", "context", version.BuildContext())
 	level.Info(logger).Log("msg", "Accepting StatsD Traffic", "udp", *statsdListenUDP, "tcp", *statsdListenTCP, "unixgram", *statsdListenUnixgram)
 	level.Info(logger).Log("msg", "Accepting Prometheus Requests", "addr", *listenAddress)
-
-	go serveHTTP(*listenAddress, *metricsEndpoint, logger)
 
 	events := make(chan event.Events, *eventQueueSize)
 	defer close(events)
@@ -448,10 +442,42 @@ func main() {
 		return
 	}
 
+	mux := http.NewServeMux()
+	mux.Handle(*metricsEndpoint, promhttp.Handler())
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`<html>
+			<head><title>StatsD Exporter</title></head>
+			<body>
+			<h1>StatsD Exporter</h1>
+			<p><a href="` + *metricsEndpoint + `">Metrics</a></p>
+			</body>
+			</html>`))
+	})
+	if *enableLifecycle {
+		mux.HandleFunc("/-/reload", func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPut || r.Method == http.MethodPost {
+				if *mappingConfig == "" {
+					level.Warn(logger).Log("msg", "Received lifecycle api reload but no mapping config to reload")
+					return
+				}
+				level.Info(logger).Log("msg", "Received lifecycle api reload, attempting reload")
+				reloadConfig(*mappingConfig, mapper, *cacheSize, logger, cacheOption)
+			}
+		})
+		mux.HandleFunc("/-/quit", func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPut || r.Method == http.MethodPost {
+				level.Info(logger).Log("msg", "Received lifecycle api quit, exiting")
+				os.Exit(0)
+			}
+		})
+	}
+
+	go serveHTTP(mux, *listenAddress, logger)
+
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 
-	go configReloader(*mappingConfig, mapper, *cacheSize, logger, cacheOption)
+	go sighupConfigReloader(*mappingConfig, mapper, *cacheSize, logger, cacheOption)
 	go exporter.Listen(events)
 
 	<-signals

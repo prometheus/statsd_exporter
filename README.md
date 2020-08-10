@@ -82,6 +82,7 @@ Also, tags without values (`#some_tag`) are not supported and will be ignored.
 NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/kingpin) flags library. With this change, flag behaviour is POSIX-ish:
 
 * long flags start with two dashes (`--version`)
+* boolean long flags are disabled by prefixing with no (`--flag-name` is true, `--no-flag-name` is false)
 * multiple short flags can be combined (but there currently is only one)
 * flag processing stops at the first `--`
 
@@ -94,6 +95,7 @@ NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/king
           --web.listen-address=":9102"
                                     The address on which to expose the web interface
                                     and generated Prometheus metrics.
+          --web.enable-lifecycle    Enable shutdown and reload via HTTP request.
           --web.telemetry-path="/metrics"
                                     Path under which to expose metrics.
           --statsd.listen-udp=":9125"
@@ -137,6 +139,11 @@ NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/king
                                     json]
           --version                 Show application version.
     ```
+
+## Lifecycle API
+
+The `statsd_exporter` has an optional lifecycle API (disabled by default) that can be used to reload or quit the exporter 
+by sending a `PUT` or `POST` request to the `/-/reload` or `/-/quit` endpoints.
 
 ## Tests
 
