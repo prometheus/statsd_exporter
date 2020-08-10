@@ -282,11 +282,19 @@ func main() {
 	kingpin.Parse()
 	logger := promlog.New(promlogConfig)
 
-	// Set line parsing options
-	line.DogstatsdTagsEnabled = *dogstatsdTagsEnabled
-	line.InfluxdbTagsEnabled = *influxdbTagsEnabled
-	line.LibratoTagsEnabled = *libratoTagsEnabled
-	line.SignalFXTagsEnabled = *signalFXTagsEnabled
+	parser := line.NewParser()
+	if *dogstatsdTagsEnabled {
+		parser.EnableDogstatsdParsing()
+	}
+	if *influxdbTagsEnabled {
+		parser.EnableInfluxdbParsing()
+	}
+	if *libratoTagsEnabled {
+		parser.EnableLibratoParsing()
+	}
+	if *signalFXTagsEnabled {
+		parser.EnableSignalFXParsing()
+	}
 
 	cacheOption := mapper.WithCacheType(*cacheType)
 
@@ -330,6 +338,7 @@ func main() {
 			Conn:            uconn,
 			EventHandler:    eventQueue,
 			Logger:          logger,
+			LineParser:      parser,
 			UDPPackets:      udpPackets,
 			LinesReceived:   linesReceived,
 			EventsFlushed:   eventsFlushed,
@@ -359,6 +368,7 @@ func main() {
 			Conn:            tconn,
 			EventHandler:    eventQueue,
 			Logger:          logger,
+			LineParser:      parser,
 			LinesReceived:   linesReceived,
 			EventsFlushed:   eventsFlushed,
 			SampleErrors:    *sampleErrors,
@@ -402,6 +412,7 @@ func main() {
 			Conn:            uxgconn,
 			EventHandler:    eventQueue,
 			Logger:          logger,
+			LineParser:      parser,
 			UnixgramPackets: unixgramPackets,
 			LinesReceived:   linesReceived,
 			EventsFlushed:   eventsFlushed,

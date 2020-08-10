@@ -491,14 +491,15 @@ func TestLineToEvents(t *testing.T) {
 		},
 	}
 
-	DogstatsdTagsEnabled = true
-	InfluxdbTagsEnabled = true
-	SignalFXTagsEnabled = true
-	LibratoTagsEnabled = true
+	parser := NewParser()
+	parser.EnableDogstatsdParsing()
+	parser.EnableInfluxdbParsing()
+	parser.EnableLibratoParsing()
+	parser.EnableSignalFXParsing()
 
 	for name, testCase := range testCases {
 		t.Run(name, func(t *testing.T) {
-			events := LineToEvents(testCase.in, *nopSampleErrors, nopSamplesReceived, nopTagErrors, nopTagsReceived, nopLogger)
+			events := parser.LineToEvents(testCase.in, *nopSampleErrors, nopSamplesReceived, nopTagErrors, nopTagsReceived, nopLogger)
 
 			for j, expected := range testCase.out {
 				if !reflect.DeepEqual(&expected, &events[j]) {
@@ -730,14 +731,11 @@ func TestDisableParsingLineToEvents(t *testing.T) {
 		},
 	}
 
-	DogstatsdTagsEnabled = false
-	InfluxdbTagsEnabled = false
-	SignalFXTagsEnabled = false
-	LibratoTagsEnabled = false
+	parser := NewParser()
 
 	for name, testCase := range testCases {
 		t.Run(name, func(t *testing.T) {
-			events := LineToEvents(testCase.in, *nopSampleErrors, nopSamplesReceived, nopTagErrors, nopTagsReceived, nopLogger)
+			events := parser.LineToEvents(testCase.in, *nopSampleErrors, nopSamplesReceived, nopTagErrors, nopTagsReceived, nopLogger)
 
 			for j, expected := range testCase.out {
 				if !reflect.DeepEqual(&expected, &events[j]) {
@@ -969,14 +967,14 @@ func TestDisableParsingDogstatsdLineToEvents(t *testing.T) {
 		},
 	}
 
-	DogstatsdTagsEnabled = false
-	InfluxdbTagsEnabled = true
-	SignalFXTagsEnabled = true
-	LibratoTagsEnabled = true
+	parser := NewParser()
+	parser.EnableInfluxdbParsing()
+	parser.EnableLibratoParsing()
+	parser.EnableSignalFXParsing()
 
 	for name, testCase := range testCases {
 		t.Run(name, func(t *testing.T) {
-			events := LineToEvents(testCase.in, *nopSampleErrors, nopSamplesReceived, nopTagErrors, nopTagsReceived, nopLogger)
+			events := parser.LineToEvents(testCase.in, *nopSampleErrors, nopSamplesReceived, nopTagErrors, nopTagsReceived, nopLogger)
 
 			for j, expected := range testCase.out {
 				if !reflect.DeepEqual(&expected, &events[j]) {
@@ -1208,14 +1206,14 @@ func TestDisableParsingInfluxdbLineToEvents(t *testing.T) {
 		},
 	}
 
-	DogstatsdTagsEnabled = true
-	InfluxdbTagsEnabled = false
-	SignalFXTagsEnabled = true
-	LibratoTagsEnabled = true
+	parser := NewParser()
+	parser.EnableDogstatsdParsing()
+	parser.EnableLibratoParsing()
+	parser.EnableSignalFXParsing()
 
 	for name, testCase := range testCases {
 		t.Run(name, func(t *testing.T) {
-			events := LineToEvents(testCase.in, *nopSampleErrors, nopSamplesReceived, nopTagErrors, nopTagsReceived, nopLogger)
+			events := parser.LineToEvents(testCase.in, *nopSampleErrors, nopSamplesReceived, nopTagErrors, nopTagsReceived, nopLogger)
 
 			for j, expected := range testCase.out {
 				if !reflect.DeepEqual(&expected, &events[j]) {
@@ -1447,14 +1445,14 @@ func TestDisableParsingSignalfxLineToEvents(t *testing.T) {
 		},
 	}
 
-	DogstatsdTagsEnabled = true
-	InfluxdbTagsEnabled = true
-	SignalFXTagsEnabled = false
-	LibratoTagsEnabled = true
+	parser := NewParser()
+	parser.EnableDogstatsdParsing()
+	parser.EnableInfluxdbParsing()
+	parser.EnableLibratoParsing()
 
 	for name, testCase := range testCases {
 		t.Run(name, func(t *testing.T) {
-			events := LineToEvents(testCase.in, *nopSampleErrors, nopSamplesReceived, nopTagErrors, nopTagsReceived, nopLogger)
+			events := parser.LineToEvents(testCase.in, *nopSampleErrors, nopSamplesReceived, nopTagErrors, nopTagsReceived, nopLogger)
 
 			for j, expected := range testCase.out {
 				if !reflect.DeepEqual(&expected, &events[j]) {
@@ -1686,14 +1684,14 @@ func TestDisableParsingLibratoLineToEvents(t *testing.T) {
 		},
 	}
 
-	DogstatsdTagsEnabled = true
-	InfluxdbTagsEnabled = true
-	SignalFXTagsEnabled = true
-	LibratoTagsEnabled = false
+	parser := NewParser()
+	parser.EnableDogstatsdParsing()
+	parser.EnableInfluxdbParsing()
+	parser.EnableSignalFXParsing()
 
 	for name, testCase := range testCases {
 		t.Run(name, func(t *testing.T) {
-			events := LineToEvents(testCase.in, *nopSampleErrors, nopSamplesReceived, nopTagErrors, nopTagsReceived, nopLogger)
+			events := parser.LineToEvents(testCase.in, *nopSampleErrors, nopSamplesReceived, nopTagErrors, nopTagsReceived, nopLogger)
 
 			for j, expected := range testCase.out {
 				if !reflect.DeepEqual(&expected, &events[j]) {

@@ -31,6 +31,7 @@ type StatsDUDPListener struct {
 	Conn            *net.UDPConn
 	EventHandler    event.EventHandler
 	Logger          log.Logger
+	LineParser      *pkgLine.Parser
 	UDPPackets      prometheus.Counter
 	LinesReceived   prometheus.Counter
 	EventsFlushed   prometheus.Counter
@@ -67,7 +68,7 @@ func (l *StatsDUDPListener) HandlePacket(packet []byte) {
 	for _, line := range lines {
 		level.Debug(l.Logger).Log("msg", "Incoming line", "proto", "udp", "line", line)
 		l.LinesReceived.Inc()
-		l.EventHandler.Queue(pkgLine.LineToEvents(line, l.SampleErrors, l.SamplesReceived, l.TagErrors, l.TagsReceived, l.Logger))
+		l.EventHandler.Queue(l.LineParser.LineToEvents(line, l.SampleErrors, l.SamplesReceived, l.TagErrors, l.TagsReceived, l.Logger))
 	}
 }
 
@@ -75,6 +76,7 @@ type StatsDTCPListener struct {
 	Conn            *net.TCPListener
 	EventHandler    event.EventHandler
 	Logger          log.Logger
+	LineParser      *pkgLine.Parser
 	LinesReceived   prometheus.Counter
 	EventsFlushed   prometheus.Counter
 	SampleErrors    prometheus.CounterVec
@@ -128,7 +130,7 @@ func (l *StatsDTCPListener) HandleConn(c *net.TCPConn) {
 			break
 		}
 		l.LinesReceived.Inc()
-		l.EventHandler.Queue(pkgLine.LineToEvents(string(line), l.SampleErrors, l.SamplesReceived, l.TagErrors, l.TagsReceived, l.Logger))
+		l.EventHandler.Queue(l.LineParser.LineToEvents(string(line), l.SampleErrors, l.SamplesReceived, l.TagErrors, l.TagsReceived, l.Logger))
 	}
 }
 
@@ -136,6 +138,7 @@ type StatsDUnixgramListener struct {
 	Conn            *net.UnixConn
 	EventHandler    event.EventHandler
 	Logger          log.Logger
+	LineParser      *pkgLine.Parser
 	UnixgramPackets prometheus.Counter
 	LinesReceived   prometheus.Counter
 	EventsFlushed   prometheus.Counter
@@ -172,6 +175,6 @@ func (l *StatsDUnixgramListener) HandlePacket(packet []byte) {
 	for _, line := range lines {
 		level.Debug(l.Logger).Log("msg", "Incoming line", "proto", "unixgram", "line", line)
 		l.LinesReceived.Inc()
-		l.EventHandler.Queue(pkgLine.LineToEvents(line, l.SampleErrors, l.SamplesReceived, l.TagErrors, l.TagsReceived, l.Logger))
+		l.EventHandler.Queue(l.LineParser.LineToEvents(line, l.SampleErrors, l.SamplesReceived, l.TagErrors, l.TagsReceived, l.Logger))
 	}
 }

@@ -21,6 +21,7 @@ import (
 
 	"github.com/prometheus/statsd_exporter/pkg/event"
 	"github.com/prometheus/statsd_exporter/pkg/exporter"
+	"github.com/prometheus/statsd_exporter/pkg/line"
 	"github.com/prometheus/statsd_exporter/pkg/listener"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
@@ -47,6 +48,12 @@ func benchmarkUDPListener(times int, b *testing.B) {
 		}
 	}
 
+	parser := line.NewParser()
+	parser.EnableDogstatsdParsing()
+	parser.EnableInfluxdbParsing()
+	parser.EnableLibratoParsing()
+	parser.EnableSignalFXParsing()
+
 	// reset benchmark timer to not measure startup costs
 	b.ResetTimer()
 
@@ -60,6 +67,7 @@ func benchmarkUDPListener(times int, b *testing.B) {
 		l := listener.StatsDUDPListener{
 			EventHandler:    &event.UnbufferedEventHandler{C: events},
 			Logger:          logger,
+			LineParser:      parser,
 			UDPPackets:      udpPackets,
 			LinesReceived:   linesReceived,
 			SamplesReceived: samplesReceived,
