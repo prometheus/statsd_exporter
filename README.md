@@ -139,6 +139,14 @@ NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/king
           --debug.dump-fsm=""       The path to dump internal FSM generated for glob
                                     matching as Dot file.
           --check-config            Check configuration and exit.
+          --statsd.parse-dogstatsd-tags  
+                                    Parse DogStatsd style tags. Enabled by default.
+          --statsd.parse-influxdb-tags  
+                                    Parse InfluxDB style tags. Enabled by default.
+          --statsd.parse-librato-tags  
+                                    Parse Librato style tags. Enabled by default.
+          --statsd.parse-signalfx-tags  
+                                    Parse SignalFX style tags. Enabled by default.
           --log.level=info          Only log messages with the given severity or
                                     above. One of: [debug, info, warn, error]
           --log.format=logfmt       Output format of log messages. One of: [logfmt,
