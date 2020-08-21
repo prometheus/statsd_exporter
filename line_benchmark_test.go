@@ -43,10 +43,19 @@ func benchmarkLinesToEvents(times int, b *testing.B, input []string) {
 	// always report allocations since this is a hot path
 	b.ReportAllocs()
 
+	parser := line.NewParser()
+	parser.EnableDogstatsdParsing()
+	parser.EnableInfluxdbParsing()
+	parser.EnableLibratoParsing()
+	parser.EnableSignalFXParsing()
+
+	// reset benchmark timer to not measure startup costs
+	b.ResetTimer()
+
 	for n := 0; n < b.N; n++ {
 		for i := 0; i < times; i++ {
 			for _, l := range input {
-				line.LineToEvents(l, *sampleErrors, samplesReceived, tagErrors, tagsReceived, nopLogger)
+				parser.LineToEvents(l, *sampleErrors, samplesReceived, tagErrors, tagsReceived, nopLogger)
 			}
 		}
 	}
@@ -75,6 +84,12 @@ func BenchmarkLineFormats(b *testing.B) {
 		"invalidInfluxDb":  "foo3,tag1=bar,tag2:100|c",
 	}
 
+	parser := line.NewParser()
+	parser.EnableDogstatsdParsing()
+	parser.EnableInfluxdbParsing()
+	parser.EnableLibratoParsing()
+	parser.EnableSignalFXParsing()
+
 	// reset benchmark timer to not measure startup costs
 	b.ResetTimer()
 
@@ -83,7 +98,7 @@ func BenchmarkLineFormats(b *testing.B) {
 			// always report allocations since this is a hot path
 			b.ReportAllocs()
 			for n := 0; n < b.N; n++ {
-				line.LineToEvents(l, *sampleErrors, samplesReceived, tagErrors, tagsReceived, nopLogger)
+				parser.LineToEvents(l, *sampleErrors, samplesReceived, tagErrors, tagsReceived, nopLogger)
 			}
 		})
 	}

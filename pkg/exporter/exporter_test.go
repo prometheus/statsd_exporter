@@ -617,11 +617,18 @@ func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
 	events := make(chan event.Events)
 	ueh := &event.UnbufferedEventHandler{C: events}
 
+	parser := line.NewParser()
+	parser.EnableDogstatsdParsing()
+	parser.EnableInfluxdbParsing()
+	parser.EnableLibratoParsing()
+	parser.EnableSignalFXParsing()
+
 	go func() {
 		for _, l := range []statsDPacketHandler{&listener.StatsDUDPListener{
 			Conn:            nil,
 			EventHandler:    nil,
 			Logger:          log.NewNopLogger(),
+			LineParser:      parser,
 			UDPPackets:      udpPackets,
 			LinesReceived:   linesReceived,
 			EventsFlushed:   eventsFlushed,
@@ -633,6 +640,7 @@ func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
 			Conn:            nil,
 			EventHandler:    nil,
 			Logger:          log.NewNopLogger(),
+			LineParser:      parser,
 			LinesReceived:   linesReceived,
 			EventsFlushed:   eventsFlushed,
 			SampleErrors:    *sampleErrors,
@@ -1059,11 +1067,16 @@ func BenchmarkParseDogStatsDTags(b *testing.B) {
 		"a-z tags":             "a:0,b:1,c:2,d:3,e:4,f:5,g:6,h:7,i:8,j:9,k:0,l:1,m:2,n:3,o:4,p:5,q:6,r:7,s:8,t:9,u:0,v:1,w:2,x:3,y:4,z:5",
 	}
 
+	parser := line.NewParser()
+	parser.EnableDogstatsdParsing()
+
+	b.ResetTimer()
+
 	for name, tags := range scenarios {
 		b.Run(name, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				labels := map[string]string{}
-				line.ParseDogStatsDTags(tags, labels, tagErrors, log.NewNopLogger())
+				parser.ParseDogStatsDTags(tags, labels, tagErrors, log.NewNopLogger())
 			}
 		})
 	}

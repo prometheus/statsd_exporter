@@ -27,6 +27,40 @@ import (
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
 
+// Parser is a struct to hold configuration for parsing behavior
+type Parser struct {
+	DogstatsdTagsEnabled bool
+	InfluxdbTagsEnabled  bool
+	LibratoTagsEnabled   bool
+	SignalFXTagsEnabled  bool
+}
+
+// NewParser returns a new line parser
+func NewParser() *Parser {
+	p := Parser{}
+	return &p
+}
+
+// EnableDogstatsdParsing option to enable dogstatsd tag parsing
+func (p *Parser) EnableDogstatsdParsing() {
+	p.DogstatsdTagsEnabled = true
+}
+
+// EnableInfluxdbParsing option to enable influxdb tag parsing
+func (p *Parser) EnableInfluxdbParsing() {
+	p.InfluxdbTagsEnabled = true
+}
+
+// EnableLibratoParsing option to enable librato tag parsing
+func (p *Parser) EnableLibratoParsing() {
+	p.LibratoTagsEnabled = true
+}
+
+// EnableSignalFXParsing option to enable signalfx tag parsing
+func (p *Parser) EnableSignalFXParsing() {
+	p.SignalFXTagsEnabled = true
+}
+
 func buildEvent(statType, metric string, value float64, relative bool, labels map[string]string) (event.Event, error) {
 	switch statType {
 	case "c":
@@ -114,41 +148,45 @@ func trimLeftHash(s string) string {
 	return s
 }
 
-func ParseDogStatsDTags(component string, labels map[string]string, tagErrors prometheus.Counter, logger log.Logger) {
-	lastTagEndIndex := 0
-	for i, c := range component {
-		if c == ',' {
-			tag := component[lastTagEndIndex:i]
-			lastTagEndIndex = i + 1
+func (p *Parser) ParseDogStatsDTags(component string, labels map[string]string, tagErrors prometheus.Counter, logger log.Logger) {
+	if p.DogstatsdTagsEnabled {
+		lastTagEndIndex := 0
+		for i, c := range component {
+			if c == ',' {
+				tag := component[lastTagEndIndex:i]
+				lastTagEndIndex = i + 1
+				parseTag(component, trimLeftHash(tag), ':', labels, tagErrors, logger)
+			}
+		}
+
+		// If we're not off the end of the string, add the last tag
+		if lastTagEndIndex < len(component) {
+			tag := component[lastTagEndIndex:]
 			parseTag(component, trimLeftHash(tag), ':', labels, tagErrors, logger)
 		}
 	}
-
-	// If we're not off the end of the string, add the last tag
-	if lastTagEndIndex < len(component) {
-		tag := component[lastTagEndIndex:]
-		parseTag(component, trimLeftHash(tag), ':', labels, tagErrors, logger)
-	}
 }
 
-func parseNameAndTags(name string, labels map[string]string, tagErrors prometheus.Counter, logger log.Logger) string {
-	// check for SignalFx tags first
-	// `[` delimits start of tags by SignalFx
-	// `]` delimits end of tags by SignalFx
-	// https://docs.signalfx.com/en/latest/integrations/agent/monitors/collectd-statsd.html
-	startIdx := strings.IndexRune(name, '[')
-	endIdx := strings.IndexRune(name, ']')
+func (p *Parser) parseNameAndTags(name string, labels map[string]string, tagErrors prometheus.Counter, logger log.Logger) string {
+	if p.SignalFXTagsEnabled {
+		// check for SignalFx tags first
+		// `[` delimits start of tags by SignalFx
+		// `]` delimits end of tags by SignalFx
+		// https://docs.signalfx.com/en/latest/integrations/agent/monitors/collectd-statsd.html
+		startIdx := strings.IndexRune(name, '[')
+		endIdx := strings.IndexRune(name, ']')
 
-	switch {
-	case startIdx != -1 && endIdx != -1:
-		// good signalfx tags
-		parseNameTags(name[startIdx+1:endIdx], labels, tagErrors, logger)
-		return name[:startIdx] + name[endIdx+1:]
-	case (startIdx != -1) != (endIdx != -1):
-		// only one bracket, return unparsed
-		level.Debug(logger).Log("msg", "invalid SignalFx tags, not parsing", "metric", name)
-		tagErrors.Inc()
-		return name
+		switch {
+		case startIdx != -1 && endIdx != -1:
+			// good signalfx tags
+			parseNameTags(name[startIdx+1:endIdx], labels, tagErrors, logger)
+			return name[:startIdx] + name[endIdx+1:]
+		case (startIdx != -1) != (endIdx != -1):
+			// only one bracket, return unparsed
+			level.Debug(logger).Log("msg", "invalid SignalFx tags, not parsing", "metric", name)
+			tagErrors.Inc()
+			return name
+		}
 	}
 
 	for i, c := range name {
@@ -156,7 +194,7 @@ func parseNameAndTags(name string, labels map[string]string, tagErrors prometheu
 		// https://www.librato.com/docs/kb/collect/collection_agents/stastd/#stat-level-tags
 		// `,` delimits start of tags by InfluxDB
 		// https://www.influxdata.com/blog/getting-started-with-sending-statsd-metrics-to-telegraf-influxdb/#introducing-influx-statsd
-		if c == '#' || c == ',' {
+		if (c == '#' && p.LibratoTagsEnabled) || (c == ',' && p.InfluxdbTagsEnabled) {
 			parseNameTags(name[i+1:], labels, tagErrors, logger)
 			return name[:i]
 		}
@@ -164,7 +202,7 @@ func parseNameAndTags(name string, labels map[string]string, tagErrors prometheu
 	return name
 }
 
-func LineToEvents(line string, sampleErrors prometheus.CounterVec, samplesReceived prometheus.Counter, tagErrors prometheus.Counter, tagsReceived prometheus.Counter, logger log.Logger) event.Events {
+func (p *Parser) LineToEvents(line string, sampleErrors prometheus.CounterVec, samplesReceived prometheus.Counter, tagErrors prometheus.Counter, tagsReceived prometheus.Counter, logger log.Logger) event.Events {
 	events := event.Events{}
 	if line == "" {
 		return events
@@ -178,7 +216,7 @@ func LineToEvents(line string, sampleErrors prometheus.CounterVec, samplesReceiv
 	}
 
 	labels := map[string]string{}
-	metric := parseNameAndTags(elements[0], labels, tagErrors, logger)
+	metric := p.parseNameAndTags(elements[0], labels, tagErrors, logger)
 
 	var samples []string
 	if strings.Contains(elements[1], "|#") {
@@ -252,7 +290,7 @@ samples:
 						multiplyEvents = int(1 / samplingFactor)
 					}
 				case '#':
-					ParseDogStatsDTags(component[1:], labels, tagErrors, logger)
+					p.ParseDogStatsDTags(component[1:], labels, tagErrors, logger)
 				default:
 					level.Debug(logger).Log("msg", "Invalid sampling factor or tag section", "component", components[2], "line", line)
 					sampleErrors.WithLabelValues("invalid_sample_factor").Inc()

@@ -35,6 +35,7 @@ import (
 	"github.com/prometheus/statsd_exporter/pkg/address"
 	"github.com/prometheus/statsd_exporter/pkg/event"
 	"github.com/prometheus/statsd_exporter/pkg/exporter"
+	"github.com/prometheus/statsd_exporter/pkg/line"
 	"github.com/prometheus/statsd_exporter/pkg/listener"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
@@ -268,6 +269,10 @@ func main() {
 		eventFlushInterval   = kingpin.Flag("statsd.event-flush-interval", "Number of events to hold in queue before flushing").Default("200ms").Duration()
 		dumpFSMPath          = kingpin.Flag("debug.dump-fsm", "The path to dump internal FSM generated for glob matching as Dot file.").Default("").String()
 		checkConfig          = kingpin.Flag("check-config", "Check configuration and exit.").Default("false").Bool()
+		dogstatsdTagsEnabled = kingpin.Flag("statsd.parse-dogstatsd-tags", "Parse DogStatsd style tags. Enabled by default.").Default("true").Bool()
+		influxdbTagsEnabled  = kingpin.Flag("statsd.parse-influxdb-tags", "Parse InfluxDB style tags. Enabled by default.").Default("true").Bool()
+		libratoTagsEnabled   = kingpin.Flag("statsd.parse-librato-tags", "Parse Librato style tags. Enabled by default.").Default("true").Bool()
+		signalFXTagsEnabled  = kingpin.Flag("statsd.parse-signalfx-tags", "Parse SignalFX style tags. Enabled by default.").Default("true").Bool()
 	)
 
 	promlogConfig := &promlog.Config{}
@@ -276,6 +281,20 @@ func main() {
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 	logger := promlog.New(promlogConfig)
+
+	parser := line.NewParser()
+	if *dogstatsdTagsEnabled {
+		parser.EnableDogstatsdParsing()
+	}
+	if *influxdbTagsEnabled {
+		parser.EnableInfluxdbParsing()
+	}
+	if *libratoTagsEnabled {
+		parser.EnableLibratoParsing()
+	}
+	if *signalFXTagsEnabled {
+		parser.EnableSignalFXParsing()
+	}
 
 	cacheOption := mapper.WithCacheType(*cacheType)
 
@@ -319,6 +338,7 @@ func main() {
 			Conn:            uconn,
 			EventHandler:    eventQueue,
 			Logger:          logger,
+			LineParser:      parser,
 			UDPPackets:      udpPackets,
 			LinesReceived:   linesReceived,
 			EventsFlushed:   eventsFlushed,
@@ -348,6 +368,7 @@ func main() {
 			Conn:            tconn,
 			EventHandler:    eventQueue,
 			Logger:          logger,
+			LineParser:      parser,
 			LinesReceived:   linesReceived,
 			EventsFlushed:   eventsFlushed,
 			SampleErrors:    *sampleErrors,
@@ -391,6 +412,7 @@ func main() {
 			Conn:            uxgconn,
 			EventHandler:    eventQueue,
 			Logger:          logger,
+			LineParser:      parser,
 			UnixgramPackets: unixgramPackets,
 			LinesReceived:   linesReceived,
 			EventsFlushed:   eventsFlushed,

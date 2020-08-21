@@ -27,6 +27,7 @@ import (
 	"github.com/prometheus/statsd_exporter/pkg/clock"
 	"github.com/prometheus/statsd_exporter/pkg/event"
 	"github.com/prometheus/statsd_exporter/pkg/exporter"
+	"github.com/prometheus/statsd_exporter/pkg/line"
 	"github.com/prometheus/statsd_exporter/pkg/listener"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
@@ -530,10 +531,17 @@ func TestHandlePacket(t *testing.T) {
 		},
 	}
 
+	parser := line.NewParser()
+	parser.EnableDogstatsdParsing()
+	parser.EnableInfluxdbParsing()
+	parser.EnableLibratoParsing()
+	parser.EnableSignalFXParsing()
+
 	for k, l := range []statsDPacketHandler{&listener.StatsDUDPListener{
 		Conn:            nil,
 		EventHandler:    nil,
 		Logger:          log.NewNopLogger(),
+		LineParser:      parser,
 		UDPPackets:      udpPackets,
 		LinesReceived:   linesReceived,
 		EventsFlushed:   eventsFlushed,
@@ -545,6 +553,7 @@ func TestHandlePacket(t *testing.T) {
 		Conn:            nil,
 		EventHandler:    nil,
 		Logger:          log.NewNopLogger(),
+		LineParser:      parser,
 		LinesReceived:   linesReceived,
 		EventsFlushed:   eventsFlushed,
 		SampleErrors:    *sampleErrors,
