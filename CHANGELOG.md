@@ -1,3 +1,10 @@
+## 0.18.0 / 2020-08-21
+
+* [ENHANCEMENT] Allow turning off tagging extensions ([#325](https://github.com/prometheus/statsd_exporter/pull/325))
+* [ENHANCEMENT] Add a lifecycle API for configuration reloads and restarts ([#329](https://github.com/prometheus/statsd_exporter/pull/329))
+
+This release changes the interface for the [`github.com/prometheus/statsd_exporter/pkg/line` library package](https://pkg.go.dev/github.com/prometheus/statsd_exporter@v0.18.0/pkg/line?tab=doc) to support the new configurability.
+
 ## 0.17.0 / 2020-06-26
 
 * [CHANGE] Support non-timer distributions without unit conversion ([#314](https://github.com/prometheus/statsd_exporter/pull/314))
