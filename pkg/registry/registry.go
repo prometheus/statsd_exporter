@@ -47,13 +47,23 @@ type Registry struct {
 	// hash.
 	ValueBuf, NameBuf bytes.Buffer
 	Hasher            hash.Hash64
+	registerer        prometheus.Registerer
 }
 
-func NewRegistry(mapper *mapper.MetricMapper) *Registry {
+func NewRegistry(mapper *mapper.MetricMapper, options ...RegistryOption) *Registry {
+	o := registryOptions{
+		registerer: prometheus.DefaultRegisterer,
+	}
+
+	for _, f := range options {
+		f(&o)
+	}
+
 	return &Registry{
-		Metrics: make(map[string]metrics.Metric),
-		Mapper:  mapper,
-		Hasher:  fnv.New64a(),
+		Metrics:    make(map[string]metrics.Metric),
+		Mapper:     mapper,
+		Hasher:     fnv.New64a(),
+		registerer: o.registerer,
 	}
 }
 
@@ -168,7 +178,7 @@ func (r *Registry) GetCounter(metricName string, labels prometheus.Labels, help 
 			Help: help,
 		}, labelNames)
 
-		if err := prometheus.Register(uncheckedCollector{counterVec}); err != nil {
+		if err := r.registerer.Register(uncheckedCollector{counterVec}); err != nil {
 			return nil, err
 		}
 	} else {
@@ -204,7 +214,7 @@ func (r *Registry) GetGauge(metricName string, labels prometheus.Labels, help st
 			Help: help,
 		}, labelNames)
 
-		if err := prometheus.Register(uncheckedCollector{gaugeVec}); err != nil {
+		if err := r.registerer.Register(uncheckedCollector{gaugeVec}); err != nil {
 			return nil, err
 		}
 	} else {
@@ -254,7 +264,7 @@ func (r *Registry) GetHistogram(metricName string, labels prometheus.Labels, hel
 			Buckets: buckets,
 		}, labelNames)
 
-		if err := prometheus.Register(uncheckedCollector{histogramVec}); err != nil {
+		if err := r.registerer.Register(uncheckedCollector{histogramVec}); err != nil {
 			return nil, err
 		}
 	} else {
@@ -316,7 +326,7 @@ func (r *Registry) GetSummary(metricName string, labels prometheus.Labels, help 
 			BufCap:     summaryOptions.BufCap,
 		}, labelNames)
 
-		if err := prometheus.Register(uncheckedCollector{summaryVec}); err != nil {
+		if err := r.registerer.Register(uncheckedCollector{summaryVec}); err != nil {
 			return nil, err
 		}
 	} else {
@@ -380,4 +390,16 @@ func (r *Registry) HashLabels(labels prometheus.Labels) (metrics.LabelHash, []st
 	lh.Values = metrics.ValueHash(r.Hasher.Sum64())
 
 	return lh, labelNames
+}
+
+type registryOptions struct {
+	registerer prometheus.Registerer
+}
+
+type RegistryOption func(*registryOptions)
+
+func WithRegisterer(registerer prometheus.Registerer) RegistryOption {
+	return func(o *registryOptions) {
+		o.registerer = registerer
+	}
 }
