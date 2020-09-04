@@ -79,7 +79,7 @@ func (r *Registry) StoreCounter(metricName string, hash metrics.LabelHash, label
 	r.Store(metricName, hash, labels, vec, c, metrics.CounterMetricType, ttl)
 }
 
-func (r *Registry) StoreGauge(metricName string, hash metrics.LabelHash, labels prometheus.Labels, vec *prometheus.GaugeVec, g prometheus.Counter, ttl time.Duration) {
+func (r *Registry) StoreGauge(metricName string, hash metrics.LabelHash, labels prometheus.Labels, vec *prometheus.GaugeVec, g prometheus.Gauge, ttl time.Duration) {
 	r.Store(metricName, hash, labels, vec, g, metrics.GaugeMetricType, ttl)
 }
 
