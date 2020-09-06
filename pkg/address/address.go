@@ -30,12 +30,12 @@ func IPPortFromString(addr string) (*net.IPAddr, int, error) {
 	}
 	ip, err := net.ResolveIPAddr("ip", host)
 	if err != nil {
-		return nil, 0, fmt.Errorf("Unable to resolve %s: %s", host, err)
+		return nil, 0, fmt.Errorf("unable to resolve %s: %s", host, err)
 	}
 
 	port, err := strconv.Atoi(portStr)
 	if err != nil || port < 0 || port > 65535 {
-		return nil, 0, fmt.Errorf("Bad port %s: %s", portStr, err)
+		return nil, 0, fmt.Errorf("bad port %s: %s", portStr, err)
 	}
 
 	return ip, port, nil
