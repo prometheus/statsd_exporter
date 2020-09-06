@@ -107,18 +107,20 @@ func (r *Registry) Store(metricName string, hash metrics.LabelHash, labels prome
 		metric.Vectors[hash.Names] = v
 	}
 
+	now := clock.Now()
 	rm, ok := metric.Metrics[hash.Values]
 	if !ok {
 		rm = &metrics.RegisteredMetric{
-			Labels: labels,
-			TTL:    ttl,
-			Metric: mh,
-			VecKey: hash.Names,
+			LastRegisteredAt: now,
+			Labels:           labels,
+			TTL:              ttl,
+			Metric:           mh,
+			VecKey:           hash.Names,
 		}
 		metric.Metrics[hash.Values] = rm
 		v.RefCount++
+		return
 	}
-	now := clock.Now()
 	rm.LastRegisteredAt = now
 	// Update ttl from mapping
 	rm.TTL = ttl
