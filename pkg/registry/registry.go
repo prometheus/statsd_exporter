@@ -157,7 +157,7 @@ func (r *Registry) GetCounter(metricName string, labels prometheus.Labels, help 
 	}
 
 	if r.MetricConflicts(metricName, metrics.CounterMetricType) {
-		return nil, fmt.Errorf("Metric with name %s is already registered", metricName)
+		return nil, fmt.Errorf("metric with name %s is already registered", metricName)
 	}
 
 	var counterVec *prometheus.CounterVec
