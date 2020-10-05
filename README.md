@@ -136,10 +136,9 @@ NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/king
                                     Number of events to hold in queue before
                                     flushing
           --statsd.event-flush-interval=200ms
-                                    Number of events to hold in queue before
-                                    flushing
-          --debug.dump-fsm=""       The path to dump internal FSM generated for glob
-                                    matching as Dot file.
+                                    Maximum time between event queue flushes.
+          --debug.dump-fsm=""       The path to dump internal FSM generated for
+                                    glob matching as Dot file.
           --check-config            Check configuration and exit.
           --statsd.parse-dogstatsd-tags  
                                     Parse DogStatsd style tags. Enabled by default.
@@ -327,6 +326,16 @@ mappings:
     job: "${1}_server"
 ```
 
+If not set, then the default
+[Prometheus client 
+values](https://godoc.org/github.com/prometheus/client_golang/prometheus#pkg-variables) 
+are used for the histogram buckets:
+`[.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10]`.
+`+Inf` is added automatically.
+
+`observer_type` is only used when the statsd metric type is a timer, histogram, or distribution.
+`buckets` is only used when the statsd metric type is one of these, and the `observer_type` is set to `histogram`.
+
 Timers will be accepted with the `ms` statsd type.
 Statsd timer data is transmitted in milliseconds, while Prometheus expects the unit to be seconds.
 The exporter converts all timer observations to seconds.
@@ -359,13 +368,6 @@ mappings:
     protocol: "$3"
     code: "$4"
 ```
-
-Note, that one may also set the histogram buckets.  If not set, then the default
-[Prometheus client values](https://godoc.org/github.com/prometheus/client_golang/prometheus#pkg-variables) are used: `[.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10]`. `+Inf` is added
-automatically.
-
-`observer_type` is only used when the statsd metric type is a timer, histogram, or distribution.
-`buckets` is only used when the statsd metric type is one of these, and the `observer_type` is set to `histogram`.
 
 ### Global defaults
 
