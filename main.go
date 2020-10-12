@@ -251,7 +251,6 @@ func main() {
 	var (
 		listenAddress        = kingpin.Flag("web.listen-address", "The address on which to expose the web interface and generated Prometheus metrics.").Default(":9102").String()
 		enableLifecycle      = kingpin.Flag("web.enable-lifecycle", "Enable shutdown and reload via HTTP request.").Default("false").Bool()
-		enableHealthEndpoint = kingpin.Flag("web.enable-health-path", "Enable health check via HTTP request.").Default("true").Bool()
 		metricsEndpoint      = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
 		statsdListenUDP      = kingpin.Flag("statsd.listen-udp", "The UDP address on which to receive statsd metric lines. \"\" disables it.").Default(":9125").String()
 		statsdListenTCP      = kingpin.Flag("statsd.listen-tcp", "The TCP address on which to receive statsd metric lines. \"\" disables it.").Default(":9125").String()
@@ -496,15 +495,21 @@ func main() {
 		})
 	}
 
-	if *enableHealthEndpoint {
-		mux.HandleFunc("/-/healthy", func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == http.MethodGet {
-				level.Debug(logger).Log("msg", "Received health check")
-				w.WriteHeader(http.StatusOK)
-				fmt.Fprintf(w, "Statsd Exporter is Healthy.\n")
-			}
-		})
-	}
+	mux.HandleFunc("/-/healthy", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			level.Debug(logger).Log("msg", "Received health check")
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, "Statsd Exporter is Healthy.\n")
+		}
+	})
+
+	mux.HandleFunc("/-/ready", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			level.Debug(logger).Log("msg", "Received ready check")
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, "Statsd Exporter is Ready.\n")
+		}
+	})
 
 	go serveHTTP(mux, *listenAddress, logger)
 
