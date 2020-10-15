@@ -15,6 +15,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -493,6 +494,22 @@ func main() {
 			}
 		})
 	}
+
+	mux.HandleFunc("/-/healthy", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			level.Debug(logger).Log("msg", "Received health check")
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, "Statsd Exporter is Healthy.\n")
+		}
+	})
+
+	mux.HandleFunc("/-/ready", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			level.Debug(logger).Log("msg", "Received ready check")
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, "Statsd Exporter is Ready.\n")
+		}
+	})
 
 	go serveHTTP(mux, *listenAddress, logger)
 
