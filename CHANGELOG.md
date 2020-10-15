@@ -1,3 +1,7 @@
+## 0.19.0 / unreleased
+
+* [ENHANCEMENT] Add /-/healthy and /-/ready endpoints ([#339](https://github.com/prometheus/statsd_exporter/pull/339))
+
 ## 0.18.0 / 2020-08-21
 
 * [ENHANCEMENT] Allow turning off tagging extensions ([#325](https://github.com/prometheus/statsd_exporter/pull/325))
