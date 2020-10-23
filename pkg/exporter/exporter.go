@@ -31,9 +31,17 @@ const (
 	regErrF     = "Failed to update metric"
 )
 
+type Registry interface {
+	GetCounter(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Counter, error)
+	GetGauge(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Gauge, error)
+	GetHistogram(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Observer, error)
+	GetSummary(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Observer, error)
+	RemoveStaleMetrics()
+}
+
 type Exporter struct {
 	Mapper                *mapper.MetricMapper
-	Registry              *registry.Registry
+	Registry              Registry
 	Logger                log.Logger
 	EventsActions         *prometheus.CounterVec
 	EventsUnmapped        prometheus.Counter
