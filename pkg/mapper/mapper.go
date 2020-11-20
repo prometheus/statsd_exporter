@@ -36,13 +36,14 @@ var (
 )
 
 type MetricMapper struct {
-	Defaults mapperConfigDefaults `yaml:"defaults"`
-	Mappings []MetricMapping      `yaml:"mappings"`
-	FSM      *fsm.FSM
-	doFSM    bool
-	doRegex  bool
-	cache    MetricMapperCache
-	mutex    sync.RWMutex
+	Registerer prometheus.Registerer
+	Defaults   mapperConfigDefaults `yaml:"defaults"`
+	Mappings   []MetricMapping      `yaml:"mappings"`
+	FSM        *fsm.FSM
+	doFSM      bool
+	doRegex    bool
+	cache      MetricMapperCache
+	mutex      sync.RWMutex
 
 	MappingsCount prometheus.Gauge
 }
@@ -252,7 +253,7 @@ func (m *MetricMapper) InitFromFile(fileName string, cacheSize int, options ...C
 
 func (m *MetricMapper) InitCache(cacheSize int, options ...CacheOption) {
 	if cacheSize == 0 {
-		m.cache = NewMetricMapperNoopCache()
+		m.cache = NewMetricMapperNoopCache(m.Registerer)
 	} else {
 		o := cacheOptions{
 			cacheType: "lru",
@@ -267,9 +268,9 @@ func (m *MetricMapper) InitCache(cacheSize int, options ...CacheOption) {
 		)
 		switch o.cacheType {
 		case "lru":
-			cache, err = NewMetricMapperCache(cacheSize)
+			cache, err = NewMetricMapperCache(m.Registerer, cacheSize)
 		case "random":
-			cache, err = NewMetricMapperRRCache(cacheSize)
+			cache, err = NewMetricMapperRRCache(m.Registerer, cacheSize)
 		default:
 			err = fmt.Errorf("unsupported cache type %q", o.cacheType)
 		}

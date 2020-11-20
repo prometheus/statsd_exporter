@@ -40,8 +40,9 @@ func (u uncheckedCollector) Collect(c chan<- prometheus.Metric) {
 }
 
 type Registry struct {
-	Metrics map[string]metrics.Metric
-	Mapper  *mapper.MetricMapper
+	Registerer prometheus.Registerer
+	Metrics    map[string]metrics.Metric
+	Mapper     *mapper.MetricMapper
 	// The below value and label variables are allocated in the registry struct
 	// so that we don't have to allocate them every time have to compute a label
 	// hash.
@@ -49,11 +50,12 @@ type Registry struct {
 	Hasher            hash.Hash64
 }
 
-func NewRegistry(mapper *mapper.MetricMapper) *Registry {
+func NewRegistry(reg prometheus.Registerer, mapper *mapper.MetricMapper) *Registry {
 	return &Registry{
-		Metrics: make(map[string]metrics.Metric),
-		Mapper:  mapper,
-		Hasher:  fnv.New64a(),
+		Registerer: reg,
+		Metrics:    make(map[string]metrics.Metric),
+		Mapper:     mapper,
+		Hasher:     fnv.New64a(),
 	}
 }
 
@@ -170,7 +172,7 @@ func (r *Registry) GetCounter(metricName string, labels prometheus.Labels, help 
 			Help: help,
 		}, labelNames)
 
-		if err := prometheus.Register(uncheckedCollector{counterVec}); err != nil {
+		if err := r.Registerer.Register(uncheckedCollector{counterVec}); err != nil {
 			return nil, err
 		}
 	} else {
@@ -206,7 +208,7 @@ func (r *Registry) GetGauge(metricName string, labels prometheus.Labels, help st
 			Help: help,
 		}, labelNames)
 
-		if err := prometheus.Register(uncheckedCollector{gaugeVec}); err != nil {
+		if err := r.Registerer.Register(uncheckedCollector{gaugeVec}); err != nil {
 			return nil, err
 		}
 	} else {
