@@ -19,6 +19,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/statsd_exporter/pkg/event"
 	"github.com/prometheus/statsd_exporter/pkg/exporter"
 	"github.com/prometheus/statsd_exporter/pkg/line"
@@ -171,7 +172,7 @@ mappings:
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	ex := exporter.NewExporter(testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	ex := exporter.NewExporter(prometheus.DefaultRegisterer, testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 
 	// reset benchmark timer to not measure startup costs
 	b.ResetTimer()

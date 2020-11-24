@@ -438,7 +438,7 @@ func main() {
 
 	}
 
-	mapper := &mapper.MetricMapper{MappingsCount: mappingsCount}
+	mapper := &mapper.MetricMapper{Registerer: prometheus.DefaultRegisterer, MappingsCount: mappingsCount}
 	if *mappingConfig != "" {
 		err := mapper.InitFromFile(*mappingConfig, *cacheSize, cacheOption)
 		if err != nil {
@@ -458,7 +458,7 @@ func main() {
 		mapper.InitCache(*cacheSize, cacheOption)
 	}
 
-	exporter := exporter.NewExporter(mapper, logger, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	exporter := exporter.NewExporter(prometheus.DefaultRegisterer, mapper, logger, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 
 	if *checkConfig {
 		level.Info(logger).Log("msg", "Configuration check successful, exiting")
