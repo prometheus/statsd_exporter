@@ -1,6 +1,7 @@
 ## 0.19.0 / unreleased
 
 * [ENHANCEMENT] Add /-/healthy and /-/ready endpoints ([#339](https://github.com/prometheus/statsd_exporter/pull/339))
+* [CHANGE] [library] Require explicit Registerer ([#347](https://github.com/prometheus/statsd_exporter/pull/347))
 
 ## 0.18.0 / 2020-08-21
 
