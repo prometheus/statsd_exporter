@@ -23,15 +23,19 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/prometheus/statsd_exporter/pkg/event"
-	pkgLine "github.com/prometheus/statsd_exporter/pkg/line"
 )
+
+type Parser interface {
+	LineToEvents(line string, sampleErrors prometheus.CounterVec, samplesReceived prometheus.Counter, tagErrors prometheus.Counter, tagsReceived prometheus.Counter, logger log.Logger) event.Events
+}
 
 type StatsDUDPListener struct {
 	Conn            *net.UDPConn
 	EventHandler    event.EventHandler
 	Logger          log.Logger
-	LineParser      *pkgLine.Parser
+	LineParser      Parser
 	UDPPackets      prometheus.Counter
 	LinesReceived   prometheus.Counter
 	EventsFlushed   prometheus.Counter
@@ -76,7 +80,7 @@ type StatsDTCPListener struct {
 	Conn            *net.TCPListener
 	EventHandler    event.EventHandler
 	Logger          log.Logger
-	LineParser      *pkgLine.Parser
+	LineParser      Parser
 	LinesReceived   prometheus.Counter
 	EventsFlushed   prometheus.Counter
 	SampleErrors    prometheus.CounterVec
@@ -138,7 +142,7 @@ type StatsDUnixgramListener struct {
 	Conn            *net.UnixConn
 	EventHandler    event.EventHandler
 	Logger          log.Logger
-	LineParser      *pkgLine.Parser
+	LineParser      Parser
 	UnixgramPackets prometheus.Counter
 	LinesReceived   prometheus.Counter
 	EventsFlushed   prometheus.Counter
