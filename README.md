@@ -191,6 +191,11 @@ In general, the different metric types are translated as follows:
 
     StatsD timer, histogram, distribution   -> Prometheus summary or histogram
 
+### Glob matching
+
+The default (and fastest) `glob` mapping style uses `*` to denote parts of the statsd metric name that may vary.
+These varying parts can then be referenced in the construction of the Prometheus metric name and labels.
+
 An example mapping configuration:
 
 ```yaml
@@ -234,6 +239,26 @@ mappings:
     provider: "$1"
 ```
 
+Glob matching offers the best performance for common mappings.
+There are however pathological cases like the following matches:
+
+    a.*.*.*.*
+    a.b.*.*.*
+    a.b.c.*.*
+    a.b.c.d.*
+
+Optimize these mappings by reversing the order, or by disabling mapping ordering.
+With unordered mapping, at each hierarchy level the most specific match wins.
+
+### Regular expression matching
+
+The `regex` mapping style uses regular expressions to match the full statsd metric name.
+Use it if the glob mapping is not flexible enough to pull structured data from the available statsd metric names.
+
+Regular expression matching is significantly slower than glob mapping as all mappings must be tested in order.
+Because of this, **regex mappings are only executed after all glob mappings**.
+In other words, glob mappings take preference over regex matches, irrespective of the order in which they are specified.
+
 The metric name can also contain references to regex matches. The mapping above
 could be written as:
 
@@ -244,6 +269,15 @@ mappings:
   name: "${2}_total"
   labels:
     provider: "$1"
+mappings:
+- match: "(.*)\.(.*)--(.*)\.status\.(.*)\.count"
+  match_type: regex
+  name: "request_total"
+  labels:
+    hostname: "$1"
+    exec: "$2"
+    protocol: "$3"
+    code: "$4"
 ```
 
 Be aware about yaml escape rules as a mapping like the following one will not work.
@@ -255,6 +289,7 @@ mappings:
   labels:
     provider: "$1"
 ```
+### Naming, labels, and help
 
 Please note that metrics with the same name must also have the same set of
 label names.
@@ -401,29 +436,6 @@ mappings:
     outcome: "$3"
     job: "${1}_server_other"
 ```
-
-### Choosing between glob or regex match type
-
-Despite from the missing flexibility of using regular expression in mapping and
-formatting labels, `glob` matching is optimized to have better performance than
-`regex` in certain use cases. In short, glob will have best performance if the
-rules amount is not so less and captures (using of `*`) is not to much in a
-single rule. Whether disabling ordering in glob or not won't have a noticable
-effect on performance in general use cases. In edge cases like the below however,
-disabling ordering will be beneficial:
-
-    a.*.*.*.*
-    a.b.*.*.*
-    a.b.c.*.*
-    a.b.c.d.*
-
-The reason is that the list assignment of captures (using of `*`) is the most
-expensive operation in glob. Honoring ordering will result in up to 10 list
-assignments, while without ordering it will need only 4 at most.
-
-For details, see [pkg/mapper/fsm/README.md](pkg/mapper/fsm/README.md).
-Running `go test -bench .` in **pkg/mapper** directory will produce
-a detailed comparison between the two match type.
 
 ### `drop` action
 
