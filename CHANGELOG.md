@@ -1,7 +1,8 @@
-## 0.19.0 / unreleased
+## 0.19.0 / 2021-01-22
 
-* [ENHANCEMENT] Add /-/healthy and /-/ready endpoints ([#339](https://github.com/prometheus/statsd_exporter/pull/339))
 * [CHANGE] [library] Require explicit Registerer ([#347](https://github.com/prometheus/statsd_exporter/pull/347))
+* [ENHANCEMENT] Add /-/healthy and /-/ready endpoints ([#339](https://github.com/prometheus/statsd_exporter/pull/339))
+* [BUGFIX] Do not open network ports when only checking config ([#357](https://github.com/prometheus/statsd_exporter/pull/357))
 
 ## 0.18.0 / 2020-08-21
 
