@@ -295,19 +295,47 @@ func main() {
 
 	cacheOption := mapper.WithCacheType(*cacheType)
 
-	if *statsdListenUDP == "" && *statsdListenTCP == "" && *statsdListenUnixgram == "" {
-		level.Error(logger).Log("At least one of UDP/TCP/Unixgram listeners must be specified.")
-		os.Exit(1)
-	}
-
 	level.Info(logger).Log("msg", "Starting StatsD -> Prometheus Exporter", "version", version.Info())
 	level.Info(logger).Log("msg", "Build context", "context", version.BuildContext())
-	level.Info(logger).Log("msg", "Accepting StatsD Traffic", "udp", *statsdListenUDP, "tcp", *statsdListenTCP, "unixgram", *statsdListenUnixgram)
-	level.Info(logger).Log("msg", "Accepting Prometheus Requests", "addr", *listenAddress)
 
 	events := make(chan event.Events, *eventQueueSize)
 	defer close(events)
 	eventQueue := event.NewEventQueue(events, *eventFlushThreshold, *eventFlushInterval, eventsFlushed)
+
+	mapper := &mapper.MetricMapper{Registerer: prometheus.DefaultRegisterer, MappingsCount: mappingsCount}
+	if *mappingConfig != "" {
+		err := mapper.InitFromFile(*mappingConfig, *cacheSize, cacheOption)
+		if err != nil {
+			level.Error(logger).Log("msg", "error loading config", "error", err)
+			os.Exit(1)
+		}
+		if *dumpFSMPath != "" {
+			err := dumpFSM(mapper, *dumpFSMPath, logger)
+			if err != nil {
+				level.Error(logger).Log("msg", "error dumping FSM", "error", err)
+				// Failure to dump the FSM is an error (the user asked for it and it
+				// didn't happen) but not fatal (the exporter is fully functional
+				// afterwards).
+			}
+		}
+	} else {
+		mapper.InitCache(*cacheSize, cacheOption)
+	}
+
+	exporter := exporter.NewExporter(prometheus.DefaultRegisterer, mapper, logger, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+
+	if *checkConfig {
+		level.Info(logger).Log("msg", "Configuration check successful, exiting")
+		return
+	}
+
+	level.Info(logger).Log("msg", "Accepting StatsD Traffic", "udp", *statsdListenUDP, "tcp", *statsdListenTCP, "unixgram", *statsdListenUnixgram)
+	level.Info(logger).Log("msg", "Accepting Prometheus Requests", "addr", *listenAddress)
+
+	if *statsdListenUDP == "" && *statsdListenTCP == "" && *statsdListenUnixgram == "" {
+		level.Error(logger).Log("At least one of UDP/TCP/Unixgram listeners must be specified.")
+		os.Exit(1)
+	}
 
 	if *statsdListenUDP != "" {
 		udpListenAddr, err := address.UDPAddrFromString(*statsdListenUDP)
@@ -436,33 +464,6 @@ func main() {
 			}
 		}
 
-	}
-
-	mapper := &mapper.MetricMapper{Registerer: prometheus.DefaultRegisterer, MappingsCount: mappingsCount}
-	if *mappingConfig != "" {
-		err := mapper.InitFromFile(*mappingConfig, *cacheSize, cacheOption)
-		if err != nil {
-			level.Error(logger).Log("msg", "error loading config", "error", err)
-			os.Exit(1)
-		}
-		if *dumpFSMPath != "" {
-			err := dumpFSM(mapper, *dumpFSMPath, logger)
-			if err != nil {
-				level.Error(logger).Log("msg", "error dumping FSM", "error", err)
-				// Failure to dump the FSM is an error (the user asked for it and it
-				// didn't happen) but not fatal (the exporter is fully functional
-				// afterwards).
-			}
-		}
-	} else {
-		mapper.InitCache(*cacheSize, cacheOption)
-	}
-
-	exporter := exporter.NewExporter(prometheus.DefaultRegisterer, mapper, logger, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
-
-	if *checkConfig {
-		level.Info(logger).Log("msg", "Configuration check successful, exiting")
-		return
 	}
 
 	mux := http.NewServeMux()
