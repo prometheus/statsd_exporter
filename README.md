@@ -240,15 +240,21 @@ mappings:
 ```
 
 Glob matching offers the best performance for common mappings.
-There are however pathological cases like the following matches:
 
-    a.*.*.*.*
-    a.b.*.*.*
-    a.b.c.*.*
-    a.b.c.d.*
+#### Ordering glob rules
 
-Optimize these mappings by reversing the order, or by disabling mapping ordering.
+List more specific matches before wildcards, from left to right:
+
+    a.b.c
+    a.b.*
+    a.*.d
+    a.*.*
+
+This avoids unexpected shadowing of later rules, and performance impact from backtracking.
+
+Alternatively, you can disable mapping ordering altogether.
 With unordered mapping, at each hierarchy level the most specific match wins.
+This has the same effect as using the recommended ordering.
 
 ### Regular expression matching
 
@@ -258,6 +264,7 @@ Use it if the glob mapping is not flexible enough to pull structured data from t
 Regular expression matching is significantly slower than glob mapping as all mappings must be tested in order.
 Because of this, **regex mappings are only executed after all glob mappings**.
 In other words, glob mappings take preference over regex matches, irrespective of the order in which they are specified.
+Regular expression matches are always evaluated in order, and the first match wins.
 
 The metric name can also contain references to regex matches. The mapping above
 could be written as:
@@ -289,6 +296,7 @@ mappings:
   labels:
     provider: "$1"
 ```
+
 ### Naming, labels, and help
 
 Please note that metrics with the same name must also have the same set of
