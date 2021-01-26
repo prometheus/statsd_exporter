@@ -29,6 +29,7 @@ type mappings []struct {
 	maxAge       time.Duration
 	ageBuckets   uint32
 	bufCap       uint32
+	buckets      []float64
 }
 
 func TestMetricMapperYAML(t *testing.T) {
@@ -619,6 +620,148 @@ mappings:
 				},
 			},
 		},
+		// Config with default summary configuration.
+		{
+			config: `---
+defaults:
+ summary_options:
+   quantiles:
+     - quantile: 0.42
+       error: 0.04
+     - quantile: 0.7
+       error: 0.002
+   max_age: 5m
+   age_buckets: 2
+   buf_cap: 1000
+mappings:
+- match: test.*.*
+  observer_type: summary
+  name: "foo"
+  labels: {}
+`,
+			mappings: mappings{
+				{
+					statsdMetric: "test.*.*",
+					name:         "foo",
+					labels:       map[string]string{},
+					quantiles: []metricObjective{
+						{Quantile: 0.42, Error: 0.04},
+						{Quantile: 0.7, Error: 0.002},
+					},
+					maxAge:     5 * time.Minute,
+					ageBuckets: 2,
+					bufCap:     1000,
+				},
+			},
+		},
+				// Config that overrides default summary configuration.
+		{
+			config: `---
+defaults:
+ summary_options:
+   quantiles:
+     - quantile: 0.042
+       error: 0.4
+     - quantile: 0.07
+       error: 0.02
+   max_age: 15m
+   age_buckets: 3
+   buf_cap: 100
+mappings:
+- match: test.*.*
+  observer_type: summary
+  name: "foo"
+  labels: {}
+  summary_options:
+    quantiles:
+     - quantile: 0.42
+       error: 0.04
+     - quantile: 0.7
+       error: 0.002
+    max_age: 5m
+    age_buckets: 2
+    buf_cap: 1000
+`,
+			mappings: mappings{
+				{
+					statsdMetric: "test.*.*",
+					name:         "foo",
+					labels:       map[string]string{},
+					quantiles: []metricObjective{
+						{Quantile: 0.42, Error: 0.04},
+						{Quantile: 0.7, Error: 0.002},
+					},
+					maxAge:     5 * time.Minute,
+					ageBuckets: 2,
+					bufCap:     1000,
+				},
+			},
+		},
+		// Config with histogram configuration.
+		{
+			config: `---
+mappings:
+- match: test.*.*
+  observer_type: histogram
+  name: "foo"
+  labels: {}
+  histogram_options:
+    buckets: [0.1, 1, 10, 100, 1000]
+`,
+			mappings: mappings{
+				{
+					statsdMetric: "test.*.*",
+					name:         "foo",
+					labels:       map[string]string{},
+					buckets:      []float64{0.1, 1, 10, 100, 1000},
+				},
+			},
+		},
+		// Config with default histogram configuration.
+		{
+			config: `---
+defaults:
+  histogram_options:
+    buckets: [0.1, 1, 10, 100, 1000]
+mappings:
+- match: test.*.*
+  observer_type: histogram
+  name: "foo"
+  labels: {}
+`,
+			mappings: mappings{
+				{
+					statsdMetric: "test.*.*",
+					name:         "foo",
+					labels:       map[string]string{},
+					buckets:      []float64{0.1, 1, 10, 100, 1000},
+				},
+			},
+		},
+				// Config that overrides default histogram configuration.
+		{
+			config: `---
+defaults:
+  histogram_options:
+    buckets: [0.2, 2, 20, 200, 2000]
+mappings:
+- match: test.*.*
+  observer_type: histogram
+  name: "foo"
+  labels: {}
+  histogram_options:
+    buckets: [0.1, 1, 10, 100, 1000]
+`,
+			mappings: mappings{
+				{
+					statsdMetric: "test.*.*",
+					name:         "foo",
+					labels:       map[string]string{},
+					buckets:      []float64{0.1, 1, 10, 100, 1000},
+				},
+			},
+		},
+
 		// duplicate quantiles are bad
 		{
 			config: `---
@@ -958,6 +1101,17 @@ mappings:
 			}
 			if mapping.metricType != "" && mapType != m.MatchMetricType {
 				t.Fatalf("%d.%q: Expected match metric of %s, got %s", i, metric, mapType, m.MatchMetricType)
+			}
+
+			if len(mapping.buckets) != 0 {
+				if len(mapping.buckets) != len(m.HistogramOptions.Buckets) {
+					t.Fatalf("%d.%q: Expected %d buckets, got %d", i, metric, len(mapping.buckets), len(m.HistogramOptions.Buckets))
+				}
+				for i, bucket := range mapping.buckets {
+					if bucket != m.HistogramOptions.Buckets[i] {
+						t.Fatalf("%d.%q: Expected bucket %v, got %v", i, metric, m.HistogramOptions.Buckets[i], bucket)
+					}
+				}
 			}
 
 			if len(mapping.quantiles) != 0 {
