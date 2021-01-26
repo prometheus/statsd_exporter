@@ -185,6 +185,9 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int, op
 			}
 			if currentMapping.HistogramOptions == nil {
 				currentMapping.HistogramOptions = &HistogramOptions{}
+				if n.Defaults.HistogramOptions != nil {
+					currentMapping.HistogramOptions.Buckets = n.Defaults.HistogramOptions.Buckets
+				}
 			}
 			if currentMapping.LegacyBuckets != nil && len(currentMapping.LegacyBuckets) != 0 {
 				currentMapping.HistogramOptions.Buckets = currentMapping.LegacyBuckets
@@ -200,6 +203,12 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int, op
 			}
 			if currentMapping.SummaryOptions == nil {
 				currentMapping.SummaryOptions = &SummaryOptions{}
+				if n.Defaults.SummaryOptions != nil {
+					currentMapping.SummaryOptions.Quantiles = n.Defaults.SummaryOptions.Quantiles
+					currentMapping.SummaryOptions.AgeBuckets = n.Defaults.SummaryOptions.AgeBuckets
+					currentMapping.SummaryOptions.BufCap = n.Defaults.SummaryOptions.BufCap
+					currentMapping.SummaryOptions.MaxAge = n.Defaults.SummaryOptions.MaxAge
+				}
 			}
 			if currentMapping.LegacyQuantiles != nil && len(currentMapping.LegacyQuantiles) != 0 {
 				currentMapping.SummaryOptions.Quantiles = currentMapping.LegacyQuantiles

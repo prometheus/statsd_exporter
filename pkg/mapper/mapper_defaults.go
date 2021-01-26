@@ -23,6 +23,8 @@ type mapperConfigDefaults struct {
 	MatchType           MatchType         `yaml:"match_type"`
 	GlobDisableOrdering bool              `yaml:"glob_disable_ordering"`
 	Ttl                 time.Duration     `yaml:"ttl"`
+	SummaryOptions      *SummaryOptions   `yaml:"summary_options"`
+	HistogramOptions    *HistogramOptions `yaml:"histogram_options"`
 }
 
 // UnmarshalYAML is a custom unmarshal function to allow use of deprecated config keys
@@ -41,6 +43,8 @@ func (d *mapperConfigDefaults) UnmarshalYAML(unmarshal func(interface{}) error) 
 	d.MatchType = tmp.MatchType
 	d.GlobDisableOrdering = tmp.GlobDisableOrdering
 	d.Ttl = tmp.Ttl
+	d.SummaryOptions = tmp.SummaryOptions
+	d.HistogramOptions = tmp.HistogramOptions
 
 	// Use deprecated TimerType if necessary
 	if tmp.ObserverType == "" {
