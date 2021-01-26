@@ -34,14 +34,18 @@ type mappings []struct {
 
 func TestMetricMapperYAML(t *testing.T) {
 	scenarios := []struct {
+		testName  string
 		config    string
 		configBad bool
 		mappings  mappings
 	}{
 		// Empty config.
-		{},
+		{
+			testName: "Empty config",
+		},
 		// Config with several mapping definitions.
 		{
+			testName: "Config with several mapping definitions",
 			config: `---
 mappings:
 - match: test.dispatcher.*.*.*
@@ -154,8 +158,9 @@ mappings:
 				},
 			},
 		},
-		//Config with backtracking
+		// Config with backtracking
 		{
+			testName: "Config with backtracking",
 			config: `
 defaults:
   glob_disable_ordering: true
@@ -199,6 +204,7 @@ mappings:
 		// This test case makes sure the captures in the non-matched later rule
 		// doesn't affect the captures in the first matched rule.
 		{
+			testName: "Config with backtracking, the non-matched rule has star(s)",
 			config: `
 defaults:
   glob_disable_ordering: false
@@ -235,6 +241,7 @@ mappings:
 		},
 		//Config with super sets, disables ordering
 		{
+			testName: "Config with super sets, disables ordering",
 			config: `
 defaults:
   glob_disable_ordering: true
@@ -271,6 +278,7 @@ mappings:
 		},
 		//Config with super sets, keeps ordering
 		{
+			testName: "Config with super sets, keeps ordering",
 			config: `
 defaults:
   glob_disable_ordering: false
@@ -296,6 +304,7 @@ mappings:
 		},
 		// Config with bad regex reference.
 		{
+			testName: "Config with bad regex reference",
 			config: `---
 mappings:
 - match: test.*
@@ -315,6 +324,7 @@ mappings:
 		},
 		// Config with good regex reference.
 		{
+			testName: "Config with good regex reference",
 			config: `
 mappings:
 - match: test.*
@@ -334,6 +344,7 @@ mappings:
 		},
 		// Config with bad metric line.
 		{
+			testName: "Config with bad metric line",
 			config: `---
 mappings:
 - match: bad--metric-line.*.*
@@ -344,6 +355,7 @@ mappings:
 		},
 		// Config with dynamic metric name.
 		{
+			testName: "Config with dynamic metric name",
 			config: `---
 mappings:
 - match: test1.*.*
@@ -374,6 +386,7 @@ mappings:
 		},
 		// Config with bad metric name.
 		{
+			testName: "Config with bad metric name",
 			config: `---
 mappings:
 - match: test.*.*
@@ -384,6 +397,7 @@ mappings:
 		},
 		// Config with no metric name.
 		{
+			testName: "Config with no metric name",
 			config: `---
 mappings:
 - match: test.*.*
@@ -394,11 +408,13 @@ mappings:
 		},
 		// Config with no mappings.
 		{
+			testName: "Config with no mappings",
 			config:   ``,
 			mappings: mappings{},
 		},
 		// Config without a trailing newline.
 		{
+			testName: "Config without a trailing newline",
 			config: `mappings:
 - match: test.*
   name: "name"
@@ -416,6 +432,7 @@ mappings:
 		},
 		// Config with an improperly escaped *.
 		{
+			testName: "Config with an improperly escaped *",
 			config: `
 mappings:
 - match: *.test.*
@@ -426,6 +443,7 @@ mappings:
 		},
 		// Config with a properly escaped *.
 		{
+			testName: "Config with a properly escaped *",
 			config: `
 mappings:
 - match: "*.test.*"
@@ -444,6 +462,7 @@ mappings:
 		},
 		// Config with good observer type.
 		{
+			testName: "Config with good observer type",
 			config: `---
 mappings:
 - match: test.*.*
@@ -470,6 +489,7 @@ mappings:
 		},
 		// Config with good observer type and unused timer type
 		{
+			testName: "Config with good observer type and unused timer type",
 			config: `---
 mappings:
 - match: test.*.*
@@ -496,6 +516,7 @@ mappings:
 			},
 		},
 		{
+			testName: "Config with good observertype and no defaults",
 			config: `---
 mappings:
 - match: test1.*.*
@@ -518,6 +539,7 @@ mappings:
 		},
 		// Config with good deprecated timer type
 		{
+			testName: "Config with good deprecated timer type",
 			config: `---
 mappings:
 - match: test1.*.*
@@ -540,6 +562,7 @@ mappings:
 		},
 		// Config with bad observer type.
 		{
+			testName: "Config with bad observer type",
 			config: `---
 mappings:
 - match: test.*.*
@@ -551,6 +574,7 @@ mappings:
 		},
 		// Config with bad deprecated timer type.
 		{
+			testName: "Config with bad deprecated timer type",
 			config: `---
 mappings:
 - match: test.*.*
@@ -560,8 +584,9 @@ mappings:
     `,
 			configBad: true,
 		},
-		// new style quantiles
+		// New style quantiles
 		{
+			testName: "New style quantiles",
 			config: `---
 mappings:
 - match: test.*.*
@@ -587,8 +612,9 @@ mappings:
 				},
 			},
 		},
-		// Config with summary configuration.
+		// Config with summary options.
 		{
+			testName: "Config with summary options",
 			config: `---
 mappings:
 - match: test.*.*
@@ -620,8 +646,9 @@ mappings:
 				},
 			},
 		},
-		// Config with default summary configuration.
+		// Config with default summary options.
 		{
+			testName: "Config with default summary options",
 			config: `---
 defaults:
  summary_options:
@@ -654,8 +681,9 @@ mappings:
 				},
 			},
 		},
-				// Config that overrides default summary configuration.
+		// Config that overrides default summary options.
 		{
+			testName: "Config that overrides default summary options",
 			config: `---
 defaults:
  summary_options:
@@ -697,8 +725,9 @@ mappings:
 				},
 			},
 		},
-		// Config with histogram configuration.
+		// Config with histogram options.
 		{
+			testName: "Config with histogram options",
 			config: `---
 mappings:
 - match: test.*.*
@@ -717,8 +746,9 @@ mappings:
 				},
 			},
 		},
-		// Config with default histogram configuration.
+		// Config with default histogram options.
 		{
+			testName: "Config with default histogram options",
 			config: `---
 defaults:
   histogram_options:
@@ -738,8 +768,9 @@ mappings:
 				},
 			},
 		},
-				// Config that overrides default histogram configuration.
+		// Config that overrides default histogram configuration.
 		{
+			testName: "Config that overrides default histogram configuration",
 			config: `---
 defaults:
   histogram_options:
@@ -762,8 +793,9 @@ mappings:
 			},
 		},
 
-		// duplicate quantiles are bad
+		// Duplicate quantiles are bad
 		{
+			testName: "Duplicate quantiles are bad",
 			config: `---
 mappings:
 - match: test.*.*
@@ -782,6 +814,7 @@ mappings:
 		},
 		// Config with good metric type.
 		{
+			testName: "Config with good metric type",
 			config: `---
 mappings:
 - match: test.*.*
@@ -792,6 +825,7 @@ mappings:
 		},
 		// Config with good metric type observer.
 		{
+			testName: "Config with good metric type observer",
 			config: `---
 mappings:
 - match: test.*.*
@@ -802,6 +836,7 @@ mappings:
 		},
 		// Config with good metric type timer.
 		{
+			testName: "Config with good metric type timer",
 			config: `---
 mappings:
 - match: test.*.*
@@ -812,6 +847,7 @@ mappings:
 		},
 		// Config with bad metric type matcher.
 		{
+			testName: "Config with bad metric type matcher",
 			config: `---
 mappings:
 - match: test.*.*
@@ -823,6 +859,7 @@ mappings:
 		},
 		// Config with multiple explicit metric types
 		{
+			testName: "Config with multiple explicit metric types",
 			config: `---
 mappings:
 - match: test.foo.*
@@ -847,6 +884,7 @@ mappings:
 		},
 		//Config with uncompilable regex.
 		{
+			testName: "Config with uncompilable regex",
 			config: `---
 mappings:
 - match: "*\\.foo"
@@ -858,6 +896,7 @@ mappings:
 		},
 		//Config with non-matched metric.
 		{
+			testName: "Config with non-matched metric",
 			config: `---
 mappings:
 - match: foo.*.*
@@ -876,6 +915,7 @@ mappings:
 		},
 		//Config with no name.
 		{
+			testName: "Config with no name",
 			config: `---
 mappings:
 - match: *\.foo
@@ -886,6 +926,7 @@ mappings:
 			configBad: true,
 		},
 		{
+			testName: "Config with labels from glob",
 			config: `---
 mappings:
 - match: p.*.*.c.*
@@ -910,6 +951,7 @@ mappings:
 		},
 		// Example from the README.
 		{
+			testName: "Example from the README",
 			config: `
 mappings:
 - match: test.dispatcher.*.*.*
@@ -955,6 +997,7 @@ mappings:
 		},
 		// Config that drops all.
 		{
+			testName: "Config that drops all",
 			config: `mappings:
 - match: .
   match_type: regex
@@ -971,6 +1014,7 @@ mappings:
 		},
 		// Config that has a catch-all to drop all.
 		{
+			testName: "Config that has a catch-all to drop all",
 			config: `mappings:
 - match: web.*
   name: "web"
@@ -995,6 +1039,7 @@ mappings:
 		},
 		// Config that has a ttl.
 		{
+			testName: "Config that has a ttl",
 			config: `mappings:
 - match: web.*
   name: "web"
@@ -1017,6 +1062,7 @@ mappings:
 		},
 		// Config that has a default ttl.
 		{
+			testName: "Config that has a default ttl",
 			config: `defaults:
   ttl: 1m2s
 mappings:
@@ -1040,6 +1086,7 @@ mappings:
 		},
 		// Config that override a default ttl.
 		{
+			testName: "Config that override a default ttl",
 			config: `defaults:
   ttl: 1m2s
 mappings:
@@ -1066,88 +1113,95 @@ mappings:
 
 	mapper := MetricMapper{}
 	for i, scenario := range scenarios {
-		err := mapper.InitFromYAMLString(scenario.config, 1000)
-		if err != nil && !scenario.configBad {
-			t.Fatalf("%d. Config load error: %s %s", i, scenario.config, err)
+		if scenario.testName == "" {
+			t.Fatalf("Missing testName in scenario %+v", scenario)
 		}
-		if err == nil && scenario.configBad {
-			t.Fatalf("%d. Expected bad config, but loaded ok: %s", i, scenario.config)
-		}
-
-		for metric, mapping := range scenario.mappings {
-			// exporter will call mapper.GetMapping with valid MetricType
-			// so we also pass a sane MetricType in testing if it's not specified
-			mapType := mapping.metricType
-			if mapType == "" {
-				mapType = MetricTypeCounter
+		t.Run(scenario.testName, func(t *testing.T) {
+			err := mapper.InitFromYAMLString(scenario.config, 1000)
+			if err != nil && !scenario.configBad {
+				t.Fatalf("%d. Config load error: %s %s", i, scenario.config, err)
 			}
-			m, labels, present := mapper.GetMapping(mapping.statsdMetric, mapType)
-			if present && mapping.name != "" && m.Name != mapping.name {
-				t.Fatalf("%d.%q: Expected name %v, got %v", i, metric, m.Name, mapping.name)
-			}
-			if mapping.notPresent && present {
-				t.Fatalf("%d.%q: Expected metric to not be present", i, metric)
-			}
-			if len(labels) != len(mapping.labels) {
-				t.Fatalf("%d.%q: Expected %d labels, got %d", i, metric, len(mapping.labels), len(labels))
-			}
-			for label, value := range labels {
-				if mapping.labels[label] != value {
-					t.Fatalf("%d.%q: Expected labels %v, got %v", i, metric, mapping, labels)
-				}
-			}
-			if mapping.ttl > 0 && mapping.ttl != m.Ttl {
-				t.Fatalf("%d.%q: Expected ttl of %s, got %s", i, metric, mapping.ttl.String(), m.Ttl.String())
-			}
-			if mapping.metricType != "" && mapType != m.MatchMetricType {
-				t.Fatalf("%d.%q: Expected match metric of %s, got %s", i, metric, mapType, m.MatchMetricType)
+			if err == nil && scenario.configBad {
+				t.Fatalf("%d. Expected bad config, but loaded ok: %s", i, scenario.config)
 			}
 
-			if len(mapping.buckets) != 0 {
-				if len(mapping.buckets) != len(m.HistogramOptions.Buckets) {
-					t.Fatalf("%d.%q: Expected %d buckets, got %d", i, metric, len(mapping.buckets), len(m.HistogramOptions.Buckets))
+			for metric, mapping := range scenario.mappings {
+				// exporter will call mapper.GetMapping with valid MetricType
+				// so we also pass a sane MetricType in testing if it's not specified
+				mapType := mapping.metricType
+				if mapType == "" {
+					mapType = MetricTypeCounter
 				}
-				for i, bucket := range mapping.buckets {
-					if bucket != m.HistogramOptions.Buckets[i] {
-						t.Fatalf("%d.%q: Expected bucket %v, got %v", i, metric, m.HistogramOptions.Buckets[i], bucket)
+				m, labels, present := mapper.GetMapping(mapping.statsdMetric, mapType)
+				if present && mapping.name != "" && m.Name != mapping.name {
+					t.Fatalf("%d.%q: Expected name %v, got %v", i, metric, m.Name, mapping.name)
+				}
+				if mapping.notPresent && present {
+					t.Fatalf("%d.%q: Expected metric to not be present", i, metric)
+				}
+				if len(labels) != len(mapping.labels) {
+					t.Fatalf("%d.%q: Expected %d labels, got %d", i, metric, len(mapping.labels), len(labels))
+				}
+				for label, value := range labels {
+					if mapping.labels[label] != value {
+						t.Fatalf("%d.%q: Expected labels %v, got %v", i, metric, mapping, labels)
 					}
 				}
-			}
+				if mapping.ttl > 0 && mapping.ttl != m.Ttl {
+					t.Fatalf("%d.%q: Expected ttl of %s, got %s", i, metric, mapping.ttl.String(), m.Ttl.String())
+				}
+				if mapping.metricType != "" && mapType != m.MatchMetricType {
+					t.Fatalf("%d.%q: Expected match metric of %s, got %s", i, metric, mapType, m.MatchMetricType)
+				}
 
-			if len(mapping.quantiles) != 0 {
-				if len(mapping.quantiles) != len(m.SummaryOptions.Quantiles) {
-					t.Fatalf("%d.%q: Expected %d quantiles, got %d", i, metric, len(mapping.quantiles), len(m.SummaryOptions.Quantiles))
-				}
-				for i, quantile := range mapping.quantiles {
-					if quantile.Quantile != m.SummaryOptions.Quantiles[i].Quantile {
-						t.Fatalf("%d.%q: Expected quantile %v, got %v", i, metric, m.SummaryOptions.Quantiles[i].Quantile, quantile.Quantile)
+				if len(mapping.buckets) != 0 {
+					if len(mapping.buckets) != len(m.HistogramOptions.Buckets) {
+						t.Fatalf("%d.%q: Expected %d buckets, got %d", i, metric, len(mapping.buckets), len(m.HistogramOptions.Buckets))
 					}
-					if quantile.Error != m.SummaryOptions.Quantiles[i].Error {
-						t.Fatalf("%d.%q: Expected Error margin %v, got %v", i, metric, m.SummaryOptions.Quantiles[i].Error, quantile.Error)
+					for i, bucket := range mapping.buckets {
+						if bucket != m.HistogramOptions.Buckets[i] {
+							t.Fatalf("%d.%q: Expected bucket %v, got %v", i, metric, m.HistogramOptions.Buckets[i], bucket)
+						}
 					}
 				}
+
+				if len(mapping.quantiles) != 0 {
+					if len(mapping.quantiles) != len(m.SummaryOptions.Quantiles) {
+						t.Fatalf("%d.%q: Expected %d quantiles, got %d", i, metric, len(mapping.quantiles), len(m.SummaryOptions.Quantiles))
+					}
+					for i, quantile := range mapping.quantiles {
+						if quantile.Quantile != m.SummaryOptions.Quantiles[i].Quantile {
+							t.Fatalf("%d.%q: Expected quantile %v, got %v", i, metric, m.SummaryOptions.Quantiles[i].Quantile, quantile.Quantile)
+						}
+						if quantile.Error != m.SummaryOptions.Quantiles[i].Error {
+							t.Fatalf("%d.%q: Expected Error margin %v, got %v", i, metric, m.SummaryOptions.Quantiles[i].Error, quantile.Error)
+						}
+					}
+				}
+				if mapping.maxAge != 0 && mapping.maxAge != m.SummaryOptions.MaxAge {
+					t.Fatalf("%d.%q: Expected max age %v, got %v", i, metric, mapping.maxAge, m.SummaryOptions.MaxAge)
+				}
+				if mapping.ageBuckets != 0 && mapping.ageBuckets != m.SummaryOptions.AgeBuckets {
+					t.Fatalf("%d.%q: Expected max age %v, got %v", i, metric, mapping.ageBuckets, m.SummaryOptions.AgeBuckets)
+				}
+				if mapping.bufCap != 0 && mapping.bufCap != m.SummaryOptions.BufCap {
+					t.Fatalf("%d.%q: Expected max age %v, got %v", i, metric, mapping.bufCap, m.SummaryOptions.BufCap)
+				}
 			}
-			if mapping.maxAge != 0 && mapping.maxAge != m.SummaryOptions.MaxAge {
-				t.Fatalf("%d.%q: Expected max age %v, got %v", i, metric, mapping.maxAge, m.SummaryOptions.MaxAge)
-			}
-			if mapping.ageBuckets != 0 && mapping.ageBuckets != m.SummaryOptions.AgeBuckets {
-				t.Fatalf("%d.%q: Expected max age %v, got %v", i, metric, mapping.ageBuckets, m.SummaryOptions.AgeBuckets)
-			}
-			if mapping.bufCap != 0 && mapping.bufCap != m.SummaryOptions.BufCap {
-				t.Fatalf("%d.%q: Expected max age %v, got %v", i, metric, mapping.bufCap, m.SummaryOptions.BufCap)
-			}
-		}
+		})
 	}
 }
 
 func TestAction(t *testing.T) {
 	scenarios := []struct {
+		testName       string
 		config         string
 		configBad      bool
 		expectedAction ActionType
 	}{
 		{
 			// no action set
+			testName: "no action set",
 			config: `---
 mappings:
 - match: test.*.*
@@ -1158,6 +1212,7 @@ mappings:
 		},
 		{
 			// map action set
+			testName: "map action set",
 			config: `---
 mappings:
 - match: test.*.*
@@ -1169,6 +1224,7 @@ mappings:
 		},
 		{
 			// drop action set
+			testName: "drop action set",
 			config: `---
 mappings:
 - match: test.*.*
@@ -1180,6 +1236,7 @@ mappings:
 		},
 		{
 			// invalid action set
+			testName: "invalid action set",
 			config: `---
 mappings:
 - match: test.*.*
@@ -1191,6 +1248,7 @@ mappings:
 		},
 		{
 			// valid yaml example
+			testName: "valid yaml example",
 			config: `---
 mappings:
 - match: "test\\.(\\w+)\\.(\\w+)\\.counter"
@@ -1204,6 +1262,7 @@ mappings:
 		},
 		{
 			// invalid yaml example
+			testName: "invalid yaml example",
 			config: `---
 mappings:
 - match: "test\.(\w+)\.(\w+)\.counter"
@@ -1217,21 +1276,26 @@ mappings:
 	}
 
 	for i, scenario := range scenarios {
-		mapper := MetricMapper{}
-		err := mapper.InitFromYAMLString(scenario.config, 0)
-		if err != nil && !scenario.configBad {
-			t.Fatalf("%d. Config load error: %s %s", i, scenario.config, err)
+		if scenario.testName == "" {
+			t.Fatalf("Missing testName in scenario %+v", scenario)
 		}
-		if err == nil && scenario.configBad {
-			t.Fatalf("%d. Expected bad config, but loaded ok: %s", i, scenario.config)
-		}
-
-		if !scenario.configBad {
-			a := mapper.Mappings[0].Action
-			if scenario.expectedAction != a {
-				t.Fatalf("%d: Expected action %v, got %v", i, scenario.expectedAction, a)
+		t.Run(scenario.testName, func(t *testing.T) {
+			mapper := MetricMapper{}
+			err := mapper.InitFromYAMLString(scenario.config, 0)
+			if err != nil && !scenario.configBad {
+				t.Fatalf("%d. Config load error: %s %s", i, scenario.config, err)
 			}
-		}
+			if err == nil && scenario.configBad {
+				t.Fatalf("%d. Expected bad config, but loaded ok: %s", i, scenario.config)
+			}
+
+			if !scenario.configBad {
+				a := mapper.Mappings[0].Action
+				if scenario.expectedAction != a {
+					t.Fatalf("%d: Expected action %v, got %v", i, scenario.expectedAction, a)
+				}
+			}
+		})
 	}
 }
 
