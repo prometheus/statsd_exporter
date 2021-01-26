@@ -477,9 +477,14 @@ func main() {
 			</body>
 			</html>`))
 	})
+
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+
 	if *enableLifecycle {
 		mux.HandleFunc("/-/reload", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == http.MethodPut || r.Method == http.MethodPost {
+				fmt.Fprintf(w, "Requesting reload")
 				if *mappingConfig == "" {
 					level.Warn(logger).Log("msg", "Received lifecycle api reload but no mapping config to reload")
 					return
@@ -490,8 +495,9 @@ func main() {
 		})
 		mux.HandleFunc("/-/quit", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == http.MethodPut || r.Method == http.MethodPost {
+				fmt.Fprintf(w, "Requesting termination... Goodbye!")
 				level.Info(logger).Log("msg", "Received lifecycle api quit, exiting")
-				os.Exit(0)
+				signals <- os.Kill
 			}
 		})
 	}
@@ -513,9 +519,6 @@ func main() {
 	})
 
 	go serveHTTP(mux, *listenAddress, logger)
-
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 
 	go sighupConfigReloader(*mappingConfig, mapper, *cacheSize, logger, cacheOption)
 	go exporter.Listen(events)
