@@ -55,8 +55,31 @@ type SummaryOptions struct {
 	BufCap     uint32            `yaml:"buf_cap"`
 }
 
+// Clone returns a copy of SummaryOptions
+func (s *SummaryOptions) Clone() *SummaryOptions {
+	r := SummaryOptions{
+		Quantiles: make([]metricObjective, len(s.Quantiles)),
+	}
+	copy(r.Quantiles, s.Quantiles)
+	r.MaxAge = s.MaxAge
+	r.AgeBuckets = s.AgeBuckets
+	r.BufCap = s.BufCap
+
+	return &r
+}
+
 type HistogramOptions struct {
 	Buckets []float64 `yaml:"buckets"`
+}
+
+// Clone returns a copy of HistogramOptions
+func (h *HistogramOptions) Clone() *HistogramOptions {
+	r := HistogramOptions{
+		Buckets: make([]float64, len(h.Buckets)),
+	}
+	copy(r.Buckets, h.Buckets)
+
+	return &r
 }
 
 type metricObjective struct {
@@ -186,7 +209,7 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int, op
 			if currentMapping.HistogramOptions == nil {
 				currentMapping.HistogramOptions = &HistogramOptions{}
 				if n.Defaults.HistogramOptions != nil {
-					currentMapping.HistogramOptions.Buckets = n.Defaults.HistogramOptions.Buckets
+					currentMapping.HistogramOptions = n.Defaults.HistogramOptions.Clone()
 				}
 			}
 			if currentMapping.LegacyBuckets != nil && len(currentMapping.LegacyBuckets) != 0 {
@@ -204,10 +227,7 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int, op
 			if currentMapping.SummaryOptions == nil {
 				currentMapping.SummaryOptions = &SummaryOptions{}
 				if n.Defaults.SummaryOptions != nil {
-					currentMapping.SummaryOptions.Quantiles = n.Defaults.SummaryOptions.Quantiles
-					currentMapping.SummaryOptions.AgeBuckets = n.Defaults.SummaryOptions.AgeBuckets
-					currentMapping.SummaryOptions.BufCap = n.Defaults.SummaryOptions.BufCap
-					currentMapping.SummaryOptions.MaxAge = n.Defaults.SummaryOptions.MaxAge
+					currentMapping.SummaryOptions = n.Defaults.SummaryOptions.Clone()
 				}
 			}
 			if currentMapping.LegacyQuantiles != nil && len(currentMapping.LegacyQuantiles) != 0 {
