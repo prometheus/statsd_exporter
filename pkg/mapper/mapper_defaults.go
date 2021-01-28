@@ -16,15 +16,15 @@ package mapper
 import "time"
 
 type mapperConfigDefaults struct {
-	ObserverType        ObserverType      `yaml:"observer_type"`
-	MatchType           MatchType         `yaml:"match_type"`
-	GlobDisableOrdering bool              `yaml:"glob_disable_ordering"`
-	Ttl                 time.Duration     `yaml:"ttl"`
-	SummaryOptions      SummaryOptions    `yaml:"summary_options"`
-	HistogramOptions    HistogramOptions  `yaml:"histogram_options"`
+	ObserverType        ObserverType     `yaml:"observer_type"`
+	MatchType           MatchType        `yaml:"match_type"`
+	GlobDisableOrdering bool             `yaml:"glob_disable_ordering"`
+	Ttl                 time.Duration    `yaml:"ttl"`
+	SummaryOptions      SummaryOptions   `yaml:"summary_options"`
+	HistogramOptions    HistogramOptions `yaml:"histogram_options"`
 }
 
-// mapperConfigDefaultsAlias is used to allow deprecated fields
+// mapperConfigDefaultsAlias is used to unmarshal the yaml config into mapperConfigDefaults and allows deprecated fields
 type mapperConfigDefaultsAlias struct {
 	ObserverType        ObserverType      `yaml:"observer_type"`
 	TimerType           ObserverType      `yaml:"timer_type,omitempty"` // DEPRECATED - field only present to preserve backwards compatibility in configs

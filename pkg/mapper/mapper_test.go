@@ -883,7 +883,7 @@ mappings:
 				},
 			},
 		},
-				{
+		{
 			testName: "Config that partially overrides default summary max_age and a default options mapping",
 			config: `---
 defaults:

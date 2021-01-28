@@ -302,9 +302,9 @@ func (r *Registry) GetSummary(metricName string, labels prometheus.Labels, help 
 		}
 
 		summaryOptions := mapper.SummaryOptions{
-			MaxAge: r.Mapper.Defaults.SummaryOptions.MaxAge,
+			MaxAge:     r.Mapper.Defaults.SummaryOptions.MaxAge,
 			AgeBuckets: r.Mapper.Defaults.SummaryOptions.AgeBuckets,
-			BufCap: r.Mapper.Defaults.SummaryOptions.BufCap,
+			BufCap:     r.Mapper.Defaults.SummaryOptions.BufCap,
 		}
 
 		if mapping != nil && mapping.SummaryOptions != nil {
