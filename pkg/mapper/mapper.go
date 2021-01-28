@@ -56,7 +56,7 @@ type SummaryOptions struct {
 }
 
 // Clone returns a copy of SummaryOptions
-func (s *SummaryOptions) Clone() *SummaryOptions {
+func (s *SummaryOptions) Clone() SummaryOptions {
 	r := SummaryOptions{
 		Quantiles: make([]metricObjective, len(s.Quantiles)),
 	}
@@ -65,7 +65,7 @@ func (s *SummaryOptions) Clone() *SummaryOptions {
 	r.AgeBuckets = s.AgeBuckets
 	r.BufCap = s.BufCap
 
-	return &r
+	return r
 }
 
 type HistogramOptions struct {
@@ -73,13 +73,13 @@ type HistogramOptions struct {
 }
 
 // Clone returns a copy of HistogramOptions
-func (h *HistogramOptions) Clone() *HistogramOptions {
+func (h *HistogramOptions) Clone() HistogramOptions {
 	r := HistogramOptions{
 		Buckets: make([]float64, len(h.Buckets)),
 	}
 	copy(r.Buckets, h.Buckets)
 
-	return &r
+	return r
 }
 
 type metricObjective struct {
@@ -91,6 +91,36 @@ var defaultQuantiles = []metricObjective{
 	{Quantile: 0.5, Error: 0.05},
 	{Quantile: 0.9, Error: 0.01},
 	{Quantile: 0.99, Error: 0.001},
+}
+
+// GetDefaultHistogramOptions returns a copy of the default HistogramOptions
+func (m *MetricMapper) GetDefaultHistogramOptions() HistogramOptions {
+	r := HistogramOptions{}
+	if m.Defaults.HistogramOptions == nil {
+		r.Buckets = prometheus.DefBuckets
+	} else {
+		r = m.Defaults.HistogramOptions.Clone()
+		if m.Defaults.HistogramOptions != nil && len(m.Defaults.HistogramOptions.Buckets) == 0 {
+			r.Buckets = prometheus.DefBuckets
+		}
+	}
+
+	return r
+}
+
+// GetDefaultSummaryOptions returns a copy of the default SummaryOptions
+func (m *MetricMapper) GetDefaultSummaryOptions() SummaryOptions {
+	r := SummaryOptions{}
+	if m.Defaults.SummaryOptions == nil {
+		r.Quantiles = defaultQuantiles
+	} else {
+		r = m.Defaults.SummaryOptions.Clone()
+		if m.Defaults.SummaryOptions != nil && len(m.Defaults.SummaryOptions.Quantiles) == 0 {
+			r.Quantiles = defaultQuantiles
+		}
+	}
+
+	return r
 }
 
 func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int, options ...CacheOption) error {
@@ -211,7 +241,8 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int, op
 				return fmt.Errorf("cannot use histogram observer and summary options at the same time")
 			}
 			if currentMapping.HistogramOptions == nil {
-				currentMapping.HistogramOptions = n.Defaults.HistogramOptions.Clone()
+				c := n.Defaults.HistogramOptions.Clone()
+				currentMapping.HistogramOptions = &c
 			}
 			if currentMapping.LegacyBuckets != nil && len(currentMapping.LegacyBuckets) != 0 {
 				currentMapping.HistogramOptions.Buckets = currentMapping.LegacyBuckets
@@ -223,7 +254,8 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int, op
 				return fmt.Errorf("cannot use summary observer and histogram options at the same time")
 			}
 			if currentMapping.SummaryOptions == nil {
-				currentMapping.SummaryOptions = n.Defaults.SummaryOptions.Clone()
+				c := n.Defaults.SummaryOptions.Clone()
+				currentMapping.SummaryOptions = &c
 			}
 			if currentMapping.LegacyQuantiles != nil && len(currentMapping.LegacyQuantiles) != 0 {
 				currentMapping.SummaryOptions.Quantiles = currentMapping.LegacyQuantiles

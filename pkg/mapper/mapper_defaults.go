@@ -18,8 +18,8 @@ import "time"
 type mapperConfigDefaults struct {
 	ObserverType        ObserverType      `yaml:"observer_type"`
 	TimerType           ObserverType      `yaml:"timer_type,omitempty"` // DEPRECATED - field only present to preserve backwards compatibility in configs. Always empty
-	Buckets             []float64         `yaml:"buckets"`              // DEPREECATED - field only present to preserve backwards compatibility in configs. Always empty
-	Quantiles           []metricObjective `yaml:"quantiles"`            // DEPREECATED - field only present to preserve backwards compatibility in configs. Always empty
+	Buckets             []float64         `yaml:"buckets"`              // DEPRECATED - field only present to preserve backwards compatibility in configs. Always empty
+	Quantiles           []metricObjective `yaml:"quantiles"`            // DEPRECATED - field only present to preserve backwards compatibility in configs. Always empty
 	MatchType           MatchType         `yaml:"match_type"`
 	GlobDisableOrdering bool              `yaml:"glob_disable_ordering"`
 	Ttl                 time.Duration     `yaml:"ttl"`

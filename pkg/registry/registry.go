@@ -248,14 +248,17 @@ func (r *Registry) GetHistogram(metricName string, labels prometheus.Labels, hel
 	var histogramVec *prometheus.HistogramVec
 	if vh == nil {
 		metricsCount.WithLabelValues("histogram").Inc()
-		buckets := r.Mapper.Defaults.HistogramOptions.Buckets
-		if mapping.HistogramOptions != nil && len(mapping.HistogramOptions.Buckets) > 0 {
-			buckets = mapping.HistogramOptions.Buckets
+		histogramOptions := r.Mapper.GetDefaultHistogramOptions()
+
+		if mapping != nil {
+			if mapping.HistogramOptions != nil && len(mapping.HistogramOptions.Buckets) > 0 {
+				histogramOptions.Buckets = mapping.HistogramOptions.Buckets
+			}
 		}
 		histogramVec = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Name:    metricName,
 			Help:    help,
-			Buckets: buckets,
+			Buckets: histogramOptions.Buckets,
 		}, labelNames)
 
 		if err := prometheus.Register(uncheckedCollector{histogramVec}); err != nil {
@@ -295,22 +298,20 @@ func (r *Registry) GetSummary(metricName string, labels prometheus.Labels, help 
 	var summaryVec *prometheus.SummaryVec
 	if vh == nil {
 		metricsCount.WithLabelValues("summary").Inc()
-		quantiles := r.Mapper.Defaults.Quantiles
-		if mapping != nil && mapping.SummaryOptions != nil && len(mapping.SummaryOptions.Quantiles) > 0 {
-			quantiles = mapping.SummaryOptions.Quantiles
-		}
-		summaryOptions := mapper.SummaryOptions{}
+		summaryOptions := r.Mapper.GetDefaultSummaryOptions()
 		if mapping != nil && mapping.SummaryOptions != nil {
 			summaryOptions = *mapping.SummaryOptions
 		}
+
+		if mapping != nil && mapping.SummaryOptions != nil && len(mapping.SummaryOptions.Quantiles) > 0 {
+			summaryOptions.Quantiles = mapping.SummaryOptions.Quantiles
+		}
+
 		objectives := make(map[float64]float64)
-		for _, q := range quantiles {
+		for _, q := range summaryOptions.Quantiles {
 			objectives[q.Quantile] = q.Error
 		}
-		// In the case of no mapping file, explicitly define the default quantiles
-		if len(objectives) == 0 {
-			objectives = map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001}
-		}
+
 		summaryVec = prometheus.NewSummaryVec(prometheus.SummaryOpts{
 			Name:       metricName,
 			Help:       help,
