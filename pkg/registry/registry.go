@@ -23,6 +23,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
+
 	"github.com/prometheus/statsd_exporter/pkg/clock"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 	"github.com/prometheus/statsd_exporter/pkg/metrics"
@@ -248,7 +249,7 @@ func (r *Registry) GetHistogram(metricName string, labels prometheus.Labels, hel
 	var histogramVec *prometheus.HistogramVec
 	if vh == nil {
 		metricsCount.WithLabelValues("histogram").Inc()
-		buckets := r.Mapper.Defaults.Buckets
+		buckets := r.Mapper.Defaults.HistogramOptions.Buckets
 		if mapping.HistogramOptions != nil && len(mapping.HistogramOptions.Buckets) > 0 {
 			buckets = mapping.HistogramOptions.Buckets
 		}
@@ -295,7 +296,7 @@ func (r *Registry) GetSummary(metricName string, labels prometheus.Labels, help 
 	var summaryVec *prometheus.SummaryVec
 	if vh == nil {
 		metricsCount.WithLabelValues("summary").Inc()
-		quantiles := r.Mapper.Defaults.Quantiles
+		quantiles := r.Mapper.Defaults.SummaryOptions.Quantiles
 		if mapping != nil && mapping.SummaryOptions != nil && len(mapping.SummaryOptions.Quantiles) > 0 {
 			quantiles = mapping.SummaryOptions.Quantiles
 		}
