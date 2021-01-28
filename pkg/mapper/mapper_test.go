@@ -16,6 +16,8 @@ package mapper
 import (
 	"testing"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type mappings []struct {
@@ -659,6 +661,71 @@ mappings:
 			},
 		},
 		{
+			testName: "Config with default summary options without quantiles",
+			config: `---
+defaults:
+ summary_options:
+   max_age: 5m
+   age_buckets: 2
+   buf_cap: 1000
+mappings:
+- match: test.*.*
+  observer_type: summary
+  name: "foo"
+  labels: {}
+`,
+			mappings: mappings{
+				{
+					statsdMetric: "test.*.*",
+					name:         "foo",
+					labels:       map[string]string{},
+					quantiles:    defaultQuantiles,
+					maxAge:       5 * time.Minute,
+					ageBuckets:   2,
+					bufCap:       1000,
+				},
+			},
+		},
+		{
+			testName: "Config with default summary options overrides quantiles",
+			config: `---
+defaults:
+  quantiles:
+    - quantile: 0.9
+      error: 0.1
+    - quantile: 0.99
+      error: 0.01
+  summary_options:
+    quantiles:
+      - quantile: 0.42
+        error: 0.04
+      - quantile: 0.7
+        error: 0.002
+    max_age: 5m
+    age_buckets: 2
+    buf_cap: 1000
+mappings:
+- match: test.*.*
+  observer_type: summary
+  name: "foo"
+  labels: {}
+`,
+			mappings: mappings{
+				{
+					statsdMetric: "test.*.*",
+					name:         "foo",
+					labels:       map[string]string{},
+					quantiles: []metricObjective{
+						{Quantile: 0.42, Error: 0.04},
+						{Quantile: 0.7, Error: 0.002},
+					},
+					maxAge:     5 * time.Minute,
+					ageBuckets: 2,
+					bufCap:     1000,
+				},
+			},
+		},
+		{
 			testName: "Config that overrides default summary options",
 			config: `---
 defaults:
@@ -701,7 +768,7 @@ mappings:
 				},
 			},
 		},
-				{
+		{
 			testName: "Config that overrides default summary options and a default options mapping",
 			config: `---
 defaults:
@@ -784,6 +851,49 @@ mappings:
 			testName: "Config with default histogram options",
 			config: `---
 defaults:
+  histogram_options:
+    buckets: [0.1, 1, 10, 100, 1000]
+mappings:
+- match: test.*.*
+  observer_type: histogram
+  name: "foo"
+  labels: {}
+`,
+			mappings: mappings{
+				{
+					statsdMetric: "test.*.*",
+					name:         "foo",
+					labels:       map[string]string{},
+					buckets:      []float64{0.1, 1, 10, 100, 1000},
+				},
+			},
+		},
+		{
+			testName: "Config with default histogram options without buckets",
+			config: `---
+defaults:
+  histogram_options:
+    buckets: []
+mappings:
+- match: test.*.*
+  observer_type: histogram
+  name: "foo"
+  labels: {}
+`,
+			mappings: mappings{
+				{
+					statsdMetric: "test.*.*",
+					name:         "foo",
+					labels:       map[string]string{},
+					buckets:      prometheus.DefBuckets,
+				},
+			},
+		},
+		{
+			testName: "Config with default histogram options overrides buckets",
+			config: `---
+defaults:
+  buckets: [0.2, 2, 20, 200, 2000]
   histogram_options:
     buckets: [0.1, 1, 10, 100, 1000]
 mappings:

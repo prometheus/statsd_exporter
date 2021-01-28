@@ -18,8 +18,8 @@ import "time"
 type mapperConfigDefaults struct {
 	ObserverType        ObserverType      `yaml:"observer_type"`
 	TimerType           ObserverType      `yaml:"timer_type,omitempty"` // DEPRECATED - field only present to preserve backwards compatibility in configs. Always empty
-	Buckets             []float64         `yaml:"buckets"`
-	Quantiles           []metricObjective `yaml:"quantiles"`
+	Buckets             []float64         `yaml:"buckets"`              // DEPREECATED - field only present to preserve backwards compatibility in configs. Always empty
+	Quantiles           []metricObjective `yaml:"quantiles"`            // DEPREECATED - field only present to preserve backwards compatibility in configs. Always empty
 	MatchType           MatchType         `yaml:"match_type"`
 	GlobDisableOrdering bool              `yaml:"glob_disable_ordering"`
 	Ttl                 time.Duration     `yaml:"ttl"`
@@ -38,8 +38,6 @@ func (d *mapperConfigDefaults) UnmarshalYAML(unmarshal func(interface{}) error) 
 
 	// Copy defaults
 	d.ObserverType = tmp.ObserverType
-	d.Buckets = tmp.Buckets
-	d.Quantiles = tmp.Quantiles
 	d.MatchType = tmp.MatchType
 	d.GlobDisableOrdering = tmp.GlobDisableOrdering
 	d.Ttl = tmp.Ttl
@@ -49,6 +47,16 @@ func (d *mapperConfigDefaults) UnmarshalYAML(unmarshal func(interface{}) error) 
 	// Use deprecated TimerType if necessary
 	if tmp.ObserverType == "" {
 		d.ObserverType = tmp.TimerType
+	}
+
+	// Use deprecated quantiles if necessary
+	if tmp.SummaryOptions == nil && tmp.Quantiles != nil {
+		d.SummaryOptions = &SummaryOptions{Quantiles: tmp.Quantiles}
+	}
+
+	// Use deprecated buckets if necessary
+	if tmp.HistogramOptions == nil && tmp.Buckets != nil {
+		d.HistogramOptions = &HistogramOptions{Buckets: tmp.Buckets}
 	}
 
 	return nil

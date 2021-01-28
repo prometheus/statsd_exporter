@@ -341,9 +341,9 @@ mappings:
         error: 0.05
       - quantile: 0.5
         error: 0.005
-    max_summary_age: 30s
-    summary_age_buckets: 3
-    stream_buffer_size: 1000
+    max_age: 30s
+    age_buckets: 3
+    buf_cap: 1000
 ```
 
 The default quantiles are 0.99, 0.9, and 0.5.
@@ -414,16 +414,32 @@ mappings:
 
 ### Global defaults
 
-One may also set defaults for the observer type, buckets or quantiles, and match type.
+One may also set defaults for the observer type, histogram options, summary options, and match type.
 These will be used by all mappings that do not define them.
 
 An option that can only be configured in `defaults` is `glob_disable_ordering`, which is `false` if omitted.
 By setting this to `true`, `glob` match type will not honor the occurance of rules in the mapping rules file and always treat `*` as lower priority than a concrete string.
 
+Setting `buckets` or `quantiles` in the defaults is deprecated in favor of `histogram_options` and `summary_options`, which will override the deprecated values. 
+
 ```yaml
 defaults:
   observer_type: histogram
-  buckets: [.005, .01, .025, .05, .1, .25, .5, 1, 2.5 ]
+  histogram_options:
+    buckets: [.005, .01, .025, .05, .1, .25, .5, 1, 2.5 ]
+  summary_options:
+    quantiles:
+      - quantile: 0.99
+        error: 0.001
+      - quantile: 0.95
+        error: 0.01
+      - quantile: 0.9
+        error: 0.05
+      - quantile: 0.5
+        error: 0.005
+    max_age: 5m
+    age_buckets: 2
+    buf_cap: 1000
   match_type: glob
   glob_disable_ordering: false
   ttl: 0 # metrics do not expire
@@ -435,7 +451,7 @@ mappings:
     provider: "$2"
     outcome: "$3"
     job: "${1}_server"
-# This will be a summary timer.
+# This will be a summary using the summary_options set in `defaults`
 - match: "other.distribution.*.*.*"
   observer_type: summary
   name: "other_distribution"

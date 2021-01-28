@@ -248,7 +248,7 @@ func (r *Registry) GetHistogram(metricName string, labels prometheus.Labels, hel
 	var histogramVec *prometheus.HistogramVec
 	if vh == nil {
 		metricsCount.WithLabelValues("histogram").Inc()
-		buckets := r.Mapper.Defaults.Buckets
+		buckets := r.Mapper.Defaults.HistogramOptions.Buckets
 		if mapping.HistogramOptions != nil && len(mapping.HistogramOptions.Buckets) > 0 {
 			buckets = mapping.HistogramOptions.Buckets
 		}

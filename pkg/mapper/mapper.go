@@ -100,12 +100,16 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int, op
 		return err
 	}
 
-	if n.Defaults.Buckets == nil || len(n.Defaults.Buckets) == 0 {
-		n.Defaults.Buckets = prometheus.DefBuckets
+	if n.Defaults.HistogramOptions == nil {
+		n.Defaults.HistogramOptions = &HistogramOptions{Buckets: prometheus.DefBuckets}
+	} else if n.Defaults.HistogramOptions != nil && len(n.Defaults.HistogramOptions.Buckets) == 0 {
+		n.Defaults.HistogramOptions.Buckets = prometheus.DefBuckets
 	}
 
-	if n.Defaults.Quantiles == nil || len(n.Defaults.Quantiles) == 0 {
-		n.Defaults.Quantiles = defaultQuantiles
+	if n.Defaults.SummaryOptions == nil {
+		n.Defaults.SummaryOptions = &SummaryOptions{Quantiles: defaultQuantiles}
+	} else if n.Defaults.SummaryOptions != nil && len(n.Defaults.SummaryOptions.Quantiles) == 0 {
+		n.Defaults.SummaryOptions.Quantiles = defaultQuantiles
 	}
 
 	if n.Defaults.MatchType == MatchTypeDefault {
@@ -207,16 +211,10 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int, op
 				return fmt.Errorf("cannot use histogram observer and summary options at the same time")
 			}
 			if currentMapping.HistogramOptions == nil {
-				currentMapping.HistogramOptions = &HistogramOptions{}
-				if n.Defaults.HistogramOptions != nil {
-					currentMapping.HistogramOptions = n.Defaults.HistogramOptions.Clone()
-				}
+				currentMapping.HistogramOptions = n.Defaults.HistogramOptions.Clone()
 			}
 			if currentMapping.LegacyBuckets != nil && len(currentMapping.LegacyBuckets) != 0 {
 				currentMapping.HistogramOptions.Buckets = currentMapping.LegacyBuckets
-			}
-			if currentMapping.HistogramOptions.Buckets == nil || len(currentMapping.HistogramOptions.Buckets) == 0 {
-				currentMapping.HistogramOptions.Buckets = n.Defaults.Buckets
 			}
 		}
 
@@ -225,16 +223,10 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int, op
 				return fmt.Errorf("cannot use summary observer and histogram options at the same time")
 			}
 			if currentMapping.SummaryOptions == nil {
-				currentMapping.SummaryOptions = &SummaryOptions{}
-				if n.Defaults.SummaryOptions != nil {
-					currentMapping.SummaryOptions = n.Defaults.SummaryOptions.Clone()
-				}
+				currentMapping.SummaryOptions = n.Defaults.SummaryOptions.Clone()
 			}
 			if currentMapping.LegacyQuantiles != nil && len(currentMapping.LegacyQuantiles) != 0 {
 				currentMapping.SummaryOptions.Quantiles = currentMapping.LegacyQuantiles
-			}
-			if currentMapping.SummaryOptions.Quantiles == nil || len(currentMapping.SummaryOptions.Quantiles) == 0 {
-				currentMapping.SummaryOptions.Quantiles = n.Defaults.Quantiles
 			}
 		}
 
