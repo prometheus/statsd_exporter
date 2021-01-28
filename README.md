@@ -422,7 +422,7 @@ By setting this to `true`, `glob` match type will not honor the occurance of rul
 
 Setting `buckets` or `quantiles` in the defaults is deprecated in favor of `histogram_options` and `summary_options`, which will override the deprecated values.
 
-NOTE: If `summary_options` is present in a mapping config, it will override all of the `summary_options` set in the `defaults` section. 
+If `summary_options` is present in a mapping config, it will only override the fields set in the mapping. Unset fields in the mapping will take the values from the defaults. 
 
 ```yaml
 defaults:

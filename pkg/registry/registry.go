@@ -23,6 +23,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
+
 	"github.com/prometheus/statsd_exporter/pkg/clock"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 	"github.com/prometheus/statsd_exporter/pkg/metrics"
@@ -300,11 +301,19 @@ func (r *Registry) GetSummary(metricName string, labels prometheus.Labels, help 
 		metricsCount.WithLabelValues("summary").Inc()
 		summaryOptions := r.Mapper.GetDefaultSummaryOptions()
 		if mapping != nil && mapping.SummaryOptions != nil {
-			summaryOptions = *mapping.SummaryOptions
-		}
-
-		if mapping != nil && mapping.SummaryOptions != nil && len(mapping.SummaryOptions.Quantiles) > 0 {
-			summaryOptions.Quantiles = mapping.SummaryOptions.Quantiles
+			tmp := mapping.SummaryOptions.Clone()
+			if len(tmp.Quantiles) > 0 {
+				summaryOptions.Quantiles = tmp.Quantiles
+			}
+			if tmp.BufCap != 0 {
+				summaryOptions.BufCap = tmp.BufCap
+			}
+			if tmp.AgeBuckets != 0 {
+				summaryOptions.AgeBuckets = tmp.AgeBuckets
+			}
+			if tmp.MaxAge != 0 {
+				summaryOptions.MaxAge = tmp.MaxAge
+			}
 		}
 
 		objectives := make(map[float64]float64)

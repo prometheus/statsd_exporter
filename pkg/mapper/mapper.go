@@ -22,8 +22,9 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
-	"github.com/prometheus/statsd_exporter/pkg/mapper/fsm"
 	yaml "gopkg.in/yaml.v2"
+
+	"github.com/prometheus/statsd_exporter/pkg/mapper/fsm"
 )
 
 var (
@@ -100,7 +101,7 @@ func (m *MetricMapper) GetDefaultHistogramOptions() HistogramOptions {
 		r.Buckets = prometheus.DefBuckets
 	} else {
 		r = m.Defaults.HistogramOptions.Clone()
-		if m.Defaults.HistogramOptions != nil && len(m.Defaults.HistogramOptions.Buckets) == 0 {
+		if len(m.Defaults.HistogramOptions.Buckets) == 0 {
 			r.Buckets = prometheus.DefBuckets
 		}
 	}
@@ -115,7 +116,7 @@ func (m *MetricMapper) GetDefaultSummaryOptions() SummaryOptions {
 		r.Quantiles = defaultQuantiles
 	} else {
 		r = m.Defaults.SummaryOptions.Clone()
-		if m.Defaults.SummaryOptions != nil && len(m.Defaults.SummaryOptions.Quantiles) == 0 {
+		if len(m.Defaults.SummaryOptions.Quantiles) == 0 {
 			r.Quantiles = defaultQuantiles
 		}
 	}
