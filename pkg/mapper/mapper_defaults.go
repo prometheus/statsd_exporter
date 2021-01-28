@@ -23,8 +23,8 @@ type mapperConfigDefaults struct {
 	MatchType           MatchType         `yaml:"match_type"`
 	GlobDisableOrdering bool              `yaml:"glob_disable_ordering"`
 	Ttl                 time.Duration     `yaml:"ttl"`
-	SummaryOptions      *SummaryOptions   `yaml:"summary_options"`
-	HistogramOptions    *HistogramOptions `yaml:"histogram_options"`
+	SummaryOptions      SummaryOptions    `yaml:"summary_options"`
+	HistogramOptions    HistogramOptions  `yaml:"histogram_options"`
 }
 
 // UnmarshalYAML is a custom unmarshal function to allow use of deprecated config keys
@@ -50,13 +50,13 @@ func (d *mapperConfigDefaults) UnmarshalYAML(unmarshal func(interface{}) error) 
 	}
 
 	// Use deprecated quantiles if necessary
-	if tmp.SummaryOptions == nil && tmp.Quantiles != nil {
-		d.SummaryOptions = &SummaryOptions{Quantiles: tmp.Quantiles}
+	if len(tmp.SummaryOptions.Quantiles) == 0 && len(tmp.Quantiles) > 0 {
+		d.SummaryOptions = SummaryOptions{Quantiles: tmp.Quantiles}
 	}
 
 	// Use deprecated buckets if necessary
-	if tmp.HistogramOptions == nil && tmp.Buckets != nil {
-		d.HistogramOptions = &HistogramOptions{Buckets: tmp.Buckets}
+	if len(tmp.HistogramOptions.Buckets) == 0 && len(tmp.Buckets) > 0 {
+		d.HistogramOptions = HistogramOptions{Buckets: tmp.Buckets}
 	}
 
 	return nil

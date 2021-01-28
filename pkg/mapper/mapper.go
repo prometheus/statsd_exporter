@@ -96,14 +96,9 @@ var defaultQuantiles = []metricObjective{
 
 // GetDefaultHistogramOptions returns a copy of the default HistogramOptions
 func (m *MetricMapper) GetDefaultHistogramOptions() HistogramOptions {
-	r := HistogramOptions{}
-	if m.Defaults.HistogramOptions == nil {
+	r := m.Defaults.HistogramOptions.Clone()
+	if len(m.Defaults.HistogramOptions.Buckets) == 0 {
 		r.Buckets = prometheus.DefBuckets
-	} else {
-		r = m.Defaults.HistogramOptions.Clone()
-		if len(m.Defaults.HistogramOptions.Buckets) == 0 {
-			r.Buckets = prometheus.DefBuckets
-		}
 	}
 
 	return r
@@ -111,14 +106,9 @@ func (m *MetricMapper) GetDefaultHistogramOptions() HistogramOptions {
 
 // GetDefaultSummaryOptions returns a copy of the default SummaryOptions
 func (m *MetricMapper) GetDefaultSummaryOptions() SummaryOptions {
-	r := SummaryOptions{}
-	if m.Defaults.SummaryOptions == nil {
+	r := m.Defaults.SummaryOptions.Clone()
+	if len(m.Defaults.SummaryOptions.Quantiles) == 0 {
 		r.Quantiles = defaultQuantiles
-	} else {
-		r = m.Defaults.SummaryOptions.Clone()
-		if len(m.Defaults.SummaryOptions.Quantiles) == 0 {
-			r.Quantiles = defaultQuantiles
-		}
 	}
 
 	return r
@@ -131,15 +121,11 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int, op
 		return err
 	}
 
-	if n.Defaults.HistogramOptions == nil {
-		n.Defaults.HistogramOptions = &HistogramOptions{Buckets: prometheus.DefBuckets}
-	} else if n.Defaults.HistogramOptions != nil && len(n.Defaults.HistogramOptions.Buckets) == 0 {
+	if len(n.Defaults.HistogramOptions.Buckets) == 0 {
 		n.Defaults.HistogramOptions.Buckets = prometheus.DefBuckets
 	}
 
-	if n.Defaults.SummaryOptions == nil {
-		n.Defaults.SummaryOptions = &SummaryOptions{Quantiles: defaultQuantiles}
-	} else if n.Defaults.SummaryOptions != nil && len(n.Defaults.SummaryOptions.Quantiles) == 0 {
+	if len(n.Defaults.SummaryOptions.Quantiles) == 0 {
 		n.Defaults.SummaryOptions.Quantiles = defaultQuantiles
 	}
 
