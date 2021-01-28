@@ -251,8 +251,8 @@ func (r *Registry) GetHistogram(metricName string, labels prometheus.Labels, hel
 		metricsCount.WithLabelValues("histogram").Inc()
 		histogramOptions := r.Mapper.GetDefaultHistogramOptions()
 
-		if mapping != nil {
-			if mapping.HistogramOptions != nil && len(mapping.HistogramOptions.Buckets) > 0 {
+		if mapping != nil && mapping.HistogramOptions != nil {
+			if len(mapping.HistogramOptions.Buckets) > 0 {
 				histogramOptions.Buckets = mapping.HistogramOptions.Buckets
 			}
 		}
@@ -301,18 +301,17 @@ func (r *Registry) GetSummary(metricName string, labels prometheus.Labels, help 
 		metricsCount.WithLabelValues("summary").Inc()
 		summaryOptions := r.Mapper.GetDefaultSummaryOptions()
 		if mapping != nil && mapping.SummaryOptions != nil {
-			tmp := mapping.SummaryOptions.Clone()
-			if len(tmp.Quantiles) > 0 {
-				summaryOptions.Quantiles = tmp.Quantiles
+			if len(mapping.SummaryOptions.Quantiles) > 0 {
+				summaryOptions.Quantiles = mapping.SummaryOptions.Quantiles
 			}
-			if tmp.BufCap != 0 {
-				summaryOptions.BufCap = tmp.BufCap
+			if mapping.SummaryOptions.BufCap != 0 {
+				summaryOptions.BufCap = mapping.SummaryOptions.BufCap
 			}
-			if tmp.AgeBuckets != 0 {
-				summaryOptions.AgeBuckets = tmp.AgeBuckets
+			if mapping.SummaryOptions.AgeBuckets != 0 {
+				summaryOptions.AgeBuckets = mapping.SummaryOptions.AgeBuckets
 			}
-			if tmp.MaxAge != 0 {
-				summaryOptions.MaxAge = tmp.MaxAge
+			if mapping.SummaryOptions.MaxAge != 0 {
+				summaryOptions.MaxAge = mapping.SummaryOptions.MaxAge
 			}
 		}
 
