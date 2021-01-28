@@ -478,8 +478,7 @@ func main() {
 			</html>`))
 	})
 
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+	quitChan := make(chan struct{}, 1)
 
 	if *enableLifecycle {
 		mux.HandleFunc("/-/reload", func(w http.ResponseWriter, r *http.Request) {
@@ -496,8 +495,7 @@ func main() {
 		mux.HandleFunc("/-/quit", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == http.MethodPut || r.Method == http.MethodPost {
 				fmt.Fprintf(w, "Requesting termination... Goodbye!")
-				level.Info(logger).Log("msg", "Received lifecycle api quit, exiting")
-				signals <- os.Kill
+				quitChan <- struct{}{}
 			}
 		})
 	}
@@ -523,5 +521,14 @@ func main() {
 	go sighupConfigReloader(*mappingConfig, mapper, *cacheSize, logger, cacheOption)
 	go exporter.Listen(events)
 
-	<-signals
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+
+	// quit if we get a message on either channel
+	select {
+	case sig := <-signals:
+		level.Info(logger).Log("msg", "Received os signal, exiting", "signal", sig.String())
+	case <-quitChan:
+		level.Info(logger).Log("msg", "Received lifecycle api quit, exiting")
+	}
 }
