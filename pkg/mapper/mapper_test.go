@@ -39,11 +39,9 @@ func TestMetricMapperYAML(t *testing.T) {
 		configBad bool
 		mappings  mappings
 	}{
-		// Empty config.
 		{
 			testName: "Empty config",
 		},
-		// Config with several mapping definitions.
 		{
 			testName: "Config with several mapping definitions",
 			config: `---
@@ -158,7 +156,6 @@ mappings:
 				},
 			},
 		},
-		// Config with backtracking
 		{
 			testName: "Config with backtracking",
 			config: `
@@ -239,7 +236,6 @@ mappings:
 				},
 			},
 		},
-		//Config with super sets, disables ordering
 		{
 			testName: "Config with super sets, disables ordering",
 			config: `
@@ -276,7 +272,6 @@ mappings:
 				},
 			},
 		},
-		//Config with super sets, keeps ordering
 		{
 			testName: "Config with super sets, keeps ordering",
 			config: `
@@ -302,7 +297,6 @@ mappings:
 				},
 			},
 		},
-		// Config with bad regex reference.
 		{
 			testName: "Config with bad regex reference",
 			config: `---
@@ -322,7 +316,6 @@ mappings:
 				},
 			},
 		},
-		// Config with good regex reference.
 		{
 			testName: "Config with good regex reference",
 			config: `
@@ -342,7 +335,6 @@ mappings:
 				},
 			},
 		},
-		// Config with bad metric line.
 		{
 			testName: "Config with bad metric line",
 			config: `---
@@ -353,7 +345,6 @@ mappings:
   `,
 			configBad: true,
 		},
-		// Config with dynamic metric name.
 		{
 			testName: "Config with dynamic metric name",
 			config: `---
@@ -384,7 +375,6 @@ mappings:
 				},
 			},
 		},
-		// Config with bad metric name.
 		{
 			testName: "Config with bad metric name",
 			config: `---
@@ -395,7 +385,6 @@ mappings:
   `,
 			configBad: true,
 		},
-		// Config with no metric name.
 		{
 			testName: "Config with no metric name",
 			config: `---
@@ -406,13 +395,11 @@ mappings:
   `,
 			configBad: true,
 		},
-		// Config with no mappings.
 		{
 			testName: "Config with no mappings",
 			config:   ``,
 			mappings: mappings{},
 		},
-		// Config without a trailing newline.
 		{
 			testName: "Config without a trailing newline",
 			config: `mappings:
@@ -430,7 +417,6 @@ mappings:
 				},
 			},
 		},
-		// Config with an improperly escaped *.
 		{
 			testName: "Config with an improperly escaped *",
 			config: `
@@ -441,7 +427,6 @@ mappings:
     label: "${1}_foo"`,
 			configBad: true,
 		},
-		// Config with a properly escaped *.
 		{
 			testName: "Config with a properly escaped *",
 			config: `
@@ -460,7 +445,6 @@ mappings:
 				},
 			},
 		},
-		// Config with good observer type.
 		{
 			testName: "Config with good observer type",
 			config: `---
@@ -487,7 +471,6 @@ mappings:
 				},
 			},
 		},
-		// Config with good observer type and unused timer type
 		{
 			testName: "Config with good observer type and unused timer type",
 			config: `---
@@ -537,7 +520,6 @@ mappings:
 				},
 			},
 		},
-		// Config with good deprecated timer type
 		{
 			testName: "Config with good deprecated timer type",
 			config: `---
@@ -560,7 +542,6 @@ mappings:
 				},
 			},
 		},
-		// Config with bad observer type.
 		{
 			testName: "Config with bad observer type",
 			config: `---
@@ -572,7 +553,6 @@ mappings:
     `,
 			configBad: true,
 		},
-		// Config with bad deprecated timer type.
 		{
 			testName: "Config with bad deprecated timer type",
 			config: `---
@@ -584,7 +564,6 @@ mappings:
     `,
 			configBad: true,
 		},
-		// New style quantiles
 		{
 			testName: "New style quantiles",
 			config: `---
@@ -612,7 +591,6 @@ mappings:
 				},
 			},
 		},
-		// Config with summary options.
 		{
 			testName: "Config with summary options",
 			config: `---
@@ -646,7 +624,6 @@ mappings:
 				},
 			},
 		},
-		// Config with default summary options.
 		{
 			testName: "Config with default summary options",
 			config: `---
@@ -681,7 +658,6 @@ mappings:
 				},
 			},
 		},
-		// Config that overrides default summary options.
 		{
 			testName: "Config that overrides default summary options",
 			config: `---
@@ -725,7 +701,65 @@ mappings:
 				},
 			},
 		},
-		// Config with histogram options.
+				{
+			testName: "Config that overrides default summary options and a default options mapping",
+			config: `---
+defaults:
+ summary_options:
+   quantiles:
+     - quantile: 0.9
+       error: 0.1
+     - quantile: 0.99
+       error: 0.01
+   max_age: 15m
+   age_buckets: 3
+   buf_cap: 100
+mappings:
+- match: test.*.*
+  observer_type: summary
+  name: "foo"
+  labels: {}
+  summary_options:
+    quantiles:
+     - quantile: 0.42
+       error: 0.04
+     - quantile: 0.7
+       error: 0.002
+    max_age: 5m
+    age_buckets: 2
+    buf_cap: 1000
+- match: test_default.*.*
+  observer_type: summary
+  name: "foo_default"
+  labels: {}
+`,
+			mappings: mappings{
+				{
+					statsdMetric: "test.*.*",
+					name:         "foo",
+					labels:       map[string]string{},
+					quantiles: []metricObjective{
+						{Quantile: 0.42, Error: 0.04},
+						{Quantile: 0.7, Error: 0.002},
+					},
+					maxAge:     5 * time.Minute,
+					ageBuckets: 2,
+					bufCap:     1000,
+				},
+				{
+					statsdMetric: "test_default.*.*",
+					name:         "foo_default",
+					labels:       map[string]string{},
+					quantiles: []metricObjective{
+						{Quantile: 0.9, Error: 0.1},
+						{Quantile: 0.99, Error: 0.01},
+					},
+					maxAge:     15 * time.Minute,
+					ageBuckets: 3,
+					bufCap:     100,
+				},
+			},
+		},
 		{
 			testName: "Config with histogram options",
 			config: `---
@@ -746,7 +780,6 @@ mappings:
 				},
 			},
 		},
-		// Config with default histogram options.
 		{
 			testName: "Config with default histogram options",
 			config: `---
@@ -768,7 +801,6 @@ mappings:
 				},
 			},
 		},
-		// Config that overrides default histogram configuration.
 		{
 			testName: "Config that overrides default histogram configuration",
 			config: `---
@@ -792,8 +824,39 @@ mappings:
 				},
 			},
 		},
-
-		// Duplicate quantiles are bad
+		{
+			testName: "Config that overrides default histogram configuration and a default options mapping",
+			config: `---
+defaults:
+  histogram_options:
+    buckets: [0.2, 2, 20, 200]
+mappings:
+- match: test.*.*
+  observer_type: histogram
+  name: "foo"
+  labels: {}
+  histogram_options:
+    buckets: [0.1, 1, 10, 100, 1000]
+- match: test_default.*.*
+  observer_type: histogram
+  name: "foo_default"
+  labels: {}
+`,
+			mappings: mappings{
+				{
+					statsdMetric: "test.*.*",
+					name:         "foo",
+					labels:       map[string]string{},
+					buckets:      []float64{0.1, 1, 10, 100, 1000},
+				},
+				{
+					statsdMetric: "test_default.*.*",
+					name:         "foo_default",
+					labels:       map[string]string{},
+					buckets:      []float64{0.2, 2, 20, 200},
+				},
+			},
+		},
 		{
 			testName: "Duplicate quantiles are bad",
 			config: `---
@@ -812,7 +875,6 @@ mappings:
   `,
 			configBad: true,
 		},
-		// Config with good metric type.
 		{
 			testName: "Config with good metric type",
 			config: `---
@@ -823,7 +885,6 @@ mappings:
   labels: {}
     `,
 		},
-		// Config with good metric type observer.
 		{
 			testName: "Config with good metric type observer",
 			config: `---
@@ -834,7 +895,6 @@ mappings:
   labels: {}
     `,
 		},
-		// Config with good metric type timer.
 		{
 			testName: "Config with good metric type timer",
 			config: `---
@@ -845,7 +905,6 @@ mappings:
   labels: {}
     `,
 		},
-		// Config with bad metric type matcher.
 		{
 			testName: "Config with bad metric type matcher",
 			config: `---
@@ -857,7 +916,6 @@ mappings:
     `,
 			configBad: true,
 		},
-		// Config with multiple explicit metric types
 		{
 			testName: "Config with multiple explicit metric types",
 			config: `---
@@ -882,7 +940,6 @@ mappings:
 				},
 			},
 		},
-		//Config with uncompilable regex.
 		{
 			testName: "Config with uncompilable regex",
 			config: `---
@@ -894,7 +951,6 @@ mappings:
     `,
 			configBad: true,
 		},
-		//Config with non-matched metric.
 		{
 			testName: "Config with non-matched metric",
 			config: `---
@@ -913,7 +969,6 @@ mappings:
 				},
 			},
 		},
-		//Config with no name.
 		{
 			testName: "Config with no name",
 			config: `---
@@ -949,7 +1004,6 @@ mappings:
 				},
 			},
 		},
-		// Example from the README.
 		{
 			testName: "Example from the README",
 			config: `
@@ -995,7 +1049,6 @@ mappings:
 				},
 			},
 		},
-		// Config that drops all.
 		{
 			testName: "Config that drops all",
 			config: `mappings:
@@ -1012,7 +1065,6 @@ mappings:
 				},
 			},
 		},
-		// Config that has a catch-all to drop all.
 		{
 			testName: "Config that has a catch-all to drop all",
 			config: `mappings:
@@ -1037,7 +1089,6 @@ mappings:
 				},
 			},
 		},
-		// Config that has a ttl.
 		{
 			testName: "Config that has a ttl",
 			config: `mappings:
@@ -1060,7 +1111,6 @@ mappings:
 				},
 			},
 		},
-		// Config that has a default ttl.
 		{
 			testName: "Config that has a default ttl",
 			config: `defaults:
@@ -1084,7 +1134,6 @@ mappings:
 				},
 			},
 		},
-		// Config that override a default ttl.
 		{
 			testName: "Config that override a default ttl",
 			config: `defaults:
@@ -1200,7 +1249,6 @@ func TestAction(t *testing.T) {
 		expectedAction ActionType
 	}{
 		{
-			// no action set
 			testName: "no action set",
 			config: `---
 mappings:
@@ -1211,7 +1259,6 @@ mappings:
 			expectedAction: ActionTypeMap,
 		},
 		{
-			// map action set
 			testName: "map action set",
 			config: `---
 mappings:
@@ -1223,7 +1270,6 @@ mappings:
 			expectedAction: ActionTypeMap,
 		},
 		{
-			// drop action set
 			testName: "drop action set",
 			config: `---
 mappings:
@@ -1235,7 +1281,6 @@ mappings:
 			expectedAction: ActionTypeDrop,
 		},
 		{
-			// invalid action set
 			testName: "invalid action set",
 			config: `---
 mappings:
@@ -1247,7 +1292,6 @@ mappings:
 			expectedAction: ActionTypeDrop,
 		},
 		{
-			// valid yaml example
 			testName: "valid yaml example",
 			config: `---
 mappings:
@@ -1261,7 +1305,6 @@ mappings:
 			expectedAction: ActionTypeMap,
 		},
 		{
-			// invalid yaml example
 			testName: "invalid yaml example",
 			config: `---
 mappings:
