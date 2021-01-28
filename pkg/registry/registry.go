@@ -300,10 +300,17 @@ func (r *Registry) GetSummary(metricName string, labels prometheus.Labels, help 
 		if mapping != nil && mapping.SummaryOptions != nil && len(mapping.SummaryOptions.Quantiles) > 0 {
 			quantiles = mapping.SummaryOptions.Quantiles
 		}
-		summaryOptions := mapper.SummaryOptions{}
+
+		summaryOptions := mapper.SummaryOptions{
+			MaxAge: r.Mapper.Defaults.SummaryOptions.MaxAge,
+			AgeBuckets: r.Mapper.Defaults.SummaryOptions.AgeBuckets,
+			BufCap: r.Mapper.Defaults.SummaryOptions.BufCap,
+		}
+
 		if mapping != nil && mapping.SummaryOptions != nil {
 			summaryOptions = *mapping.SummaryOptions
 		}
+
 		objectives := make(map[float64]float64)
 		for _, q := range quantiles {
 			objectives[q.Quantile] = q.Error
