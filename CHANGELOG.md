@@ -1,3 +1,7 @@
+## 0.19.1 / 2021-01-29
+
+* [BUGFIX] Don't return empty responses to lifecycle api requests ([#360](https://github.com/prometheus/statsd_exporter/pull/360))
+
 ## 0.19.0 / 2021-01-22
 
 * [CHANGE] [library] Require explicit Registerer ([#347](https://github.com/prometheus/statsd_exporter/pull/347))
