@@ -1,3 +1,16 @@
+## 0.20.0 / 2021-02-05
+
+* [ENHANCEMENT] Support full defaults for summaries and histograms ([#361](https://github.com/prometheus/statsd_exporter/pull/361))
+
+This completes support for `summary_options` and `histogram_options`.
+Change the legacy configuration attributes throughout the mapping configuration as follows:
+
+* `quantiles: …` to `summary_options: { quantiles: … }`
+* `buckets: …` to `histogram_options: { buckets: … }`
+* `timer_type` to `observer_type`.
+
+Support for the deprecated attributes will be removed in a future release.
+
 ## 0.19.1 / 2021-01-29
 
 * [BUGFIX] Don't return empty responses to lifecycle api requests ([#360](https://github.com/prometheus/statsd_exporter/pull/360))
