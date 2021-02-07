@@ -39,8 +39,8 @@ import (
 	"github.com/prometheus/statsd_exporter/pkg/line"
 	"github.com/prometheus/statsd_exporter/pkg/listener"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
-	"github.com/prometheus/statsd_exporter/pkg/mapper_cache/lru"
-	"github.com/prometheus/statsd_exporter/pkg/mapper_cache/randomreplacement"
+	"github.com/prometheus/statsd_exporter/pkg/mappercache/lru"
+	"github.com/prometheus/statsd_exporter/pkg/mappercache/randomreplacement"
 )
 
 const (

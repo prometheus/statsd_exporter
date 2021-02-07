@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mapper_cache
+package mappercache
 
 import "github.com/prometheus/client_golang/prometheus"
 

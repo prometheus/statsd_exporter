@@ -18,12 +18,12 @@ import (
 
 	lru2 "github.com/hashicorp/golang-lru"
 
-	"github.com/prometheus/statsd_exporter/pkg/mapper_cache"
+	"github.com/prometheus/statsd_exporter/pkg/mappercache"
 )
 
 type metricMapperLRUCache struct {
 	cache   *lru2.Cache
-	metrics *mapper_cache.CacheMetrics
+	metrics *mappercache.CacheMetrics
 }
 
 func NewMetricMapperLRUCache(reg prometheus.Registerer, size int) (*metricMapperLRUCache, error) {
@@ -31,7 +31,7 @@ func NewMetricMapperLRUCache(reg prometheus.Registerer, size int) (*metricMapper
 		return nil, nil
 	}
 
-	metrics := mapper_cache.NewCacheMetrics(reg)
+	metrics := mappercache.NewCacheMetrics(reg)
 	cache, err := lru2.New(size)
 	if err != nil {
 		return &metricMapperLRUCache{}, err

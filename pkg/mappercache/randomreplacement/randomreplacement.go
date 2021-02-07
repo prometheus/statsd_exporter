@@ -18,14 +18,14 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/prometheus/statsd_exporter/pkg/mapper_cache"
+	"github.com/prometheus/statsd_exporter/pkg/mappercache"
 )
 
 type metricMapperRRCache struct {
 	lock    sync.RWMutex
 	size    int
 	items   map[string]interface{}
-	metrics *mapper_cache.CacheMetrics
+	metrics *mappercache.CacheMetrics
 }
 
 func NewMetricMapperRRCache(reg prometheus.Registerer, size int) (*metricMapperRRCache, error) {
@@ -33,7 +33,7 @@ func NewMetricMapperRRCache(reg prometheus.Registerer, size int) (*metricMapperR
 		return nil, nil
 	}
 
-	metrics := mapper_cache.NewCacheMetrics(reg)
+	metrics := mappercache.NewCacheMetrics(reg)
 	c := &metricMapperRRCache{
 		items:   make(map[string]interface{}, size+1),
 		size:    size,

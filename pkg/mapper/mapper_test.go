@@ -19,7 +19,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/prometheus/statsd_exporter/pkg/mapper_cache/lru"
+	"github.com/prometheus/statsd_exporter/pkg/mappercache/lru"
 )
 
 type mappings []struct {

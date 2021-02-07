@@ -18,8 +18,8 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/prometheus/statsd_exporter/pkg/mapper_cache/lru"
-	"github.com/prometheus/statsd_exporter/pkg/mapper_cache/randomreplacement"
+	"github.com/prometheus/statsd_exporter/pkg/mappercache/lru"
+	"github.com/prometheus/statsd_exporter/pkg/mappercache/randomreplacement"
 )
 
 var (
