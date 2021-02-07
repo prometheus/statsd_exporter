@@ -1573,7 +1573,7 @@ mappings:
 - match: aa.bb.*.*
   name: "aa_bb_${1}_total"
   labels:
-  app: "$2"
+    app: "$2"
 `
 	mapper := MetricMapper{}
 	err := mapper.InitFromYAMLString(config)
@@ -1620,5 +1620,4 @@ mappings:
 			}
 		}
 	}
-
 }
