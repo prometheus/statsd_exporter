@@ -39,6 +39,8 @@ import (
 	"github.com/prometheus/statsd_exporter/pkg/line"
 	"github.com/prometheus/statsd_exporter/pkg/listener"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
+	"github.com/prometheus/statsd_exporter/pkg/mapper_cache/lru"
+	"github.com/prometheus/statsd_exporter/pkg/mapper_cache/randomreplacement"
 )
 
 const (
@@ -206,7 +208,7 @@ func serveHTTP(mux http.Handler, listenAddress string, logger log.Logger) {
 	os.Exit(1)
 }
 
-func sighupConfigReloader(fileName string, mapper *mapper.MetricMapper, cacheSize int, logger log.Logger, option mapper.CacheOption) {
+func sighupConfigReloader(fileName string, mapper *mapper.MetricMapper, logger log.Logger) {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGHUP)
 
@@ -218,12 +220,12 @@ func sighupConfigReloader(fileName string, mapper *mapper.MetricMapper, cacheSiz
 
 		level.Info(logger).Log("msg", "Received signal, attempting reload", "signal", s)
 
-		reloadConfig(fileName, mapper, cacheSize, logger, option)
+		reloadConfig(fileName, mapper, logger)
 	}
 }
 
-func reloadConfig(fileName string, mapper *mapper.MetricMapper, cacheSize int, logger log.Logger, option mapper.CacheOption) {
-	err := mapper.InitFromFile(fileName, cacheSize, option)
+func reloadConfig(fileName string, mapper *mapper.MetricMapper, logger log.Logger) {
+	err := mapper.InitFromFile(fileName)
 	if err != nil {
 		level.Info(logger).Log("msg", "Error reloading config", "error", err)
 		configLoads.WithLabelValues("failure").Inc()
@@ -245,6 +247,29 @@ func dumpFSM(mapper *mapper.MetricMapper, dumpFilename string, logger log.Logger
 	f.Close()
 	level.Info(logger).Log("msg", "Finish dumping FSM")
 	return nil
+}
+
+func getCache(cacheSize int, cacheType string, registerer prometheus.Registerer) (mapper.MetricMapperCache, error) {
+	var cache mapper.MetricMapperCache
+	var err error
+	if cacheSize == 0 {
+		cache = mapper.NewMetricMapperNoopCache()
+	} else {
+		switch cacheType {
+		case "lru":
+			cache, err = lru.NewMetricMapperLRUCache(registerer, cacheSize)
+		case "random":
+			cache, err = randomreplacement.NewMetricMapperRRCache(registerer, cacheSize)
+		default:
+			err = fmt.Errorf("unsupported cache type %q", cacheType)
+		}
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return cache, nil
 }
 
 func main() {
@@ -293,8 +318,6 @@ func main() {
 		parser.EnableSignalFXParsing()
 	}
 
-	cacheOption := mapper.WithCacheType(*cacheType)
-
 	level.Info(logger).Log("msg", "Starting StatsD -> Prometheus Exporter", "version", version.Info())
 	level.Info(logger).Log("msg", "Build context", "context", version.BuildContext())
 
@@ -302,15 +325,23 @@ func main() {
 	defer close(events)
 	eventQueue := event.NewEventQueue(events, *eventFlushThreshold, *eventFlushInterval, eventsFlushed)
 
-	mapper := &mapper.MetricMapper{Registerer: prometheus.DefaultRegisterer, MappingsCount: mappingsCount}
+	thisMapper := &mapper.MetricMapper{Registerer: prometheus.DefaultRegisterer, MappingsCount: mappingsCount}
+
+	cache, err := getCache(*cacheSize, *cacheType, thisMapper.Registerer)
+	if err != nil {
+		level.Error(logger).Log("msg", "Unable to setup metric mapper cache", "error", err)
+		os.Exit(1)
+	}
+	thisMapper.UseCache(cache)
+
 	if *mappingConfig != "" {
-		err := mapper.InitFromFile(*mappingConfig, *cacheSize, cacheOption)
+		err := thisMapper.InitFromFile(*mappingConfig)
 		if err != nil {
 			level.Error(logger).Log("msg", "error loading config", "error", err)
 			os.Exit(1)
 		}
 		if *dumpFSMPath != "" {
-			err := dumpFSM(mapper, *dumpFSMPath, logger)
+			err := dumpFSM(thisMapper, *dumpFSMPath, logger)
 			if err != nil {
 				level.Error(logger).Log("msg", "error dumping FSM", "error", err)
 				// Failure to dump the FSM is an error (the user asked for it and it
@@ -318,11 +349,9 @@ func main() {
 				// afterwards).
 			}
 		}
-	} else {
-		mapper.InitCache(*cacheSize, cacheOption)
 	}
 
-	exporter := exporter.NewExporter(prometheus.DefaultRegisterer, mapper, logger, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	exporter := exporter.NewExporter(prometheus.DefaultRegisterer, thisMapper, logger, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 
 	if *checkConfig {
 		level.Info(logger).Log("msg", "Configuration check successful, exiting")
@@ -489,7 +518,7 @@ func main() {
 					return
 				}
 				level.Info(logger).Log("msg", "Received lifecycle api reload, attempting reload")
-				reloadConfig(*mappingConfig, mapper, *cacheSize, logger, cacheOption)
+				reloadConfig(*mappingConfig, thisMapper, logger)
 			}
 		})
 		mux.HandleFunc("/-/quit", func(w http.ResponseWriter, r *http.Request) {
@@ -518,7 +547,7 @@ func main() {
 
 	go serveHTTP(mux, *listenAddress, logger)
 
-	go sighupConfigReloader(*mappingConfig, mapper, *cacheSize, logger, cacheOption)
+	go sighupConfigReloader(*mappingConfig, thisMapper, logger)
 	go exporter.Listen(events)
 
 	signals := make(chan os.Signal, 1)

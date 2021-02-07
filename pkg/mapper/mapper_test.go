@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/prometheus/statsd_exporter/pkg/mapper_cache/lru"
 )
 
 type mappings []struct {
@@ -1379,12 +1381,15 @@ mappings:
 	}
 
 	mapper := MetricMapper{}
+	cache, _ := lru.NewMetricMapperLRUCache(mapper.Registerer, 1000)
+	mapper.UseCache(cache)
+
 	for i, scenario := range scenarios {
 		if scenario.testName == "" {
 			t.Fatalf("Missing testName in scenario %+v", scenario)
 		}
 		t.Run(scenario.testName, func(t *testing.T) {
-			err := mapper.InitFromYAMLString(scenario.config, 1000)
+			err := mapper.InitFromYAMLString(scenario.config)
 			if err != nil && !scenario.configBad {
 				t.Fatalf("%d. Config load error: %s %s", i, scenario.config, err)
 			}
@@ -1542,7 +1547,7 @@ mappings:
 		}
 		t.Run(scenario.testName, func(t *testing.T) {
 			mapper := MetricMapper{}
-			err := mapper.InitFromYAMLString(scenario.config, 0)
+			err := mapper.InitFromYAMLString(scenario.config)
 			if err != nil && !scenario.configBad {
 				t.Fatalf("%d. Config load error: %s %s", i, scenario.config, err)
 			}
@@ -1571,7 +1576,7 @@ mappings:
   app: "$2"
 `
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		t.Fatalf("config load error: %s ", err)
 	}
@@ -1583,19 +1588,24 @@ mappings:
 		"aa.bb.dd.myapp": "aa_bb_dd_total",
 	}
 
+	lruCache, err := lru.NewMetricMapperLRUCache(mapper.Registerer, len(names))
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
 	scenarios := []struct {
-		cacheSize int
+		cache MetricMapperCache
 	}{
 		{
-			cacheSize: 0,
+			cache: NewMetricMapperNoopCache(),
 		},
 		{
-			cacheSize: len(names),
+			cache: lruCache,
 		},
 	}
 
 	for i, scenario := range scenarios {
-		mapper.InitCache(scenario.cacheSize)
+		mapper.UseCache(scenario.cache)
 
 		// run multiple times to ensure cache works as expected
 		for j := 0; j < 10; j++ {
