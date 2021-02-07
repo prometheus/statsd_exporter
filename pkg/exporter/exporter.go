@@ -55,7 +55,6 @@ type Exporter struct {
 // Listen handles all events sent to the given channel sequentially. It
 // terminates when the channel is closed.
 func (b *Exporter) Listen(e <-chan event.Events) {
-
 	removeStaleMetricsTicker := clock.NewTicker(time.Second)
 
 	for {
@@ -77,7 +76,6 @@ func (b *Exporter) Listen(e <-chan event.Events) {
 
 // handleEvent processes a single Event according to the configured mapping.
 func (b *Exporter) handleEvent(thisEvent event.Event) {
-
 	mapping, labels, present := b.Mapper.GetMapping(thisEvent.MetricName(), thisEvent.MetricType())
 	if mapping == nil {
 		mapping = &mapper.MetricMapping{}

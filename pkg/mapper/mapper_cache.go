@@ -79,9 +79,7 @@ func (m *MetricMapperNoopCache) Get(metricKey string) (interface{}, bool) {
 	return nil, false
 }
 
-func (m *MetricMapperNoopCache) Add(metricKey string, result interface{}) {
-	return
-}
+func (m *MetricMapperNoopCache) Add(metricKey string, result interface{}) {}
 
 func (m *MetricMapperNoopCache) Reset() {}
 

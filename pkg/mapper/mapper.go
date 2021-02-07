@@ -144,7 +144,6 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 			}
 			currentMapping.labelFormatters = labelFormatters
 			currentMapping.labelKeys = labelKeys
-
 		} else {
 			if regex, err := regexp.Compile(currentMapping.Match); err != nil {
 				return fmt.Errorf("invalid regex %s in mapping: %v", currentMapping.Match, err)
@@ -222,7 +221,6 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 		if currentMapping.Ttl == 0 && n.Defaults.Ttl > 0 {
 			currentMapping.Ttl = n.Defaults.Ttl
 		}
-
 	}
 
 	m.mutex.Lock()
