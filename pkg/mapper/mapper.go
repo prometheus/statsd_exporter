@@ -28,10 +28,14 @@ import (
 )
 
 var (
-	statsdMetricRE    = `[a-zA-Z_](-?[a-zA-Z0-9_])*`
-	templateReplaceRE = `(\$\{?\d+\}?)`
+	// The first segment of a match cannot start with a number
+	statsdMetricRE = `[a-zA-Z_](-?[a-zA-Z0-9_])*`
+	// The subsequent segments of a match can start with a number
+	// See https://github.com/prometheus/statsd_exporter/issues/328
+	statsdMetricSubsequentRE = `[a-zA-Z0-9_](-?[a-zA-Z0-9_])*`
+	templateReplaceRE        = `(\$\{?\d+\}?)`
 
-	metricLineRE = regexp.MustCompile(`^(\*\.|` + statsdMetricRE + `\.)+(\*|` + statsdMetricRE + `)$`)
+	metricLineRE = regexp.MustCompile(`^(\*|` + statsdMetricRE + `)(\.\*|\.` + statsdMetricSubsequentRE + `)*$`)
 	metricNameRE = regexp.MustCompile(`^([a-zA-Z_]|` + templateReplaceRE + `)([a-zA-Z0-9_]|` + templateReplaceRE + `)*$`)
 	labelNameRE  = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]+$`)
 )
