@@ -59,7 +59,7 @@ type MetricMapperCacheResult struct {
 	Labels  prometheus.Labels
 }
 
-// MetricMapperCache must be thread-safe and should be instrumented with CacheMetrics
+// MetricMapperCache MUST be thread-safe and should be instrumented with CacheMetrics
 type MetricMapperCache interface {
 	// Get a cached result
 	Get(metricKey string) (interface{}, bool)

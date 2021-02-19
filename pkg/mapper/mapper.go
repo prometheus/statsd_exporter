@@ -263,6 +263,8 @@ func (m *MetricMapper) InitFromFile(fileName string) error {
 	return m.InitFromYAMLString(string(mappingStr))
 }
 
+// UseCache tells the mapper to use a cache that implements the MetricMapperCache interface.
+// This cache MUST be thread-safe!
 func (m *MetricMapper) UseCache(cache MetricMapperCache) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
