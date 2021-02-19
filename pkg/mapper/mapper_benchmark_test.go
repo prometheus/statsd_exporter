@@ -585,15 +585,7 @@ mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)
 	}
 
 	for _, cacheType := range []string{"lru", "random"} {
-		mapper := MetricMapper{}
-		var cache MetricMapperCache
-		switch cacheType {
-		case "lru":
-			cache, _ = lru.NewMetricMapperLRUCache(mapper.Registerer, 1000)
-		case "random":
-			cache, _ = randomreplacement.NewMetricMapperRRCache(mapper.Registerer, 1000)
-		}
-		mapper.UseCache(cache)
+		mapper := newTestMapperWithCache(cacheType, 1000)
 
 		b.Run(cacheType, func(b *testing.B) {
 			err := mapper.InitFromYAMLString(config)
@@ -700,15 +692,7 @@ mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)
 	}
 
 	for _, cacheType := range []string{"lru", "random"} {
-		mapper := MetricMapper{}
-		var cache MetricMapperCache
-		switch cacheType {
-		case "lru":
-			cache, _ = lru.NewMetricMapperLRUCache(mapper.Registerer, 1000)
-		case "random":
-			cache, _ = randomreplacement.NewMetricMapperRRCache(mapper.Registerer, 1000)
-		}
-		mapper.UseCache(cache)
+		mapper := newTestMapperWithCache(cacheType, 1000)
 
 		b.Run(cacheType, func(b *testing.B) {
 			err := mapper.InitFromYAMLString(config)
@@ -845,15 +829,7 @@ mappings:` + duplicateRules(100, ruleTemplateMultipleMatchGlob)
 	}
 
 	for _, cacheType := range []string{"lru", "random"} {
-		mapper := MetricMapper{}
-		var cache MetricMapperCache
-		switch cacheType {
-		case "lru":
-			cache, _ = lru.NewMetricMapperLRUCache(mapper.Registerer, 1000)
-		case "random":
-			cache, _ = randomreplacement.NewMetricMapperRRCache(mapper.Registerer, 1000)
-		}
-		mapper.UseCache(cache)
+		mapper := newTestMapperWithCache(cacheType, 1000)
 
 		b.Run(cacheType, func(b *testing.B) {
 			err := mapper.InitFromYAMLString(config)
@@ -927,15 +903,7 @@ mappings:` + duplicateRules(100, ruleTemplateMultipleMatchRegex)
 	}
 
 	for _, cacheType := range []string{"lru", "random"} {
-		mapper := MetricMapper{}
-		var cache MetricMapperCache
-		switch cacheType {
-		case "lru":
-			cache, _ = lru.NewMetricMapperLRUCache(mapper.Registerer, 1000)
-		case "random":
-			cache, _ = randomreplacement.NewMetricMapperRRCache(mapper.Registerer, 1000)
-		}
-		mapper.UseCache(cache)
+		mapper := newTestMapperWithCache(cacheType, 1000)
 
 		b.Run(cacheType, func(b *testing.B) {
 			err := mapper.InitFromYAMLString(config)
@@ -968,16 +936,7 @@ mappings:` + duplicateRules(101, ruleTemplateSingleMatchGlob)
 	mappings := duplicateMetrics(100, "metric100")
 
 	for _, cacheType := range []string{"lru", "random"} {
-		mapper := MetricMapper{}
-
-		var cache MetricMapperCache
-		switch cacheType {
-		case "lru":
-			cache, _ = lru.NewMetricMapperLRUCache(mapper.Registerer, 1000)
-		case "random":
-			cache, _ = randomreplacement.NewMetricMapperRRCache(mapper.Registerer, 1000)
-		}
-		mapper.UseCache(cache)
+		mapper := newTestMapperWithCache(cacheType, 1000)
 
 		b.Run(cacheType, func(b *testing.B) {
 			err := mapper.InitFromYAMLString(config)
@@ -1006,15 +965,7 @@ mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)
 	mappings := duplicateMetrics(100, "metric100")
 
 	for _, cacheType := range []string{"lru", "random"} {
-		mapper := MetricMapper{}
-		var cache MetricMapperCache
-		switch cacheType {
-		case "lru":
-			cache, _ = lru.NewMetricMapperLRUCache(mapper.Registerer, 50)
-		case "random":
-			cache, _ = randomreplacement.NewMetricMapperRRCache(mapper.Registerer, 50)
-		}
-		mapper.UseCache(cache)
+		mapper := newTestMapperWithCache(cacheType, 1000)
 
 		b.Run(cacheType, func(b *testing.B) {
 			err := mapper.InitFromYAMLString(config)
@@ -1050,18 +1001,8 @@ mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)
 	})
 
 	for _, cacheType := range []string{"lru", "random"} {
-		mapper := MetricMapper{}
-		var cache MetricMapperCache
-		switch cacheType {
-		case "lru":
-			cache, _ = lru.NewMetricMapperLRUCache(mapper.Registerer, 50)
-		case "random":
-			cache, _ = randomreplacement.NewMetricMapperRRCache(mapper.Registerer, 50)
-		}
-		mapper.UseCache(cache)
-
+		mapper := newTestMapperWithCache(cacheType, 50)
 		b.Run(cacheType, func(b *testing.B) {
-			mapper := MetricMapper{}
 			err := mapper.InitFromYAMLString(config)
 			if err != nil {
 				b.Fatalf("Config load error: %s %s", config, err)

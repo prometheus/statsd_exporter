@@ -182,7 +182,6 @@ func TestNegativeCounter(t *testing.T) {
 	prev := getTelemetryCounterValue(errorCounter)
 
 	testMapper := mapper.MetricMapper{}
-	testMapper.UseCache(mapper.NewMetricMapperNoopCache())
 
 	ex := NewExporter(prometheus.DefaultRegisterer, &testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 	ex.Listen(events)
@@ -318,7 +317,6 @@ mappings:
 `
 
 	testMapper := &mapper.MetricMapper{}
-	testMapper.UseCache(mapper.NewMetricMapperNoopCache())
 	err := testMapper.InitFromYAMLString(config)
 	if err != nil {
 		t.Fatalf("Config load error: %s %s", config, err)

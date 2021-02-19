@@ -20,6 +20,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/prometheus/statsd_exporter/pkg/mappercache/lru"
+	"github.com/prometheus/statsd_exporter/pkg/mappercache/randomreplacement"
 )
 
 type mappings []struct {
@@ -34,6 +35,21 @@ type mappings []struct {
 	ageBuckets   uint32
 	bufCap       uint32
 	buckets      []float64
+}
+
+func newTestMapperWithCache(cacheType string, size int) *MetricMapper {
+	mapper := MetricMapper{}
+	var cache MetricMapperCache
+	switch cacheType {
+	case "lru":
+		cache, _ = lru.NewMetricMapperLRUCache(mapper.Registerer, size)
+	case "random":
+		cache, _ = randomreplacement.NewMetricMapperRRCache(mapper.Registerer, size)
+	case "none":
+		return &mapper
+	}
+	mapper.UseCache(cache)
+	return &mapper
 }
 
 func TestMetricMapperYAML(t *testing.T) {
@@ -1575,11 +1591,6 @@ mappings:
   labels:
     app: "$2"
 `
-	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config)
-	if err != nil {
-		t.Fatalf("config load error: %s ", err)
-	}
 
 	names := map[string]string{
 		"aa.bb.aa.myapp": "aa_bb_aa_total",
@@ -1588,24 +1599,14 @@ mappings:
 		"aa.bb.dd.myapp": "aa_bb_dd_total",
 	}
 
-	lruCache, err := lru.NewMetricMapperLRUCache(mapper.Registerer, len(names))
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	scenarios := []struct {
-		cache MetricMapperCache
-	}{
-		{
-			cache: NewMetricMapperNoopCache(),
-		},
-		{
-			cache: lruCache,
-		},
-	}
+	scenarios := []string{"none", "lru"}
 
 	for i, scenario := range scenarios {
-		mapper.UseCache(scenario.cache)
+		mapper := newTestMapperWithCache(scenario, 1000)
+		err := mapper.InitFromYAMLString(config)
+		if err != nil {
+			t.Fatalf("config load error: %s ", err)
+		}
 
 		// run multiple times to ensure cache works as expected
 		for j := 0; j < 10; j++ {

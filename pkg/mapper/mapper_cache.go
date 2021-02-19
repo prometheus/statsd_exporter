@@ -69,20 +69,6 @@ type MetricMapperCache interface {
 	Reset()
 }
 
-type MetricMapperNoopCache struct{}
-
-func NewMetricMapperNoopCache() *MetricMapperNoopCache {
-	return &MetricMapperNoopCache{}
-}
-
-func (m *MetricMapperNoopCache) Get(metricKey string) (interface{}, bool) {
-	return nil, false
-}
-
-func (m *MetricMapperNoopCache) Add(metricKey string, result interface{}) {}
-
-func (m *MetricMapperNoopCache) Reset() {}
-
 func formatKey(metricString string, metricType MetricType) string {
 	return string(metricType) + "." + metricString
 }

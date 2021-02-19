@@ -253,7 +253,7 @@ func getCache(cacheSize int, cacheType string, registerer prometheus.Registerer)
 	var cache mapper.MetricMapperCache
 	var err error
 	if cacheSize == 0 {
-		cache = mapper.NewMetricMapperNoopCache()
+		return nil, nil
 	} else {
 		switch cacheType {
 		case "lru":
