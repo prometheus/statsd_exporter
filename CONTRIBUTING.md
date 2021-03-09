@@ -16,3 +16,5 @@ Prometheus uses GitHub to manage reviews of pull requests.
   and the _Formatting and style_ section of Peter Bourgon's [Go: Best
   Practices for Production
   Environments](http://peter.bourgon.org/go-in-production/#formatting-and-style).
+
+* [![Gitpod ready-to-code](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/prometheus/statsd_exporter)
