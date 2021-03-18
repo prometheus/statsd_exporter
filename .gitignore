@@ -5,3 +5,4 @@ dependencies-stamp
 /.release
 /.tarballs
 *~
+/vendor
