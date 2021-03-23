@@ -277,7 +277,7 @@ mappings:
   labels:
     provider: "$1"
 mappings:
-- match: "(.*)\.(.*)--(.*)\.status\.(.*)\.count"
+- match: "(.*)\\.(.*)--(.*)\\.status\.(.*)\\.count"
   match_type: regex
   name: "request_total"
   labels:
@@ -290,7 +290,7 @@ mappings:
 Be aware about yaml escape rules as a mapping like the following one will not work.
 ```yaml
 mappings:
-- match: "test\.(\w+)\.(\w+)\.counter"
+- match: "test\\.(\w+)\\.(\w+)\\.counter"
   match_type: regex
   name: "${2}_total"
   labels:
@@ -402,7 +402,7 @@ parameter is specified the default value of `glob` will be assumed:
 
 ```yaml
 mappings:
-- match: "(.*)\.(.*)--(.*)\.status\.(.*)\.count"
+- match: "(.*)\\.(.*)--(.*)\\.status\\.(.*)\\.count"
   match_type: regex
   name: "request_total"
   labels:
