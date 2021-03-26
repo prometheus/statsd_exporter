@@ -356,6 +356,77 @@ mappings:
 			},
 		},
 		{
+			testName: "Match metric segment with a number",
+			config: `
+mappings:
+- match: test.99.myapp.*
+  name: "name"
+  labels:
+    label: "${1}_foo"
+  `,
+			mappings: mappings{
+				{
+					statsdMetric: "test.99.myapp.create",
+					name:         "name",
+					labels: map[string]string{
+						"label": "create_foo",
+					},
+				},
+			},
+		},
+		{
+			testName: "Match metric segment starting with a number",
+			config: `
+mappings:
+- match: test.99test.myapp.*
+  name: "name"
+  labels:
+    label: "${1}_foo"
+  `,
+			mappings: mappings{
+				{
+					statsdMetric: "test.99test.myapp.create",
+					name:         "name",
+					labels: map[string]string{
+						"label": "create_foo",
+					},
+				},
+			},
+		},
+		{
+			testName: "Match metric segment with a number #328 example",
+			config: `
+mappings:
+- match: kafka.server.FetcherStats.brokerHost.hostname.brokerPort.9092.clientId.ReplicaFetcherThread-0-1.BytesPerSec.1MinuteRate.gauge
+  name: "example_name"
+  `,
+			mappings: mappings{
+				{
+					statsdMetric: "kafka.server.FetcherStats.brokerHost.hostname.brokerPort.9092.clientId.ReplicaFetcherThread-0-1.BytesPerSec.1MinuteRate.gauge",
+					name:         "example_name",
+				},
+			},
+		},
+		{
+			testName: "Single segment match",
+			config: `
+mappings:
+- match: '*'
+  name: single_segment
+  labels:
+    label: "${1}"
+`,
+			mappings: mappings{
+				{
+					statsdMetric: "test",
+					name:         "single_segment",
+					labels: map[string]string{
+						"label": "test",
+					},
+				},
+			},
+		},
+		{
 			testName: "Config with bad metric line",
 			config: `---
 mappings:
