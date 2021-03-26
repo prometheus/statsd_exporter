@@ -1,6 +1,7 @@
-## 0.20.1 / Unreleased
+## 0.20.1 / 2021-03-26
 
 * [CHANGE] [library] Split mapper caches out from mapper ([#363](https://github.com/prometheus/statsd_exporter/pull/363))
+* [BUGFIX] Accept metric segments that start with numbers ([#365](https://github.com/prometheus/statsd_exporter/pull/365))
 
 ## 0.20.0 / 2021-02-05
 
