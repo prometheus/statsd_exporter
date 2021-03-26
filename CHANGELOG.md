@@ -1,3 +1,7 @@
+## 0.20.1 / Unreleased
+
+* [CHANGE] [library] Split mapper caches out from mapper ([#363](https://github.com/prometheus/statsd_exporter/pull/363))
+
 ## 0.20.0 / 2021-02-05
 
 * [ENHANCEMENT] Support full defaults for summaries and histograms ([#361](https://github.com/prometheus/statsd_exporter/pull/361))
