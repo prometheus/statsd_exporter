@@ -84,5 +84,4 @@ func TestEventIntervalFlush(t *testing.T) {
 	if len(events) != 10 {
 		t.Fatal("Expected 10 events in the event channel, but got", len(events))
 	}
-
 }

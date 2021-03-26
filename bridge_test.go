@@ -572,7 +572,7 @@ func TestHandlePacket(t *testing.T) {
 			le := len(events)
 			// Flatten actual events.
 			actual := event.Events{}
-			for i := 0; i < le; i++ {
+			for j := 0; j < le; j++ {
 				actual = append(actual, <-events...)
 			}
 
@@ -650,7 +650,7 @@ mappings:
 `
 	// Create mapper from config and start an Exporter with a synchronous channel
 	testMapper := &mapper.MetricMapper{}
-	err := testMapper.InitFromYAMLString(config, 0)
+	err := testMapper.InitFromYAMLString(config)
 	if err != nil {
 		t.Fatalf("Config load error: %s %s", config, err)
 	}

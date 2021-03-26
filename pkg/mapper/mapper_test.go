@@ -18,6 +18,9 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/prometheus/statsd_exporter/pkg/mappercache/lru"
+	"github.com/prometheus/statsd_exporter/pkg/mappercache/randomreplacement"
 )
 
 type mappings []struct {
@@ -32,6 +35,21 @@ type mappings []struct {
 	ageBuckets   uint32
 	bufCap       uint32
 	buckets      []float64
+}
+
+func newTestMapperWithCache(cacheType string, size int) *MetricMapper {
+	mapper := MetricMapper{}
+	var cache MetricMapperCache
+	switch cacheType {
+	case "lru":
+		cache, _ = lru.NewMetricMapperLRUCache(mapper.Registerer, size)
+	case "random":
+		cache, _ = randomreplacement.NewMetricMapperRRCache(mapper.Registerer, size)
+	case "none":
+		return &mapper
+	}
+	mapper.UseCache(cache)
+	return &mapper
 }
 
 func TestMetricMapperYAML(t *testing.T) {
@@ -1379,12 +1397,15 @@ mappings:
 	}
 
 	mapper := MetricMapper{}
+	cache, _ := lru.NewMetricMapperLRUCache(mapper.Registerer, 1000)
+	mapper.UseCache(cache)
+
 	for i, scenario := range scenarios {
 		if scenario.testName == "" {
 			t.Fatalf("Missing testName in scenario %+v", scenario)
 		}
 		t.Run(scenario.testName, func(t *testing.T) {
-			err := mapper.InitFromYAMLString(scenario.config, 1000)
+			err := mapper.InitFromYAMLString(scenario.config)
 			if err != nil && !scenario.configBad {
 				t.Fatalf("%d. Config load error: %s %s", i, scenario.config, err)
 			}
@@ -1542,7 +1563,7 @@ mappings:
 		}
 		t.Run(scenario.testName, func(t *testing.T) {
 			mapper := MetricMapper{}
-			err := mapper.InitFromYAMLString(scenario.config, 0)
+			err := mapper.InitFromYAMLString(scenario.config)
 			if err != nil && !scenario.configBad {
 				t.Fatalf("%d. Config load error: %s %s", i, scenario.config, err)
 			}
@@ -1568,13 +1589,8 @@ mappings:
 - match: aa.bb.*.*
   name: "aa_bb_${1}_total"
   labels:
-  app: "$2"
+    app: "$2"
 `
-	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
-	if err != nil {
-		t.Fatalf("config load error: %s ", err)
-	}
 
 	names := map[string]string{
 		"aa.bb.aa.myapp": "aa_bb_aa_total",
@@ -1583,19 +1599,14 @@ mappings:
 		"aa.bb.dd.myapp": "aa_bb_dd_total",
 	}
 
-	scenarios := []struct {
-		cacheSize int
-	}{
-		{
-			cacheSize: 0,
-		},
-		{
-			cacheSize: len(names),
-		},
-	}
+	scenarios := []string{"none", "lru"}
 
 	for i, scenario := range scenarios {
-		mapper.InitCache(scenario.cacheSize)
+		mapper := newTestMapperWithCache(scenario, 1000)
+		err := mapper.InitFromYAMLString(config)
+		if err != nil {
+			t.Fatalf("config load error: %s ", err)
+		}
 
 		// run multiple times to ensure cache works as expected
 		for j := 0; j < 10; j++ {
@@ -1610,5 +1621,4 @@ mappings:
 			}
 		}
 	}
-
 }

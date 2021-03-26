@@ -71,7 +71,7 @@ var defaultQuantiles = []metricObjective{
 	{Quantile: 0.99, Error: 0.001},
 }
 
-func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int, options ...CacheOption) error {
+func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 	var n MetricMapper
 
 	if err := yaml.Unmarshal([]byte(fileContents), &n); err != nil {
@@ -144,7 +144,6 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int, op
 			}
 			currentMapping.labelFormatters = labelFormatters
 			currentMapping.labelKeys = labelKeys
-
 		} else {
 			if regex, err := regexp.Compile(currentMapping.Match); err != nil {
 				return fmt.Errorf("invalid regex %s in mapping: %v", currentMapping.Match, err)
@@ -222,7 +221,6 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int, op
 		if currentMapping.Ttl == 0 && n.Defaults.Ttl > 0 {
 			currentMapping.Ttl = n.Defaults.Ttl
 		}
-
 	}
 
 	m.mutex.Lock()
@@ -230,7 +228,11 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int, op
 
 	m.Defaults = n.Defaults
 	m.Mappings = n.Mappings
-	m.InitCache(cacheSize, options...)
+
+	// Reset the cache since this function can be used to reload config
+	if m.cache != nil {
+		m.cache.Reset()
+	}
 
 	if n.doFSM {
 		var mappings []string
@@ -252,53 +254,36 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string, cacheSize int, op
 	return nil
 }
 
-func (m *MetricMapper) InitFromFile(fileName string, cacheSize int, options ...CacheOption) error {
+func (m *MetricMapper) InitFromFile(fileName string) error {
 	mappingStr, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		return err
 	}
 
-	return m.InitFromYAMLString(string(mappingStr), cacheSize, options...)
+	return m.InitFromYAMLString(string(mappingStr))
 }
 
-func (m *MetricMapper) InitCache(cacheSize int, options ...CacheOption) {
-	if cacheSize == 0 {
-		m.cache = NewMetricMapperNoopCache(m.Registerer)
-	} else {
-		o := cacheOptions{
-			cacheType: "lru",
-		}
-		for _, f := range options {
-			f(&o)
-		}
-
-		var (
-			cache MetricMapperCache
-			err   error
-		)
-		switch o.cacheType {
-		case "lru":
-			cache, err = NewMetricMapperCache(m.Registerer, cacheSize)
-		case "random":
-			cache, err = NewMetricMapperRRCache(m.Registerer, cacheSize)
-		default:
-			err = fmt.Errorf("unsupported cache type %q", o.cacheType)
-		}
-
-		if err != nil {
-			log.Fatalf("Unable to setup metric cache. Caused by: %s", err)
-		}
-		m.cache = cache
-	}
+// UseCache tells the mapper to use a cache that implements the MetricMapperCache interface.
+// This cache MUST be thread-safe!
+func (m *MetricMapper) UseCache(cache MetricMapperCache) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.cache = cache
 }
 
 func (m *MetricMapper) GetMapping(statsdMetric string, statsdMetricType MetricType) (*MetricMapping, prometheus.Labels, bool) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
-	result, cached := m.cache.Get(statsdMetric, statsdMetricType)
-	if cached {
-		return result.Mapping, result.Labels, result.Matched
+
+	// only use a cache if one is present
+	if m.cache != nil {
+		result, cached := m.cache.Get(formatKey(statsdMetric, statsdMetricType))
+		if cached {
+			r := result.(MetricMapperCacheResult)
+			return r.Mapping, r.Labels, r.Matched
+		}
 	}
+
 	// glob matching
 	if m.doFSM {
 		finalState, captures := m.FSM.GetMapping(statsdMetric, string(statsdMetricType))
@@ -312,12 +297,23 @@ func (m *MetricMapper) GetMapping(statsdMetric string, statsdMetricType MetricTy
 				labels[result.labelKeys[index]] = formatter.Format(captures)
 			}
 
-			m.cache.AddMatch(statsdMetric, statsdMetricType, result, labels)
+			r := MetricMapperCacheResult{
+				Mapping: result,
+				Matched: true,
+				Labels:  labels,
+			}
+			// add match to cache
+			if m.cache != nil {
+				m.cache.Add(formatKey(statsdMetric, statsdMetricType), r)
+			}
 
 			return result, labels, true
 		} else if !m.doRegex {
 			// if there's no regex match type, return immediately
-			m.cache.AddMiss(statsdMetric, statsdMetricType)
+			// Add miss to cache
+			if m.cache != nil {
+				m.cache.Add(formatKey(statsdMetric, statsdMetricType), MetricMapperCacheResult{})
+			}
 			return nil, nil, false
 		}
 	}
@@ -350,12 +346,23 @@ func (m *MetricMapper) GetMapping(statsdMetric string, statsdMetricType MetricTy
 			labels[label] = string(value)
 		}
 
-		m.cache.AddMatch(statsdMetric, statsdMetricType, &mapping, labels)
+		r := MetricMapperCacheResult{
+			Mapping: &mapping,
+			Matched: true,
+			Labels:  labels,
+		}
+		// Add Match to cache
+		if m.cache != nil {
+			m.cache.Add(formatKey(statsdMetric, statsdMetricType), r)
+		}
 
 		return &mapping, labels, true
 	}
 
-	m.cache.AddMiss(statsdMetric, statsdMetricType)
+	// Add Miss to cache
+	if m.cache != nil {
+		m.cache.Add(formatKey(statsdMetric, statsdMetricType), MetricMapperCacheResult{})
+	}
 	return nil, nil, false
 }
 

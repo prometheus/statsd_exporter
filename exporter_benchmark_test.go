@@ -20,6 +20,7 @@ import (
 	"github.com/go-kit/kit/log"
 
 	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/prometheus/statsd_exporter/pkg/event"
 	"github.com/prometheus/statsd_exporter/pkg/exporter"
 	"github.com/prometheus/statsd_exporter/pkg/line"
@@ -167,7 +168,7 @@ mappings:
 `
 
 	testMapper := &mapper.MetricMapper{}
-	err := testMapper.InitFromYAMLString(config, 0)
+	err := testMapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}

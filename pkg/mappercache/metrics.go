@@ -1,4 +1,4 @@
-// Copyright 2019 The Prometheus Authors
+// Copyright 2021 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,11 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mapper
+package mappercache
 
-import (
-	"github.com/prometheus/client_golang/prometheus"
-)
+import "github.com/prometheus/client_golang/prometheus"
 
 type CacheMetrics struct {
 	CacheLength    prometheus.Gauge
@@ -51,24 +49,4 @@ func NewCacheMetrics(reg prometheus.Registerer) *CacheMetrics {
 		reg.MustRegister(m.CacheHitsTotal)
 	}
 	return &m
-}
-
-type MetricMapperCacheResult struct {
-	Mapping *MetricMapping
-	Matched bool
-	Labels  prometheus.Labels
-}
-
-// MetricMapperCache MUST be thread-safe and should be instrumented with CacheMetrics
-type MetricMapperCache interface {
-	// Get a cached result
-	Get(metricKey string) (interface{}, bool)
-	// Add a statsd MetricMapperResult to the cache
-	Add(metricKey string, result interface{}) // Add an item to the cache
-	// Reset clears the cache for config reloads
-	Reset()
-}
-
-func formatKey(metricString string, metricType MetricType) string {
-	return string(metricType) + "." + metricString
 }

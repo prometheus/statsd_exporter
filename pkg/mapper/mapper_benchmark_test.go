@@ -17,6 +17,9 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
+
+	"github.com/prometheus/statsd_exporter/pkg/mappercache/lru"
+	"github.com/prometheus/statsd_exporter/pkg/mappercache/randomreplacement"
 )
 
 var (
@@ -105,7 +108,7 @@ mappings:
 	}
 
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -169,7 +172,7 @@ mappings:
 	}
 
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -240,7 +243,7 @@ mappings:
 	}
 
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -304,7 +307,7 @@ mappings:
 	}
 
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -331,7 +334,7 @@ mappings:
 	}
 
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -359,7 +362,7 @@ mappings:
 	}
 
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -385,7 +388,7 @@ mappings:
 	}
 
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -412,7 +415,7 @@ mappings:
 	}
 
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -438,7 +441,7 @@ mappings:
 	}
 
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -465,7 +468,7 @@ mappings:
 	}
 
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -502,7 +505,7 @@ mappings:
 	}
 
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -540,7 +543,7 @@ mappings:
 	}
 
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -561,7 +564,7 @@ mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)
 	}
 
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -582,9 +585,10 @@ mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)
 	}
 
 	for _, cacheType := range []string{"lru", "random"} {
+		mapper := newTestMapperWithCache(cacheType, 1000)
+
 		b.Run(cacheType, func(b *testing.B) {
-			mapper := MetricMapper{}
-			err := mapper.InitFromYAMLString(config, 1000, WithCacheType(cacheType))
+			err := mapper.InitFromYAMLString(config)
 			if err != nil {
 				b.Fatalf("Config load error: %s %s", config, err)
 			}
@@ -609,7 +613,7 @@ mappings:` + duplicateRules(10, ruleTemplateSingleMatchRegex)
 	}
 
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -632,9 +636,19 @@ mappings:` + duplicateRules(10, ruleTemplateSingleMatchRegex)
 	}
 
 	for _, cacheType := range []string{"lru", "random"} {
+		mapper := MetricMapper{}
+		var cache MetricMapperCache
+		switch cacheType {
+		case "lru":
+			cache, _ = lru.NewMetricMapperLRUCache(mapper.Registerer, 1000)
+		case "random":
+			cache, _ = randomreplacement.NewMetricMapperRRCache(mapper.Registerer, 1000)
+		}
+		mapper.UseCache(cache)
+
 		b.Run(cacheType, func(b *testing.B) {
 			mapper := MetricMapper{}
-			err := mapper.InitFromYAMLString(config, 1000, WithCacheType(cacheType))
+			err := mapper.InitFromYAMLString(config)
 			if err != nil {
 				b.Fatalf("Config load error: %s %s", config, err)
 			}
@@ -657,7 +671,7 @@ mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)
 	}
 
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -678,9 +692,10 @@ mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)
 	}
 
 	for _, cacheType := range []string{"lru", "random"} {
+		mapper := newTestMapperWithCache(cacheType, 1000)
+
 		b.Run(cacheType, func(b *testing.B) {
-			mapper := MetricMapper{}
-			err := mapper.InitFromYAMLString(config, 1000, WithCacheType(cacheType))
+			err := mapper.InitFromYAMLString(config)
 			if err != nil {
 				b.Fatalf("Config load error: %s %s", config, err)
 			}
@@ -703,7 +718,7 @@ mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)
 	}
 
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -726,7 +741,7 @@ mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)
 	}
 
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -749,7 +764,7 @@ mappings:` + duplicateRules(100, ruleTemplateSingleMatchRegex)
 	}
 
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -772,7 +787,7 @@ mappings:` + duplicateRules(100, ruleTemplateSingleMatchRegex)
 	}
 
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -793,7 +808,7 @@ mappings:` + duplicateRules(100, ruleTemplateMultipleMatchGlob)
 	}
 
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -814,9 +829,10 @@ mappings:` + duplicateRules(100, ruleTemplateMultipleMatchGlob)
 	}
 
 	for _, cacheType := range []string{"lru", "random"} {
+		mapper := newTestMapperWithCache(cacheType, 1000)
+
 		b.Run(cacheType, func(b *testing.B) {
-			mapper := MetricMapper{}
-			err := mapper.InitFromYAMLString(config, 1000, WithCacheType(cacheType))
+			err := mapper.InitFromYAMLString(config)
 			if err != nil {
 				b.Fatalf("Config load error: %s %s", config, err)
 			}
@@ -841,7 +857,7 @@ mappings:` + duplicateRules(100, ruleTemplateMultipleMatchRegex)
 	}
 
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -864,7 +880,7 @@ mappings:` + duplicateRules(100, ruleTemplateMultipleMatchRegex)
 	}
 
 	mapper := MetricMapper{}
-	err := mapper.InitFromYAMLString(config, 0)
+	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
@@ -887,9 +903,10 @@ mappings:` + duplicateRules(100, ruleTemplateMultipleMatchRegex)
 	}
 
 	for _, cacheType := range []string{"lru", "random"} {
+		mapper := newTestMapperWithCache(cacheType, 1000)
+
 		b.Run(cacheType, func(b *testing.B) {
-			mapper := MetricMapper{}
-			err := mapper.InitFromYAMLString(config, 1000, WithCacheType(cacheType))
+			err := mapper.InitFromYAMLString(config)
 			if err != nil {
 				b.Fatalf("Config load error: %s %s", config, err)
 			}
@@ -914,14 +931,15 @@ func duplicateMetrics(count int, template string) []string {
 
 func BenchmarkGlob100RulesCached100Metrics(b *testing.B) {
 	config := `---
-mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)
+mappings:` + duplicateRules(101, ruleTemplateSingleMatchGlob)
 
 	mappings := duplicateMetrics(100, "metric100")
 
 	for _, cacheType := range []string{"lru", "random"} {
+		mapper := newTestMapperWithCache(cacheType, 1000)
+
 		b.Run(cacheType, func(b *testing.B) {
-			mapper := MetricMapper{}
-			err := mapper.InitFromYAMLString(config, 1000, WithCacheType(cacheType))
+			err := mapper.InitFromYAMLString(config)
 			if err != nil {
 				b.Fatalf("Config load error: %s %s", config, err)
 			}
@@ -947,9 +965,10 @@ mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)
 	mappings := duplicateMetrics(100, "metric100")
 
 	for _, cacheType := range []string{"lru", "random"} {
+		mapper := newTestMapperWithCache(cacheType, 1000)
+
 		b.Run(cacheType, func(b *testing.B) {
-			mapper := MetricMapper{}
-			err := mapper.InitFromYAMLString(config, 50, WithCacheType(cacheType))
+			err := mapper.InitFromYAMLString(config)
 			if err != nil {
 				b.Fatalf("Config load error: %s %s", config, err)
 			}
@@ -982,9 +1001,9 @@ mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)
 	})
 
 	for _, cacheType := range []string{"lru", "random"} {
+		mapper := newTestMapperWithCache(cacheType, 50)
 		b.Run(cacheType, func(b *testing.B) {
-			mapper := MetricMapper{}
-			err := mapper.InitFromYAMLString(config, 50, WithCacheType(cacheType))
+			err := mapper.InitFromYAMLString(config)
 			if err != nil {
 				b.Fatalf("Config load error: %s %s", config, err)
 			}
