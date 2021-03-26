@@ -1,0 +1,13 @@
+tasks:
+  - init: go get
+    command: go build . && ./statsd_exporter
+  - command: printf 'Try:\n\n\techo "test.gauge:42|g" | socat - TCP:127.0.0.1:9125\n\n'
+
+ports:
+  - port: 9102
+    onOpen: open-preview
+  - port: 9125
+    onOpen: ignore
+
+image:
+  file: .gitpod.Dockerfile
