@@ -14,15 +14,17 @@
 package lru
 
 import (
+	"sync"
+
 	"github.com/prometheus/client_golang/prometheus"
 
-	lru2 "github.com/hashicorp/golang-lru"
+	"github.com/golang/groupcache/lru"
 
 	"github.com/prometheus/statsd_exporter/pkg/mappercache"
 )
 
 type metricMapperLRUCache struct {
-	cache   *lru2.Cache
+	cache   *lruCache
 	metrics *mappercache.CacheMetrics
 }
 
@@ -32,10 +34,7 @@ func NewMetricMapperLRUCache(reg prometheus.Registerer, size int) (*metricMapper
 	}
 
 	metrics := mappercache.NewCacheMetrics(reg)
-	cache, err := lru2.New(size)
-	if err != nil {
-		return &metricMapperLRUCache{}, err
-	}
+	cache := newLruCache(size)
 
 	return &metricMapperLRUCache{metrics: metrics, cache: cache}, nil
 }
@@ -60,6 +59,45 @@ func (m *metricMapperLRUCache) trackCacheLength() {
 }
 
 func (m *metricMapperLRUCache) Reset() {
-	m.cache.Purge()
+	m.cache.Clear()
 	m.metrics.CacheLength.Set(0)
+}
+
+type lruCache struct {
+	cache *lru.Cache
+	lock  sync.RWMutex
+}
+
+func newLruCache(maxEntries int) *lruCache {
+	return &lruCache{
+		cache: lru.New(maxEntries),
+	}
+}
+
+func (l *lruCache) Get(key string) (interface{}, bool) {
+	l.lock.RLock()
+	defer l.lock.RUnlock()
+
+	return l.cache.Get(key)
+}
+
+func (l *lruCache) Add(key string, value interface{}) {
+	l.lock.Lock()
+	defer l.lock.Unlock()
+
+	l.cache.Add(key, value)
+}
+
+func (l *lruCache) Len() int {
+	l.lock.RLock()
+	defer l.lock.RUnlock()
+
+	return l.cache.Len()
+}
+
+func (l *lruCache) Clear() {
+	l.lock.Lock()
+	defer l.lock.Unlock()
+
+	l.cache.Clear()
 }
