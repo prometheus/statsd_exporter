@@ -1,3 +1,10 @@
+## 0.20.2 / 2021-05-03
+
+* [BUGFIX] Remove copyleft licensed dependency ([#375](https://github.com/prometheus/statsd_exporter/pull/375))
+
+There is no functional change for exporter users.
+Removing this dependency reduces uncertainty for anyone reusing the mapping code.
+
 ## 0.20.1 / 2021-03-26
 
 * [CHANGE] [library] Split mapper caches out from mapper ([#363](https://github.com/prometheus/statsd_exporter/pull/363))
