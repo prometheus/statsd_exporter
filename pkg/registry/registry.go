@@ -362,7 +362,7 @@ func (r *Registry) RemoveStaleMetrics() {
 	}
 }
 
-// Calculates a hash of both the label names and the label names and values.
+// Calculates a hash of both the label names and values.
 func (r *Registry) HashLabels(labels prometheus.Labels) (metrics.LabelHash, []string) {
 	r.Hasher.Reset()
 	r.NameBuf.Reset()
