@@ -16,7 +16,7 @@ package main
 import (
 	"testing"
 
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 
 	"github.com/prometheus/statsd_exporter/pkg/line"
 )
