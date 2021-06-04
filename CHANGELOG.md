@@ -1,3 +1,11 @@
+## 0.20.3 / 2021-06-04
+
+* [ENHANCEMENT] Use extracted go-kit/log to reduce transitive dependencies ([#378](https://github.com/prometheus/statsd_exporter/pull/378))
+
+Once again there is no functional change.
+For library users, the dependency tree shrinks considerably.
+See [prometheus/common#255](https://github.com/prometheus/common/issues/255) for more details.
+
 ## 0.20.2 / 2021-05-03
 
 * [BUGFIX] Remove copyleft licensed dependency ([#375](https://github.com/prometheus/statsd_exporter/pull/375))
