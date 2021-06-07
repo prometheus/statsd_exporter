@@ -325,7 +325,7 @@ func main() {
 	defer close(events)
 	eventQueue := event.NewEventQueue(events, *eventFlushThreshold, *eventFlushInterval, eventsFlushed)
 
-	thisMapper := &mapper.MetricMapper{Registerer: prometheus.DefaultRegisterer, MappingsCount: mappingsCount}
+	thisMapper := &mapper.MetricMapper{Registerer: prometheus.DefaultRegisterer, MappingsCount: mappingsCount, Logger: logger}
 
 	cache, err := getCache(*cacheSize, *cacheType, thisMapper.Registerer)
 	if err != nil {
