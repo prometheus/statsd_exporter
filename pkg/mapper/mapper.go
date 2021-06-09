@@ -20,8 +20,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/prometheus/statsd_exporter/pkg/mapper/fsm"
@@ -51,6 +52,8 @@ type MetricMapper struct {
 	mutex      sync.RWMutex
 
 	MappingsCount prometheus.Gauge
+
+	Logger log.Logger
 }
 
 type SummaryOptions struct {
@@ -163,12 +166,12 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 
 		if currentMapping.LegacyQuantiles != nil &&
 			(currentMapping.SummaryOptions == nil || currentMapping.SummaryOptions.Quantiles != nil) {
-			log.Warn("using the top level quantiles is deprecated.  Please use quantiles in the summary_options hierarchy")
+			level.Warn(m.Logger).Log("msg", "using the top level quantiles is deprecated.  Please use quantiles in the summary_options hierarchy")
 		}
 
 		if currentMapping.LegacyBuckets != nil &&
 			(currentMapping.HistogramOptions == nil || currentMapping.HistogramOptions.Buckets != nil) {
-			log.Warn("using the top level buckets is deprecated.  Please use buckets in the histogram_options hierarchy")
+			level.Warn(m.Logger).Log("msg", "using the top level buckets is deprecated.  Please use buckets in the histogram_options hierarchy")
 		}
 
 		if currentMapping.SummaryOptions != nil &&
@@ -245,7 +248,7 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 				mappings = append(mappings, mapping.Match)
 			}
 		}
-		n.FSM.BacktrackingNeeded = fsm.TestIfNeedBacktracking(mappings, n.FSM.OrderingDisabled)
+		n.FSM.BacktrackingNeeded = fsm.TestIfNeedBacktracking(mappings, n.FSM.OrderingDisabled, m.Logger)
 
 		m.FSM = n.FSM
 		m.doRegex = n.doRegex
@@ -255,6 +258,11 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 	if m.MappingsCount != nil {
 		m.MappingsCount.Set(float64(len(n.Mappings)))
 	}
+
+	if m.Logger == nil {
+		m.Logger = log.NewNopLogger()
+	}
+
 	return nil
 }
 
