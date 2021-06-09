@@ -14,7 +14,6 @@
 package fsm
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 
@@ -250,7 +249,7 @@ func TestIfNeedBacktracking(mappings []string, orderingDisabled bool, logger log
 		metricRe = strings.Replace(metricRe, "*", "([^.]*)", -1)
 		regex, err := regexp.Compile("^" + metricRe + "$")
 		if err != nil {
-			level.Warn(logger).Log("msg", fmt.Sprintf("invalid match %s. cannot compile regex in mapping: %v", mapping, err))
+			level.Warn(logger).Log("msg", "Invalid match, cannot compile regex in mapping", "mapping", mapping, "err", err)
 		}
 		// put into array no matter there's error or not, we will skip later if regex is nil
 		ruleREByLength[l] = append(ruleREByLength[l], regex)
@@ -293,8 +292,7 @@ func TestIfNeedBacktracking(mappings []string, orderingDisabled bool, logger log
 				if i2 != i1 && len(re1.FindStringSubmatchIndex(r2)) > 0 {
 					// log if we care about ordering and the superset occurs before
 					if !orderingDisabled && i1 < i2 {
-						level.Warn(logger).Log("msg", fmt.Sprintf("match \"%s\" is a super set of match \"%s\" but in a lower order, "+
-							"the first will never be matched", r1, r2))
+						level.Warn(logger).Log("msg", "match is a super set of match but in a lower order, the first will never be matched", "first_match", r1, "second_match", r2)
 					}
 					currentRuleNeedBacktrack = false
 				}
@@ -312,8 +310,7 @@ func TestIfNeedBacktracking(mappings []string, orderingDisabled bool, logger log
 			}
 
 			if currentRuleNeedBacktrack {
-				level.Warn(logger).Log("msg", fmt.Sprintf("backtracking required because of match \"%s\", "+
-					"matching performance may be degraded", r1))
+				level.Warn(logger).Log("msg", "backtracking required because of match. Performance may be degraded", "match", r1)
 				backtrackingNeeded = true
 			}
 		}
