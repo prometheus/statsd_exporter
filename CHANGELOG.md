@@ -1,3 +1,9 @@
+## 0.21.0 / 2021-06-10
+
+* [ENHANCEMENT] Update dependencies & switch to go-kit/log ([#379](https://github.com/prometheus/statsd_exporter/pull/379))
+
+This release changes the log format to be more structured, in line with other Prometheus projects.
+
 ## 0.20.3 / 2021-06-04
 
 * [ENHANCEMENT] Use extracted go-kit/log to reduce transitive dependencies ([#378](https://github.com/prometheus/statsd_exporter/pull/378))
