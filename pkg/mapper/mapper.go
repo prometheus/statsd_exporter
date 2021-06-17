@@ -30,10 +30,10 @@ import (
 
 var (
 	// The first segment of a match cannot start with a number
-	statsdMetricRE = `[a-zA-Z_](-?[a-zA-Z0-9_])*`
+	statsdMetricRE = `[a-zA-Z_]([a-zA-Z0-9_\-])*`
 	// The subsequent segments of a match can start with a number
 	// See https://github.com/prometheus/statsd_exporter/issues/328
-	statsdMetricSubsequentRE = `[a-zA-Z0-9_](-?[a-zA-Z0-9_])*`
+	statsdMetricSubsequentRE = `[a-zA-Z0-9_]([a-zA-Z0-9_\-])*`
 	templateReplaceRE        = `(\$\{?\d+\}?)`
 
 	metricLineRE = regexp.MustCompile(`^(\*|` + statsdMetricRE + `)(\.\*|\.` + statsdMetricSubsequentRE + `)*$`)
