@@ -76,6 +76,11 @@ func (b *Exporter) Listen(e <-chan event.Events) {
 
 // handleEvent processes a single Event according to the configured mapping.
 func (b *Exporter) handleEvent(thisEvent event.Event) {
+	if thisEvent.MetricName() == "" {
+		level.Error(b.Logger).Log("msg", "metric name cannot be empty")
+		return
+	}
+
 	mapping, labels, present := b.Mapper.GetMapping(thisEvent.MetricName(), thisEvent.MetricType())
 	if mapping == nil {
 		mapping = &mapper.MetricMapping{}
