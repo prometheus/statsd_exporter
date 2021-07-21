@@ -148,6 +148,10 @@ NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/king
                                     Parse Librato style tags. Enabled by default.
           --statsd.parse-signalfx-tags  
                                     Parse SignalFX style tags. Enabled by default.
+          --statsd.relay.address=STATSD.RELAY.ADDRESS  
+                                    The UDP relay target address (host:port)
+          --statsd.relay.packet-length=1400  
+                                    Maximum relay output packet length to avoid fragmentation
           --log.level=info          Only log messages with the given severity or
                                     above. One of: [debug, info, warn, error]
           --log.format=logfmt       Output format of log messages. One of: [logfmt,
@@ -159,6 +163,10 @@ NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/king
 
 The `statsd_exporter` has an optional lifecycle API (disabled by default) that can be used to reload or quit the exporter 
 by sending a `PUT` or `POST` request to the `/-/reload` or `/-/quit` endpoints.
+
+## Relay
+
+The `statsd_exporter` has an optional mode that will buffer and relay incoming statsd lines to a remote server. This is useful to "tee" the data when migrating to using the exporter. The relay will flush the buffer at least once per second to avoid delaying delivery of metrics.
 
 ## Tests
 
