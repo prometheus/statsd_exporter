@@ -494,7 +494,7 @@ func main() {
 		}
 	}
 
-	mux := http.NewServeMux()
+	mux := http.DefaultServeMux
 	mux.Handle(*metricsEndpoint, promhttp.Handler())
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
