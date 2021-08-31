@@ -25,6 +25,7 @@ import (
 	"syscall"
 
 	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promlog"
@@ -35,7 +36,6 @@ import (
 	"github.com/prometheus/statsd_exporter/pkg/address"
 	"github.com/prometheus/statsd_exporter/pkg/event"
 	"github.com/prometheus/statsd_exporter/pkg/exporter"
-	"github.com/prometheus/statsd_exporter/pkg/level"
 	"github.com/prometheus/statsd_exporter/pkg/line"
 	"github.com/prometheus/statsd_exporter/pkg/listener"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
@@ -303,10 +303,6 @@ func main() {
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 	logger := promlog.New(promlogConfig)
-	if err := level.SetLogLevel(promlogConfig.Level.String()); err != nil {
-		level.Error(logger).Log("msg", "failed to set log level", "error", err)
-		os.Exit(1)
-	}
 
 	parser := line.NewParser()
 	if *dogstatsdTagsEnabled {

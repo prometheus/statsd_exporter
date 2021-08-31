@@ -18,8 +18,7 @@ import (
 	"strings"
 
 	"github.com/go-kit/log"
-
-	"github.com/prometheus/statsd_exporter/pkg/level"
+	"github.com/go-kit/log/level"
 )
 
 type mappingState struct {
