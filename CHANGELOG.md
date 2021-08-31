@@ -1,3 +1,8 @@
+## 0.22.0 / 2021-08-31
+
+* [ENHANCEMENT] Improve performance of metric ingestion ([#385](https://github.com/prometheus/statsd_exporter/pull/385))
+* [BUGFIX] Actually expose pprof endpoints ([#386](https://github.com/prometheus/statsd_exporter/pull/386))
+
 ## 0.21.0 / 2021-06-10
 
 * [ENHANCEMENT] Update dependencies & switch to go-kit/log ([#379](https://github.com/prometheus/statsd_exporter/pull/379))
