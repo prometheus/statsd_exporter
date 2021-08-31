@@ -1,6 +1,7 @@
 ## 0.22.1 / Unreleased
 
 * [BUGFIX] Actually expose pprof endpoints ([#386](https://github.com/prometheus/statsd_exporter/pull/386))
+* [ENHANCEMENT] Accept incoming metrics with multiple dashes (with mapping) ([#381](https://github.com/prometheus/statsd_exporter//pull/381))
 
 ## 0.21.0 / 2021-06-10
 
