@@ -68,7 +68,7 @@ func TestMetricMapperYAML(t *testing.T) {
 mappings:
 - match: test.dispatcher.*.*.*
   name: "dispatch_events"
-  labels: 
+  labels:
     processor: "$1"
     action: "$2"
     result: "$3"
@@ -430,11 +430,26 @@ mappings:
 			testName: "Config with bad metric line",
 			config: `---
 mappings:
-- match: bad--metric-line.*.*
+- match: bad!!metric-line.*.*
   name: "foo"
   labels: {}
   `,
 			configBad: true,
+		},
+		{
+			testName: "Config with multiple dashes in metric name",
+			config: `---
+mappings:
+- match: "foo--bar.*"
+  name: "foo_bar_${1}"
+  labels: {}
+  `,
+			mappings: mappings{
+				{
+					statsdMetric: "foo--bar.count",
+					name:         "foo_bar_count",
+				},
+			},
 		},
 		{
 			testName: "Config with dynamic metric name",
