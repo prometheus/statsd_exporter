@@ -1,7 +1,9 @@
-## 0.22.1 / Unreleased
+## 0.22.1 / 2021-09-01
 
-* [BUGFIX] Actually expose pprof endpoints ([#386](https://github.com/prometheus/statsd_exporter/pull/386))
 * [ENHANCEMENT] Accept incoming metrics with multiple dashes (with mapping) ([#381](https://github.com/prometheus/statsd_exporter//pull/381))
+* [ENHANCEMENT] Allow forwarding messages to statsd for easier transition ([#388](https://github.com/prometheus/statsd_exporter/pull/388))
+* [BUGFIX] Actually expose pprof endpoints ([#386](https://github.com/prometheus/statsd_exporter/pull/386))
+* [BUGFIX] Fix performance regression on metric ingestion ([#390](https://github.com/prometheus/statsd_exporter/pull/390))
 
 ## 0.21.0 / 2021-06-10
 
