@@ -8,26 +8,38 @@
 
 ## Overview
 
-### With StatsD
+The StatsD exporter is a drop-in replacement for StatsD.
+This exporter translates StatsD metrics to Prometheus metrics via configured mapping rules.
 
-To pipe metrics from an existing StatsD environment into Prometheus, configure
-StatsD's repeater backend to repeat all received metrics to a `statsd_exporter`
-process. This exporter translates StatsD metrics to Prometheus metrics via
-configured mapping rules.
+We recommend using the exporter only as an intermediate solution, and switching to [native Prometheus instrumentation](http://prometheus.io/docs/instrumenting/clientlibs/) in the long term.
+While it is common to run centralized StatsD servers, the exporter works best as a [sidecar](https://docs.microsoft.com/en-us/azure/architecture/patterns/sidecar).
+
+### Transitioning from an existing StatsD setup
+
+The relay feature allows for a gradual transition.
+
+Introduce the exporter by adding it as a sidecar alongside the application instances.
+In Kubernetes, this means adding it to the [pod](https://kubernetes.io/docs/concepts/workloads/pods/).
+Use the `--statsd.relay.address` to forward metrics to your existing StatsD UDP endpoint.
+Relaying forwards statsd events unmodified, preserving the original metric name and tags in any format.
+
+    +-------------+    +----------+                  +------------+
+    | Application +--->| Exporter +----------------->|  StatsD    |
+    +-------------+    +----------+                  +------------+
+                              ^
+                              |                      +------------+
+                              +----------------------+ Prometheus |
+                                                     +------------+
+
+### Relaying from StatsD
+
+To pipe metrics from an existing StatsD environment into Prometheus, configure StatsD's repeater backend to repeat all received metrics to a `statsd_exporter` process.
 
     +----------+                         +-------------------+                        +--------------+
     |  StatsD  |---(UDP/TCP repeater)--->|  statsd_exporter  |<---(scrape /metrics)---|  Prometheus  |
     +----------+                         +-------------------+                        +--------------+
 
-### Without StatsD
-
-Since the StatsD exporter uses the same line protocol as StatsD itself, you can
-also configure your applications to send StatsD metrics directly to the exporter.
-In that case, you don't need to run a StatsD server anymore.
-
-We recommend this only as an intermediate solution and recommend switching to
-[native Prometheus instrumentation](http://prometheus.io/docs/instrumenting/clientlibs/)
-in the long term.
+This allows trying out the exporter with minimal effort, but does not provide the per-instance metrics of the sidecar pattern.
 
 ### Tagging Extensions
 
