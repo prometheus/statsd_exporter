@@ -41,6 +41,7 @@ import (
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 	"github.com/prometheus/statsd_exporter/pkg/mappercache/lru"
 	"github.com/prometheus/statsd_exporter/pkg/mappercache/randomreplacement"
+	"github.com/prometheus/statsd_exporter/pkg/relay"
 )
 
 const (
@@ -286,7 +287,7 @@ func main() {
 		readBuffer           = kingpin.Flag("statsd.read-buffer", "Size (in bytes) of the operating system's transmit read buffer associated with the UDP or Unixgram connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.").Int()
 		cacheSize            = kingpin.Flag("statsd.cache-size", "Maximum size of your metric mapping cache. Relies on least recently used replacement policy if max size is reached.").Default("1000").Int()
 		cacheType            = kingpin.Flag("statsd.cache-type", "Metric mapping cache type. Valid options are \"lru\" and \"random\"").Default("lru").Enum("lru", "random")
-		eventQueueSize       = kingpin.Flag("statsd.event-queue-size", "Size of internal queue for processing events.").Default("10000").Int()
+		eventQueueSize       = kingpin.Flag("statsd.event-queue-size", "Size of internal queue for processing events.").Default("10000").Uint()
 		eventFlushThreshold  = kingpin.Flag("statsd.event-flush-threshold", "Number of events to hold in queue before flushing.").Default("1000").Int()
 		eventFlushInterval   = kingpin.Flag("statsd.event-flush-interval", "Maximum time between event queue flushes.").Default("200ms").Duration()
 		dumpFSMPath          = kingpin.Flag("debug.dump-fsm", "The path to dump internal FSM generated for glob matching as Dot file.").Default("").String()
@@ -295,6 +296,8 @@ func main() {
 		influxdbTagsEnabled  = kingpin.Flag("statsd.parse-influxdb-tags", "Parse InfluxDB style tags. Enabled by default.").Default("true").Bool()
 		libratoTagsEnabled   = kingpin.Flag("statsd.parse-librato-tags", "Parse Librato style tags. Enabled by default.").Default("true").Bool()
 		signalFXTagsEnabled  = kingpin.Flag("statsd.parse-signalfx-tags", "Parse SignalFX style tags. Enabled by default.").Default("true").Bool()
+		relayAddr            = kingpin.Flag("statsd.relay.address", "The UDP relay target address (host:port)").String()
+		relayPacketLen       = kingpin.Flag("statsd.relay.packet-length", "Maximum relay output packet length to avoid fragmentation").Default("1400").Uint()
 	)
 
 	promlogConfig := &promlog.Config{}
@@ -362,6 +365,16 @@ func main() {
 		return
 	}
 
+	var relayTarget *relay.Relay
+	if *relayAddr != "" {
+		var err error
+		relayTarget, err = relay.NewRelay(logger, *relayAddr, *relayPacketLen)
+		if err != nil {
+			level.Error(logger).Log("msg", "Unable to create relay", "err", err)
+			os.Exit(1)
+		}
+	}
+
 	level.Info(logger).Log("msg", "Accepting StatsD Traffic", "udp", *statsdListenUDP, "tcp", *statsdListenTCP, "unixgram", *statsdListenUnixgram)
 	level.Info(logger).Log("msg", "Accepting Prometheus Requests", "addr", *listenAddress)
 
@@ -398,6 +411,7 @@ func main() {
 			UDPPackets:      udpPackets,
 			LinesReceived:   linesReceived,
 			EventsFlushed:   eventsFlushed,
+			Relay:           relayTarget,
 			SampleErrors:    *sampleErrors,
 			SamplesReceived: samplesReceived,
 			TagErrors:       tagErrors,
@@ -427,6 +441,7 @@ func main() {
 			LineParser:      parser,
 			LinesReceived:   linesReceived,
 			EventsFlushed:   eventsFlushed,
+			Relay:           relayTarget,
 			SampleErrors:    *sampleErrors,
 			SamplesReceived: samplesReceived,
 			TagErrors:       tagErrors,
@@ -472,6 +487,7 @@ func main() {
 			UnixgramPackets: unixgramPackets,
 			LinesReceived:   linesReceived,
 			EventsFlushed:   eventsFlushed,
+			Relay:           relayTarget,
 			SampleErrors:    *sampleErrors,
 			SamplesReceived: samplesReceived,
 			TagErrors:       tagErrors,
