@@ -26,6 +26,7 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/promlog/flag"
@@ -50,118 +51,118 @@ const (
 )
 
 var (
-	eventStats = prometheus.NewCounterVec(
+	eventStats = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_events_total",
 			Help: "The total number of StatsD events seen.",
 		},
 		[]string{"type"},
 	)
-	eventsFlushed = prometheus.NewCounter(
+	eventsFlushed = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_event_queue_flushed_total",
 			Help: "Number of times events were flushed to exporter",
 		},
 	)
-	eventsUnmapped = prometheus.NewCounter(
+	eventsUnmapped = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_events_unmapped_total",
 			Help: "The total number of StatsD events no mapping was found for.",
 		})
-	udpPackets = prometheus.NewCounter(
+	udpPackets = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_udp_packets_total",
 			Help: "The total number of StatsD packets received over UDP.",
 		},
 	)
-	tcpConnections = prometheus.NewCounter(
+	tcpConnections = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_tcp_connections_total",
 			Help: "The total number of TCP connections handled.",
 		},
 	)
-	tcpErrors = prometheus.NewCounter(
+	tcpErrors = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_tcp_connection_errors_total",
 			Help: "The number of errors encountered reading from TCP.",
 		},
 	)
-	tcpLineTooLong = prometheus.NewCounter(
+	tcpLineTooLong = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_tcp_too_long_lines_total",
 			Help: "The number of lines discarded due to being too long.",
 		},
 	)
-	unixgramPackets = prometheus.NewCounter(
+	unixgramPackets = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_unixgram_packets_total",
 			Help: "The total number of StatsD packets received over Unixgram.",
 		},
 	)
-	linesReceived = prometheus.NewCounter(
+	linesReceived = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_lines_total",
 			Help: "The total number of StatsD lines received.",
 		},
 	)
-	samplesReceived = prometheus.NewCounter(
+	samplesReceived = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_samples_total",
 			Help: "The total number of StatsD samples received.",
 		},
 	)
-	sampleErrors = prometheus.NewCounterVec(
+	sampleErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_sample_errors_total",
 			Help: "The total number of errors parsing StatsD samples.",
 		},
 		[]string{"reason"},
 	)
-	tagsReceived = prometheus.NewCounter(
+	tagsReceived = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_tags_total",
 			Help: "The total number of DogStatsD tags processed.",
 		},
 	)
-	tagErrors = prometheus.NewCounter(
+	tagErrors = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_tag_errors_total",
 			Help: "The number of errors parsing DogStatsD tags.",
 		},
 	)
-	configLoads = prometheus.NewCounterVec(
+	configLoads = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_config_reloads_total",
 			Help: "The number of configuration reloads.",
 		},
 		[]string{"outcome"},
 	)
-	mappingsCount = prometheus.NewGauge(prometheus.GaugeOpts{
+	mappingsCount = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "statsd_exporter_loaded_mappings",
 		Help: "The current number of configured metric mappings.",
 	})
-	conflictingEventStats = prometheus.NewCounterVec(
+	conflictingEventStats = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_events_conflict_total",
 			Help: "The total number of StatsD events with conflicting names.",
 		},
 		[]string{"type"},
 	)
-	errorEventStats = prometheus.NewCounterVec(
+	errorEventStats = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_events_error_total",
 			Help: "The total number of StatsD events discarded due to errors.",
 		},
 		[]string{"reason"},
 	)
-	eventsActions = prometheus.NewCounterVec(
+	eventsActions = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_events_actions_total",
 			Help: "The total number of StatsD events by action.",
 		},
 		[]string{"action"},
 	)
-	metricsCount = prometheus.NewGaugeVec(
+	metricsCount = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "statsd_exporter_metrics_total",
 			Help: "The total number of metrics.",
@@ -169,29 +170,6 @@ var (
 		[]string{"type"},
 	)
 )
-
-func init() {
-	prometheus.MustRegister(version.NewCollector("statsd_exporter"))
-	prometheus.MustRegister(eventStats)
-	prometheus.MustRegister(eventsFlushed)
-	prometheus.MustRegister(eventsUnmapped)
-	prometheus.MustRegister(udpPackets)
-	prometheus.MustRegister(tcpConnections)
-	prometheus.MustRegister(tcpErrors)
-	prometheus.MustRegister(tcpLineTooLong)
-	prometheus.MustRegister(unixgramPackets)
-	prometheus.MustRegister(linesReceived)
-	prometheus.MustRegister(samplesReceived)
-	prometheus.MustRegister(sampleErrors)
-	prometheus.MustRegister(tagsReceived)
-	prometheus.MustRegister(tagErrors)
-	prometheus.MustRegister(configLoads)
-	prometheus.MustRegister(mappingsCount)
-	prometheus.MustRegister(conflictingEventStats)
-	prometheus.MustRegister(errorEventStats)
-	prometheus.MustRegister(eventsActions)
-	prometheus.MustRegister(metricsCount)
-}
 
 // uncheckedCollector wraps a Collector but its Describe method yields no Desc.
 // This allows incoming metrics to have inconsistent label sets
@@ -310,6 +288,7 @@ func main() {
 		level.Error(logger).Log("msg", "failed to set log level", "error", err)
 		os.Exit(1)
 	}
+	prometheus.MustRegister(version.NewCollector("statsd_exporter"))
 
 	parser := line.NewParser()
 	if *dogstatsdTagsEnabled {
