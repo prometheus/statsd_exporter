@@ -22,6 +22,8 @@ import (
 
 	"github.com/go-kit/log"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/statsd_exporter/pkg/level"
 )
 
@@ -31,7 +33,27 @@ type Relay struct {
 	conn          *net.UDPConn
 	logger        log.Logger
 	packetLength  uint
+
+	packetsTotal   prometheus.Counter
+	longLinesTotal prometheus.Counter
 }
+
+var (
+	relayPacketsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_relay_packets_total",
+			Help: "The number of StatsD packets relayed.",
+		},
+		[]string{"target"},
+	)
+	relayLongLinesTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_relay_long_lines_total",
+			Help: "The number lines that were too long to relay.",
+		},
+		[]string{"target"},
+	)
+)
 
 // NewRelay creates a statsd UDP relay. It can be used to send copies of statsd raw
 // lines to a separate service.
@@ -53,6 +75,9 @@ func NewRelay(l log.Logger, target string, packetLength uint) (*Relay, error) {
 		conn:          conn,
 		logger:        l,
 		packetLength:  packetLength,
+
+		packetsTotal:   relayPacketsTotal.WithLabelValues(target),
+		longLinesTotal: relayLongLinesTotal.WithLabelValues(target),
 	}
 
 	// Startup the UDP sender.
@@ -106,6 +131,7 @@ func (r *Relay) sendPacket(buf []byte) error {
 	}
 	level.Debug(r.logger).Log("msg", "Sending packet", "length", len(buf), "data", buf)
 	_, err := r.conn.WriteToUDP(buf, r.addr)
+	r.packetsTotal.Inc()
 	return err
 }
 
@@ -118,6 +144,7 @@ func (r *Relay) RelayLine(l string) {
 	}
 	if lineLength > r.packetLength-1 {
 		level.Warn(r.logger).Log("msg", "line too long, not relaying", "length", lineLength, "max", r.packetLength)
+		r.longLinesTotal.Inc()
 		return
 	}
 	level.Debug(r.logger).Log("msg", "Relaying line", "line", l)
