@@ -1,3 +1,7 @@
+## 0.22.2 / 2021-09-10
+
+* [ENHANCEMENT] Add metrics to relay ([#393](https://github.com/prometheus/statsd_exporter/pull/393))
+
 ## 0.22.1 / 2021-09-01
 
 * [ENHANCEMENT] Accept incoming metrics with multiple dashes (with mapping) ([#381](https://github.com/prometheus/statsd_exporter//pull/381))
