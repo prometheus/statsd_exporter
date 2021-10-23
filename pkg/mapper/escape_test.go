@@ -23,7 +23,7 @@ func TestEscapeMetricName(t *testing.T) {
 		"with--doubledash":        "with_doubledash",
 		"with---multiple-dashes":  "with_multiple_dashes",
 		"with.dot":                "with_dot",
-		"with😱emoji":             "with_emoji",
+		"with😱emoji":              "with_emoji",
 		"with.*.multiple":         "with___multiple",
 		"test.web-server.foo.bar": "test_web_server_foo_bar",
 		"":                        "",

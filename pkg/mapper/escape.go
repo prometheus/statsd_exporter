@@ -39,7 +39,9 @@ func EscapeMetricName(metricName string) string {
 	// This is an character replacement method optimized for this limited
 	// use case.  It is much faster than using a regex.
 	offset := 0
+
 	var prevChar rune
+
 	for i, c := range metricName {
 		// Seek forward, skipping valid characters until we find one that needs
 		// to be replaced, then add all the characters we've seen so far to the
