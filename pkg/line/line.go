@@ -239,7 +239,6 @@ samples:
 	for _, sample := range samples {
 		samplesReceived.Inc()
 		components := strings.Split(sample, "|")
-		samplingFactor := 1.0
 		if len(components) < 2 || len(components) > 4 {
 			sampleErrors.WithLabelValues("malformed_component").Inc()
 			level.Debug(logger).Log("msg", "Bad component", "line", line)
@@ -273,7 +272,7 @@ samples:
 				switch component[0] {
 				case '@':
 
-					samplingFactor, err = strconv.ParseFloat(component[1:], 64)
+					samplingFactor, err := strconv.ParseFloat(component[1:], 64)
 					if err != nil {
 						level.Debug(logger).Log("msg", "Invalid sampling factor", "component", component[1:], "line", line)
 						sampleErrors.WithLabelValues("invalid_sample_factor").Inc()

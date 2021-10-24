@@ -1,5 +1,28 @@
-# Run only staticcheck for now. Additional linters will be enabled one-by-one.
+run:
+  issues-exit-code: 1
+  tests: true
+  skip-dirs:
+    - vendor
 linters:
-  enable:
-  - staticcheck
   disable-all: true
+  enable:
+    - deadcode
+    - goimports
+    - gosimple
+    - govet
+    - ineffassign
+    - nakedret
+    - staticcheck
+    - structcheck
+    - unused
+    - varcheck
+    - whitespace
+linters-settings:
+  govet:
+    check-shadowing: true
+issues:
+  exclude-use-default: false
+  exclude:
+    - 'shadow: declaration of "err" shadows declaration at line (\d+)'
+  max-issues-per-linter: 0
+  max-same-issues: 0
