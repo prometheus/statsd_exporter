@@ -1,10 +1,9 @@
 run:
   issues-exit-code: 1
   tests: true
-  skip-dirs:
-    - vendor
 linters:
-  disable-all: true
+  disable:
+    - errcheck
   enable:
     - deadcode
     - goimports
