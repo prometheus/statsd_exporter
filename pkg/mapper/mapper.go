@@ -22,7 +22,7 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 
 	"github.com/prometheus/statsd_exporter/pkg/level"
 	"github.com/prometheus/statsd_exporter/pkg/mapper/fsm"
@@ -381,7 +381,6 @@ func (m *MetricMapper) GetMapping(statsdMetric string, statsdMetricType MetricTy
 // make a shallow copy so that we do not overwrite name
 // as multiple names can be matched by same mapping
 func copyMetricMapping(in *MetricMapping) *MetricMapping {
-	var out MetricMapping
-	out = *in
+	out := *in
 	return &out
 }

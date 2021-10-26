@@ -74,12 +74,6 @@ var (
 			Help: "The number of lines discarded due to being too long.",
 		},
 	)
-	unixgramPackets = prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Name: "statsd_exporter_unixgram_packets_total",
-			Help: "The total number of StatsD packets received over Unixgram.",
-		},
-	)
 	linesReceived = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_lines_total",
@@ -111,17 +105,6 @@ var (
 			Help: "The number of errors parsing DogStatsD tags.",
 		},
 	)
-	configLoads = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "statsd_exporter_config_reloads_total",
-			Help: "The number of configuration reloads.",
-		},
-		[]string{"outcome"},
-	)
-	mappingsCount = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "statsd_exporter_loaded_mappings",
-		Help: "The current number of configured metric mappings.",
-	})
 	conflictingEventStats = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_events_conflict_total",
