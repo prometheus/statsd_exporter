@@ -1,3 +1,7 @@
+## 0.22.3 / 2021-10-26
+
+* [BUGFIX] Accept metrics with multiple dashes even if not mapped ([#402](https://github.com/prometheus/statsd_exporter/pull/402))
+
 ## 0.22.2 / 2021-09-10
 
 * [ENHANCEMENT] Add metrics to relay ([#393](https://github.com/prometheus/statsd_exporter/pull/393))
