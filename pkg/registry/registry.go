@@ -259,7 +259,7 @@ func (r *Registry) GetHistogram(metricName string, labels prometheus.Labels, hel
 			Buckets: buckets,
 		}, labelNames)
 
-		if err := prometheus.Register(uncheckedCollector{histogramVec}); err != nil {
+		if err := r.Registerer.Register(uncheckedCollector{histogramVec}); err != nil {
 			return nil, err
 		}
 	} else {
@@ -328,7 +328,7 @@ func (r *Registry) GetSummary(metricName string, labels prometheus.Labels, help 
 			BufCap:     summaryOptions.BufCap,
 		}, labelNames)
 
-		if err := prometheus.Register(uncheckedCollector{summaryVec}); err != nil {
+		if err := r.Registerer.Register(uncheckedCollector{summaryVec}); err != nil {
 			return nil, err
 		}
 	} else {
