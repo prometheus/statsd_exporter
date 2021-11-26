@@ -1,3 +1,8 @@
+## 0.22.4 / 2021-11-26
+
+* [BUGFIX] Make Docker image compatible with the runAsNonRoot setting in Kubernetes pods ([#409](https://github.com/prometheus/statsd_exporter/pull/409))
+* [BUGFIX] Library: fix support for custom Registerers with histograms and summaries ([#410](https://github.com/prometheus/statsd_exporter/pull/410))
+
 ## 0.22.3 / 2021-10-26
 
 * [BUGFIX] Accept metrics with multiple dashes even if not mapped ([#402](https://github.com/prometheus/statsd_exporter/pull/402))
