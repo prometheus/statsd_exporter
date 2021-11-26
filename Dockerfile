@@ -7,7 +7,7 @@ ARG ARCH="amd64"
 ARG OS="linux"
 COPY .build/${OS}-${ARCH}/statsd_exporter /bin/statsd_exporter
 
-USER        nobody
+USER        65534
 EXPOSE      9102 9125 9125/udp
 HEALTHCHECK CMD wget --spider -S "http://localhost:9102/metrics" -T 60 2>&1 || exit 1
 ENTRYPOINT  [ "/bin/statsd_exporter" ]
