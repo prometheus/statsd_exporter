@@ -68,6 +68,11 @@ func (b *Exporter) Listen(e <-chan event.Events) {
 				return
 			}
 			for _, event := range events {
+				if b.Mapper.GlobalLabels != nil {
+					for k, v := range b.Mapper.GlobalLabels {
+						event.Labels()[k] = v
+					}
+				}
 				b.handleEvent(event)
 			}
 		}

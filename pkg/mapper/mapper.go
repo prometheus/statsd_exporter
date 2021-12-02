@@ -54,6 +54,8 @@ type MetricMapper struct {
 	MappingsCount prometheus.Gauge
 
 	Logger log.Logger
+
+	GlobalLabels map[string]string `yaml:"global_labels"`
 }
 
 type SummaryOptions struct {
@@ -83,6 +85,10 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 
 	if err := yaml.Unmarshal([]byte(fileContents), &n); err != nil {
 		return err
+	}
+
+	if len(n.GlobalLabels) > 0 {
+		m.GlobalLabels = n.GlobalLabels
 	}
 
 	if len(n.Defaults.HistogramOptions.Buckets) == 0 {
