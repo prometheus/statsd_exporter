@@ -16,6 +16,7 @@ package relay
 import (
 	"bytes"
 	"fmt"
+	"github.com/prometheus/statsd_exporter/pkg/clock"
 	"net"
 	"strings"
 	"time"
@@ -91,7 +92,7 @@ func (r *Relay) relayOutput() {
 	var buffer bytes.Buffer
 	var err error
 
-	relayInterval := time.NewTicker(1 * time.Second)
+	relayInterval := clock.NewTicker(1 * time.Second)
 	defer relayInterval.Stop()
 
 	for {
