@@ -22,9 +22,9 @@ func TestRelay_RelayLine(t *testing.T) {
 		args args
 	}{
 		{
-			name: "single line",
+			name: "multiple lines",
 			args: args{
-				lines:    []string{"foo5:100|c|#tag1:bar,#tag2:baz"},
+				lines:    []string{"foo5:100|c|#tag1:bar,#tag2:baz", "foo2:200|c|#tag1:bar,#tag2:baz"},
 				expected: "foo5:100|c|#tag1:bar,#tag2:baz\n",
 			},
 		},
@@ -66,18 +66,22 @@ func TestRelay_RelayLine(t *testing.T) {
 			}
 
 			metricNames := map[string]float64{
-				"statsd_exporter_relay_long_lines_total": 0,
+				"statsd_exporter_relay_long_lines_total":    0,
+				"statsd_exporter_relay_lines_relayed_total": float64(len(tt.args.lines)),
 			}
 			for metricName, expectedValue := range metricNames {
-				firstMetric := getFloat64(metrics, metricName, prometheus.Labels{"target": "localhost:1160"})
+				metric := getFloat64(metrics, metricName, prometheus.Labels{"target": "localhost:1160"})
 
-				if firstMetric == nil {
+				if metric == nil {
 					t.Fatalf("Could not find time series with first label set for metric: %s", metricName)
 				}
-				if *firstMetric != expectedValue {
-					t.Errorf("Expected metric %s to be %f, got %f", metricName, expectedValue, *firstMetric)
+				if *metric != expectedValue {
+					t.Errorf("Expected metric %s to be %f, got %f", metricName, expectedValue, *metric)
 				}
 			}
+
+			prometheus.Unregister(relayLongLinesTotal)
+			prometheus.Unregister(relayLinesRelayedTotal)
 		})
 	}
 }
