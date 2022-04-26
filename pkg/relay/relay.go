@@ -16,10 +16,11 @@ package relay
 import (
 	"bytes"
 	"fmt"
-	"github.com/prometheus/statsd_exporter/pkg/clock"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/prometheus/statsd_exporter/pkg/clock"
 
 	"github.com/go-kit/log"
 

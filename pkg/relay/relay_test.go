@@ -2,13 +2,14 @@ package relay
 
 import (
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/statsd_exporter/pkg/clock"
 	"github.com/stvp/go-udp-testing"
-	"testing"
-	"time"
 )
 
 func TestRelay_RelayLine(t *testing.T) {
@@ -33,7 +34,6 @@ func TestRelay_RelayLine(t *testing.T) {
 	for _, tt := range tests {
 		udp.SetAddr(":1160")
 		t.Run(tt.name, func(t *testing.T) {
-
 			tickerCh := make(chan time.Time)
 			clock.ClockInstance = &clock.Clock{
 				TickerCh: tickerCh,
@@ -56,8 +56,8 @@ func TestRelay_RelayLine(t *testing.T) {
 					r.RelayLine(line)
 				}
 				// Tick time forward to trigger a packet send.
-				clock.ClockInstance.Instant = time.Unix(20000, 0)
-				clock.ClockInstance.TickerCh <- time.Unix(20000, 0)
+				clock.ClockInstance.Instant = time.Unix(1, 10)
+				clock.ClockInstance.TickerCh <- time.Unix(0, 0)
 			})
 
 			metrics, err := prometheus.DefaultGatherer.Gather()
