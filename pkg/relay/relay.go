@@ -20,6 +20,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prometheus/statsd_exporter/pkg/clock"
+
 	"github.com/go-kit/log"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -34,8 +36,9 @@ type Relay struct {
 	logger        log.Logger
 	packetLength  uint
 
-	packetsTotal   prometheus.Counter
-	longLinesTotal prometheus.Counter
+	packetsTotal      prometheus.Counter
+	longLinesTotal    prometheus.Counter
+	relayedLinesTotal prometheus.Counter
 }
 
 var (
@@ -50,6 +53,13 @@ var (
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_relay_long_lines_total",
 			Help: "The number lines that were too long to relay.",
+		},
+		[]string{"target"},
+	)
+	relayLinesRelayedTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_relay_lines_relayed_total",
+			Help: "The number of lines that were buffered to be relayed.",
 		},
 		[]string{"target"},
 	)
@@ -76,8 +86,9 @@ func NewRelay(l log.Logger, target string, packetLength uint) (*Relay, error) {
 		logger:        l,
 		packetLength:  packetLength,
 
-		packetsTotal:   relayPacketsTotal.WithLabelValues(target),
-		longLinesTotal: relayLongLinesTotal.WithLabelValues(target),
+		packetsTotal:      relayPacketsTotal.WithLabelValues(target),
+		longLinesTotal:    relayLongLinesTotal.WithLabelValues(target),
+		relayedLinesTotal: relayLinesRelayedTotal.WithLabelValues(target),
 	}
 
 	// Startup the UDP sender.
@@ -91,7 +102,7 @@ func (r *Relay) relayOutput() {
 	var buffer bytes.Buffer
 	var err error
 
-	relayInterval := time.NewTicker(1 * time.Second)
+	relayInterval := clock.NewTicker(1 * time.Second)
 	defer relayInterval.Stop()
 
 	for {
@@ -151,5 +162,6 @@ func (r *Relay) RelayLine(l string) {
 	if !strings.HasSuffix(l, "\n") {
 		l = l + "\n"
 	}
+	r.relayedLinesTotal.Inc()
 	r.bufferChannel <- []byte(l)
 }
