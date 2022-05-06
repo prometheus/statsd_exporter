@@ -1,6 +1,8 @@
 ## 0.22.5 / 2022-05-06
 
-This is a maintenance release, built with Go 1.17.9, to address security issues in Go.
+* [ENHANCEMENT] Add metric for total lines relayed ([#434](https://github.com/prometheus/statsd_exporter/pull/434))
+
+This release is built with Go 1.17.9, to address security issues in Go.
 
 ## 0.22.4 / 2021-11-26
 
