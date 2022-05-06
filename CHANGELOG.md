@@ -1,3 +1,7 @@
+## 0.22.5 / 2022-05-06
+
+This is a maintenance release, built with Go 1.17.9, to address security issues in Go.
+
 ## 0.22.4 / 2021-11-26
 
 * [BUGFIX] Make Docker image compatible with the runAsNonRoot setting in Kubernetes pods ([#409](https://github.com/prometheus/statsd_exporter/pull/409))
@@ -388,7 +392,6 @@ NOTE: This release renames `statsd_bridge` to `statsd_exporter`
 * [BUGFIX] allow metrics with dashes when mapping ([#24](https://github.com/prometheus/statsd_exporter/pulls/24))
 * [ENHANCEMENT] add root endpoint with redirect ([#25](https://github.com/prometheus/statsd_exporter/pulls/25))
 * [CHANGE] rename bridge to exporter ([#26](https://github.com/prometheus/statsd_exporter/pulls/26))
-
 
 ## 0.1.0 / 2015-04-17
 
