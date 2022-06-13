@@ -6,3 +6,4 @@ dependencies-stamp
 /.tarballs
 *~
 /vendor
+.idea

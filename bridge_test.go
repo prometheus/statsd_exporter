@@ -734,8 +734,8 @@ mappings:
 	if err != nil {
 		t.Fatal("Gather should not fail")
 	}
-	foobarValue = getFloat64(metrics, "foobar", prometheus.Labels{})
-	bazquxValue = getFloat64(metrics, "bazqux", prometheus.Labels{})
+	foobarValue = getFloat64(metrics, "foobar", prometheus.Labels{exporter.OriginalNameLabel: "foobar"})
+	bazquxValue = getFloat64(metrics, "bazqux", prometheus.Labels{exporter.OriginalNameLabel: "bazqux.main"})
 	if bazquxValue != nil {
 		t.Fatalf("Summary `bazqux` should be expired")
 	}

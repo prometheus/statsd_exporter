@@ -183,6 +183,10 @@ func TestInconsistentLabelSets(t *testing.T) {
 	secondLabelSet := make(map[string]string)
 	metricNames := [4]string{"counter_test", "gauge_test", "histogram_test", "summary_test"}
 
+	metricNameMap := map[string]string{
+		"histogram_test": "histogram.test",
+	}
+
 	firstLabelSet["foo"] = "1"
 	secondLabelSet["foo"] = "1"
 	secondLabelSet["bar"] = "2"
@@ -193,42 +197,42 @@ func TestInconsistentLabelSets(t *testing.T) {
 			&event.CounterEvent{
 				CMetricName: "counter_test",
 				CValue:      1,
-				CLabels:     firstLabelSet,
+				CLabels:     map[string]string{"foo": "1"},
 			},
 			&event.CounterEvent{
 				CMetricName: "counter_test",
 				CValue:      1,
-				CLabels:     secondLabelSet,
+				CLabels:     map[string]string{"foo": "1", "bar": "2"},
 			},
 			&event.GaugeEvent{
 				GMetricName: "gauge_test",
 				GValue:      1,
-				GLabels:     firstLabelSet,
+				GLabels:     map[string]string{"foo": "1"},
 			},
 			&event.GaugeEvent{
 				GMetricName: "gauge_test",
 				GValue:      1,
-				GLabels:     secondLabelSet,
+				GLabels:     map[string]string{"foo": "1", "bar": "2"},
 			},
 			&event.ObserverEvent{
 				OMetricName: "histogram.test",
 				OValue:      1,
-				OLabels:     firstLabelSet,
+				OLabels:     map[string]string{"foo": "1"},
 			},
 			&event.ObserverEvent{
 				OMetricName: "histogram.test",
 				OValue:      1,
-				OLabels:     secondLabelSet,
+				OLabels:     map[string]string{"foo": "1", "bar": "2"},
 			},
 			&event.ObserverEvent{
 				OMetricName: "summary_test",
 				OValue:      1,
-				OLabels:     firstLabelSet,
+				OLabels:     map[string]string{"foo": "1"},
 			},
 			&event.ObserverEvent{
 				OMetricName: "summary_test",
 				OValue:      1,
-				OLabels:     secondLabelSet,
+				OLabels:     map[string]string{"foo": "1", "bar": "2"},
 			},
 		}
 		events <- c
@@ -256,14 +260,20 @@ mappings:
 	}
 
 	for _, metricName := range metricNames {
+		originalName, found := metricNameMap[metricName]
+		if !found {
+			originalName = metricName
+		}
+		firstLabelSet[OriginalNameLabel] = originalName
 		firstMetric := getFloat64(metrics, metricName, firstLabelSet)
+		secondLabelSet[OriginalNameLabel] = originalName
 		secondMetric := getFloat64(metrics, metricName, secondLabelSet)
 
 		if firstMetric == nil {
-			t.Fatalf("Could not find time series with first label set for metric: %s", metricName)
+			t.Fatalf("Could not find time series with first label set for metric: %s, labelset: %v", metricName, firstLabelSet)
 		}
 		if secondMetric == nil {
-			t.Fatalf("Could not find time series with second label set for metric: %s", metricName)
+			t.Fatalf("Could not find time series with second label set for metric: %s, labelSet: %v", metricName, secondLabelSet)
 		}
 	}
 }
@@ -316,6 +326,7 @@ mappings:
 	labels := make(map[string]string)
 
 	for _, code := range codes {
+		labels[OriginalNameLabel] = "counter.test." + code
 		labels["code"] = code
 		if getFloat64(metrics, "counter_test", labels) == nil {
 			t.Fatalf("Could not find metrics for counter_test code %s", code)
@@ -326,14 +337,18 @@ mappings:
 // TestConflictingMetrics validates that the exporter will not register metrics
 // of different types that have overlapping names.
 func TestConflictingMetrics(t *testing.T) {
+	type metricValuesPair struct {
+		originalName string
+		values       []float64
+	}
 	scenarios := []struct {
 		name     string
-		expected []float64
+		expected metricValuesPair
 		in       event.Events
 	}{
 		{
 			name:     "counter vs gauge",
-			expected: []float64{1},
+			expected: metricValuesPair{originalName: "", values: []float64{1}},
 			in: event.Events{
 				&event.CounterEvent{
 					CMetricName: "cvg_test",
@@ -347,7 +362,7 @@ func TestConflictingMetrics(t *testing.T) {
 		},
 		{
 			name:     "counter vs gauge with different labels",
-			expected: []float64{1, 2},
+			expected: metricValuesPair{originalName: "cvgl_test", values: []float64{1, 2}},
 			in: event.Events{
 				&event.CounterEvent{
 					CMetricName: "cvgl_test",
@@ -368,7 +383,7 @@ func TestConflictingMetrics(t *testing.T) {
 		},
 		{
 			name:     "counter vs gauge with same labels",
-			expected: []float64{3},
+			expected: metricValuesPair{originalName: "cvgsl_test", values: []float64{3}},
 			in: event.Events{
 				&event.CounterEvent{
 					CMetricName: "cvgsl_test",
@@ -389,7 +404,7 @@ func TestConflictingMetrics(t *testing.T) {
 		},
 		{
 			name:     "gauge vs counter",
-			expected: []float64{2},
+			expected: metricValuesPair{originalName: "", values: []float64{2}},
 			in: event.Events{
 				&event.GaugeEvent{
 					GMetricName: "gvc_test",
@@ -403,7 +418,7 @@ func TestConflictingMetrics(t *testing.T) {
 		},
 		{
 			name:     "counter vs histogram",
-			expected: []float64{1},
+			expected: metricValuesPair{originalName: "", values: []float64{1}},
 			in: event.Events{
 				&event.CounterEvent{
 					CMetricName: "histogram_test1",
@@ -417,7 +432,7 @@ func TestConflictingMetrics(t *testing.T) {
 		},
 		{
 			name:     "counter vs histogram sum",
-			expected: []float64{1},
+			expected: metricValuesPair{originalName: "", values: []float64{1}},
 			in: event.Events{
 				&event.CounterEvent{
 					CMetricName: "histogram_test1_sum",
@@ -431,7 +446,7 @@ func TestConflictingMetrics(t *testing.T) {
 		},
 		{
 			name:     "counter vs histogram count",
-			expected: []float64{1},
+			expected: metricValuesPair{originalName: "", values: []float64{1}},
 			in: event.Events{
 				&event.CounterEvent{
 					CMetricName: "histogram_test2_count",
@@ -445,7 +460,7 @@ func TestConflictingMetrics(t *testing.T) {
 		},
 		{
 			name:     "counter vs histogram bucket",
-			expected: []float64{1},
+			expected: metricValuesPair{originalName: "", values: []float64{1}},
 			in: event.Events{
 				&event.CounterEvent{
 					CMetricName: "histogram_test3_bucket",
@@ -459,7 +474,7 @@ func TestConflictingMetrics(t *testing.T) {
 		},
 		{
 			name:     "counter vs summary quantile",
-			expected: []float64{1},
+			expected: metricValuesPair{originalName: "", values: []float64{1}},
 			in: event.Events{
 				&event.CounterEvent{
 					CMetricName: "cvsq_test",
@@ -473,7 +488,7 @@ func TestConflictingMetrics(t *testing.T) {
 		},
 		{
 			name:     "counter vs summary count",
-			expected: []float64{1},
+			expected: metricValuesPair{originalName: "", values: []float64{1}},
 			in: event.Events{
 				&event.CounterEvent{
 					CMetricName: "cvsc_count",
@@ -487,7 +502,7 @@ func TestConflictingMetrics(t *testing.T) {
 		},
 		{
 			name:     "counter vs summary sum",
-			expected: []float64{1},
+			expected: metricValuesPair{originalName: "", values: []float64{1}},
 			in: event.Events{
 				&event.CounterEvent{
 					CMetricName: "cvss_sum",
@@ -528,9 +543,16 @@ mappings:
 				t.Fatalf("Cannot gather from DefaultGatherer: %v", err)
 			}
 
-			for i, e := range s.expected {
+			for i, e := range s.expected.values {
+				labels := s.in[i].Labels()
+				if len(labels) == 0 {
+					labels = map[string]string{}
+				}
+				if s.expected.originalName != "" {
+					labels[OriginalNameLabel] = s.expected.originalName
+				}
 				mn := s.in[i].MetricName()
-				m := getFloat64(metrics, mn, s.in[i].Labels())
+				m := getFloat64(metrics, mn, labels)
 
 				if m == nil {
 					t.Fatalf("Could not find time series with metric name '%v'", mn)
