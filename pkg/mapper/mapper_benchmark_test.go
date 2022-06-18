@@ -18,6 +18,8 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/go-kit/log"
+
 	"github.com/prometheus/statsd_exporter/pkg/mappercache/lru"
 	"github.com/prometheus/statsd_exporter/pkg/mappercache/randomreplacement"
 )
@@ -242,7 +244,9 @@ mappings:
 		"foo.bar.baz",
 	}
 
-	mapper := MetricMapper{}
+	mapper := MetricMapper{
+		Logger: log.NewNopLogger(),
+	}
 	err := mapper.InitFromYAMLString(config)
 	if err != nil {
 		b.Fatalf("Config load error: %s %s", config, err)
