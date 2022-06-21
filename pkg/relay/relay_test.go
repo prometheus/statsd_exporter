@@ -15,6 +15,7 @@ package relay
 
 import (
 	"fmt"
+	"runtime"
 	"testing"
 	"time"
 
@@ -68,6 +69,14 @@ func TestRelay_RelayLine(t *testing.T) {
 				for _, line := range tt.args.lines {
 					r.RelayLine(line)
 				}
+
+				for goSchedTimes := 0; goSchedTimes < 1000; goSchedTimes++ {
+					if len(r.bufferChannel) == 0 {
+						break
+					}
+					runtime.Gosched()
+				}
+
 				// Tick time forward to trigger a packet send.
 				clock.ClockInstance.Instant = time.Unix(1, 10)
 				clock.ClockInstance.TickerCh <- time.Unix(0, 0)
