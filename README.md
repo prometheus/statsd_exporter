@@ -317,6 +317,25 @@ mappings:
     provider: "$1"
 ```
 
+#### Special match groups
+
+When using regex, the match group `0` is the full match and can be used to attach labels to the metric.
+Example:
+
+```yaml
+mappings:
+- match: ".+"
+  match_type: regex
+  name: "$0"
+  labels:
+    statsd_metric_name: "$0"
+```
+
+If a metric `my.statsd_counter` is received, the metric name will **still** be mapped to `my_statsd_counter` (Prometheus compatible name).
+But the metric will also have the label `statsd_metric_name` with the value `my.statsd_counter` (unchanged value).
+
+The same is not achievable with glob matching, for more details check [this issue](https://github.com/prometheus/statsd_exporter/issues/438).
+
 ### Naming, labels, and help
 
 Please note that metrics with the same name must also have the same set of
