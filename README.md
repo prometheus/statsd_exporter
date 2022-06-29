@@ -336,7 +336,7 @@ But the metric will also have the label `statsd_metric_name` with the value `my.
 
 Note: If you use the `match` like the example (i.e. `.+`), be aware that it will be a "catch-all" block. So it should come at the very end of the mapping list.
 
-The same is not achievable with glob matching, for more details check [this issue](https://github.com/prometheus/statsd_exporter/issues/438).
+The same is not achievable with glob matching, for more details check [this issue](https://github.com/prometheus/statsd_exporter/issues/444).
 
 ### Naming, labels, and help
 
