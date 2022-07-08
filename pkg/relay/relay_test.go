@@ -45,8 +45,10 @@ func TestRelay_RelayLine(t *testing.T) {
 		},
 	}
 
+	const testAddr = "[::1]:1160"
+
 	for _, tt := range tests {
-		udp.SetAddr(":1160")
+		udp.SetAddr(testAddr)
 		t.Run(tt.name, func(t *testing.T) {
 			tickerCh := make(chan time.Time)
 			clock.ClockInstance = &clock.Clock{
@@ -57,7 +59,7 @@ func TestRelay_RelayLine(t *testing.T) {
 			logger := log.NewNopLogger()
 			r, err := NewRelay(
 				logger,
-				"localhost:1160",
+				testAddr,
 				200,
 			)
 
@@ -92,7 +94,7 @@ func TestRelay_RelayLine(t *testing.T) {
 				"statsd_exporter_relay_lines_relayed_total": float64(len(tt.args.lines)),
 			}
 			for metricName, expectedValue := range metricNames {
-				metric := getFloat64(metrics, metricName, prometheus.Labels{"target": "localhost:1160"})
+				metric := getFloat64(metrics, metricName, prometheus.Labels{"target": testAddr})
 
 				if metric == nil {
 					t.Fatalf("Could not find time series with first label set for metric: %s", metricName)
