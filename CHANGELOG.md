@@ -1,3 +1,7 @@
+## 0.22.7 / 2022-07-08
+
+* [CHANGE] Build with Go 1.18 ([#450](https://github.com/prometheus/statsd_exporter/pull/450))
+
 ## 0.22.6 / 2022-07-08
 
 * [CHANGE] Update dependencies ([#449](https://github.com/prometheus/statsd_exporter/pull/449))
