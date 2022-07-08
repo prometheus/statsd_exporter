@@ -1,3 +1,9 @@
+## 0.22.6 / 2022-07-08
+
+* [CHANGE] Update dependencies ([#449](https://github.com/prometheus/statsd_exporter/pull/449))
+
+This is another housekeeping release.
+
 ## 0.22.5 / 2022-05-06
 
 * [ENHANCEMENT] Add metric for total lines relayed ([#434](https://github.com/prometheus/statsd_exporter/pull/434))
