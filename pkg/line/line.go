@@ -33,11 +33,22 @@ type Parser struct {
 	InfluxdbTagsEnabled  bool
 	LibratoTagsEnabled   bool
 	SignalFXTagsEnabled  bool
+
+	labelValueBuf []byte
 }
+
+type parserState int
+
+const (
+	readingLabelName parserState = iota
+	readingLabelValue
+)
 
 // NewParser returns a new line parser
 func NewParser() *Parser {
-	p := Parser{}
+	p := Parser{
+		labelValueBuf: make([]byte, 0, 180),
+	}
 	return &p
 }
 
@@ -167,6 +178,65 @@ func (p *Parser) ParseDogStatsDTags(component string, labels map[string]string, 
 	}
 }
 
+func (p *Parser) EfficientDogStatsdTags(
+	component string,
+	labels map[string]string,
+	tagErrors prometheus.Counter,
+	logger log.Logger,
+) {
+	if p.DogstatsdTagsEnabled {
+		p.labelValueBuf = p.labelValueBuf[:0]
+
+		if len(component) == 0 {
+			return
+		}
+
+		var labelName string
+		state := readingLabelName
+		for _, c := range []byte(component) {
+			if c == '#' && state == readingLabelName {
+				continue
+			}
+			if c == ':' && state == readingLabelName {
+				labelName = string(p.labelValueBuf)
+				p.labelValueBuf = p.labelValueBuf[:0]
+				state = readingLabelValue
+				continue
+			}
+			if c == ',' && state == readingLabelName {
+				p.labelValueBuf = p.labelValueBuf[:0]
+				continue
+			}
+			if c == ',' && state == readingLabelValue {
+				if len(labelName) == 0 || len(p.labelValueBuf) == 0 {
+					tagErrors.Inc()
+					level.Debug(logger).Log("msg", "Malformed dogstatsd tag", "component", component)
+					p.labelValueBuf = p.labelValueBuf[:0]
+					state = readingLabelName
+					continue
+				}
+
+				labels[mapper.EscapeMetricName(labelName)] = string(p.labelValueBuf)
+				p.labelValueBuf = p.labelValueBuf[:0]
+				state = readingLabelName
+				continue
+			}
+
+			p.labelValueBuf = append(p.labelValueBuf, c)
+		}
+		if state == readingLabelValue {
+			if len(labelName) == 0 || len(p.labelValueBuf) == 0 {
+				tagErrors.Inc()
+				level.Debug(logger).Log("msg", "Malformed dogstatsd tag", "component", component)
+				p.labelValueBuf = p.labelValueBuf[:0]
+				state = readingLabelName
+			}
+
+			labels[mapper.EscapeMetricName(labelName)] = string(p.labelValueBuf)
+		}
+	}
+}
+
 func (p *Parser) parseNameAndTags(name string, labels map[string]string, tagErrors prometheus.Counter, logger log.Logger) string {
 	if p.SignalFXTagsEnabled {
 		// check for SignalFx tags first
@@ -289,7 +359,7 @@ samples:
 						multiplyEvents = int(1 / samplingFactor)
 					}
 				case '#':
-					p.ParseDogStatsDTags(component[1:], labels, tagErrors, logger)
+					p.EfficientDogStatsdTags(component[1:], labels, tagErrors, logger)
 				default:
 					level.Debug(logger).Log("msg", "Invalid sampling factor or tag section", "component", components[2], "line", line)
 					sampleErrors.WithLabelValues("invalid_sample_factor").Inc()

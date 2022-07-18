@@ -1043,6 +1043,7 @@ func BenchmarkParseDogStatsDTags(b *testing.B) {
 		"2 tags, mixed hashes": "tag1:test,#tag2:test",
 		"3 long tags":          "tag1:reallylongtagthisisreallylong,tag2:anotherreallylongtag,tag3:thisisyetanotherextraordinarilylongtag",
 		"a-z tags":             "a:0,b:1,c:2,d:3,e:4,f:5,g:6,h:7,i:8,j:9,k:0,l:1,m:2,n:3,o:4,p:5,q:6,r:7,s:8,t:9,u:0,v:1,w:2,x:3,y:4,z:5",
+		"many tags":            "deploy_stage:production,tag:myservice,env:prod,region:us-east-1,service:myservice,version:1.0.0,commit:ae7f8f8,branch:master,build_id:123456789",
 	}
 
 	parser := line.NewParser()
@@ -1054,7 +1055,7 @@ func BenchmarkParseDogStatsDTags(b *testing.B) {
 		b.Run(name, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				labels := map[string]string{}
-				parser.ParseDogStatsDTags(tags, labels, tagErrors, log.NewNopLogger())
+				parser.EfficientDogStatsdTags(tags, labels, tagErrors, log.NewNopLogger())
 			}
 		})
 	}
