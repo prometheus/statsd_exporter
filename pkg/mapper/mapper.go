@@ -15,7 +15,7 @@ package mapper
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"regexp"
 	"sync"
 	"time"
@@ -267,7 +267,7 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 }
 
 func (m *MetricMapper) InitFromFile(fileName string) error {
-	mappingStr, err := ioutil.ReadFile(fileName)
+	mappingStr, err := os.ReadFile(fileName)
 	if err != nil {
 		return err
 	}
