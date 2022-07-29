@@ -233,6 +233,10 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
+	if m.Logger == nil {
+		m.Logger = log.NewNopLogger()
+	}
+
 	m.Defaults = n.Defaults
 	m.Mappings = n.Mappings
 
@@ -257,10 +261,6 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 
 	if m.MappingsCount != nil {
 		m.MappingsCount.Set(float64(len(n.Mappings)))
-	}
-
-	if m.Logger == nil {
-		m.Logger = log.NewNopLogger()
 	}
 
 	return nil
