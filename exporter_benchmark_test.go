@@ -15,8 +15,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/prometheus/statsd_exporter/pkg/parser"
 	"testing"
+
+	"github.com/prometheus/statsd_exporter/pkg/parser"
 
 	"github.com/go-kit/log"
 

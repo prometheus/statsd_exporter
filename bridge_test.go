@@ -15,12 +15,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/prometheus/statsd_exporter/pkg/parser"
-	"github.com/stretchr/testify/require"
 	"net"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/prometheus/statsd_exporter/pkg/parser"
+	"github.com/stretchr/testify/require"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"

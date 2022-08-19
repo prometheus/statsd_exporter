@@ -16,7 +16,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"github.com/prometheus/statsd_exporter/pkg/parser"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -24,6 +23,8 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
+
+	"github.com/prometheus/statsd_exporter/pkg/parser"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"

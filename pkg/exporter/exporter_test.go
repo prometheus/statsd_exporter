@@ -15,11 +15,12 @@ package exporter
 
 import (
 	"fmt"
-	"github.com/prometheus/statsd_exporter/pkg/parser"
-	"github.com/stretchr/testify/require"
 	"net"
 	"testing"
 	"time"
+
+	"github.com/prometheus/statsd_exporter/pkg/parser"
+	"github.com/stretchr/testify/require"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -40,12 +41,6 @@ var (
 			Help: "The total number of StatsD events seen.",
 		},
 		[]string{"type"},
-	)
-	eventsFlushed = prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Name: "statsd_exporter_event_queue_flushed_total",
-			Help: "Number of times events were flushed to exporter",
-		},
 	)
 	eventsUnmapped = prometheus.NewCounter(
 		prometheus.CounterOpts{
