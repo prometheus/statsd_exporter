@@ -25,7 +25,6 @@ import (
 
 	"github.com/prometheus/statsd_exporter/pkg/event"
 	"github.com/prometheus/statsd_exporter/pkg/level"
-	"github.com/prometheus/statsd_exporter/pkg/relay"
 )
 
 type Parser interface {
@@ -33,22 +32,14 @@ type Parser interface {
 }
 
 type StatsDUDPListener struct {
-	Conn            *net.UDPConn
-	EventHandler    event.EventHandler
-	Logger          log.Logger
-	LineParser      Parser
-	UDPPackets      prometheus.Counter
-	LinesReceived   prometheus.Counter
-	EventsFlushed   prometheus.Counter
-	Relay           *relay.Relay
-	SampleErrors    prometheus.CounterVec
-	SamplesReceived prometheus.Counter
-	TagErrors       prometheus.Counter
-	TagsReceived    prometheus.Counter
+	Conn         *net.UDPConn
+	Logger       log.Logger
+	UDPPackets   prometheus.Counter
+	PacketBuffer chan string
 }
 
-func (l *StatsDUDPListener) SetEventHandler(eh event.EventHandler) {
-	l.EventHandler = eh
+func (l *StatsDUDPListener) SetPacketBuffer(pb chan string) {
+	l.PacketBuffer = pb
 }
 
 func (l *StatsDUDPListener) Listen() {
@@ -70,36 +61,21 @@ func (l *StatsDUDPListener) Listen() {
 
 func (l *StatsDUDPListener) HandlePacket(packet []byte) {
 	l.UDPPackets.Inc()
-	lines := strings.Split(string(packet), "\n")
-	for _, line := range lines {
-		level.Debug(l.Logger).Log("msg", "Incoming line", "proto", "udp", "line", line)
-		l.LinesReceived.Inc()
-		if l.Relay != nil && len(line) > 0 {
-			l.Relay.RelayLine(line)
-		}
-		l.EventHandler.Queue(l.LineParser.LineToEvents(line, l.SampleErrors, l.SamplesReceived, l.TagErrors, l.TagsReceived, l.Logger))
-	}
+	l.PacketBuffer <- string(packet)
 }
 
 type StatsDTCPListener struct {
-	Conn            *net.TCPListener
-	EventHandler    event.EventHandler
-	Logger          log.Logger
-	LineParser      Parser
-	LinesReceived   prometheus.Counter
-	EventsFlushed   prometheus.Counter
-	Relay           *relay.Relay
-	SampleErrors    prometheus.CounterVec
-	SamplesReceived prometheus.Counter
-	TagErrors       prometheus.Counter
-	TagsReceived    prometheus.Counter
-	TCPConnections  prometheus.Counter
-	TCPErrors       prometheus.Counter
-	TCPLineTooLong  prometheus.Counter
+	Conn         *net.TCPListener
+	PacketBuffer chan string
+	Logger       log.Logger
+
+	TCPConnections prometheus.Counter
+	TCPErrors      prometheus.Counter
+	TCPLineTooLong prometheus.Counter
 }
 
-func (l *StatsDTCPListener) SetEventHandler(eh event.EventHandler) {
-	l.EventHandler = eh
+func (l *StatsDTCPListener) SetPacketBuffer(pb chan string) {
+	l.PacketBuffer = pb
 }
 
 func (l *StatsDTCPListener) Listen() {
@@ -139,31 +115,21 @@ func (l *StatsDTCPListener) HandleConn(c *net.TCPConn) {
 			level.Debug(l.Logger).Log("msg", "Read failed: line too long", "addr", c.RemoteAddr())
 			break
 		}
-		l.LinesReceived.Inc()
-		if l.Relay != nil && len(line) > 0 {
-			l.Relay.RelayLine(string(line))
-		}
-		l.EventHandler.Queue(l.LineParser.LineToEvents(string(line), l.SampleErrors, l.SamplesReceived, l.TagErrors, l.TagsReceived, l.Logger))
+
+		l.PacketBuffer <- string(line)
 	}
 }
 
 type StatsDUnixgramListener struct {
-	Conn            *net.UnixConn
-	EventHandler    event.EventHandler
-	Logger          log.Logger
-	LineParser      Parser
+	Conn         *net.UnixConn
+	PacketBuffer chan string
+	Logger       log.Logger
+
 	UnixgramPackets prometheus.Counter
-	LinesReceived   prometheus.Counter
-	EventsFlushed   prometheus.Counter
-	Relay           *relay.Relay
-	SampleErrors    prometheus.CounterVec
-	SamplesReceived prometheus.Counter
-	TagErrors       prometheus.Counter
-	TagsReceived    prometheus.Counter
 }
 
-func (l *StatsDUnixgramListener) SetEventHandler(eh event.EventHandler) {
-	l.EventHandler = eh
+func (l *StatsDUnixgramListener) SetPacketBuffer(pb chan string) {
+	l.PacketBuffer = pb
 }
 
 func (l *StatsDUnixgramListener) Listen() {
@@ -185,13 +151,5 @@ func (l *StatsDUnixgramListener) Listen() {
 
 func (l *StatsDUnixgramListener) HandlePacket(packet []byte) {
 	l.UnixgramPackets.Inc()
-	lines := strings.Split(string(packet), "\n")
-	for _, line := range lines {
-		level.Debug(l.Logger).Log("msg", "Incoming line", "proto", "unixgram", "line", line)
-		l.LinesReceived.Inc()
-		if l.Relay != nil && len(line) > 0 {
-			l.Relay.RelayLine(line)
-		}
-		l.EventHandler.Queue(l.LineParser.LineToEvents(line, l.SampleErrors, l.SamplesReceived, l.TagErrors, l.TagsReceived, l.Logger))
-	}
+	l.PacketBuffer <- string(packet)
 }

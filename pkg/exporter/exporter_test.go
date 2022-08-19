@@ -19,6 +19,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/statsd_exporter/pkg/parser"
+	"github.com/stretchr/testify/require"
+
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
@@ -38,12 +41,6 @@ var (
 			Help: "The total number of StatsD events seen.",
 		},
 		[]string{"type"},
-	)
-	eventsFlushed = prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Name: "statsd_exporter_event_queue_flushed_total",
-			Help: "Number of times events were flushed to exporter",
-		},
 	)
 	eventsUnmapped = prometheus.NewCounter(
 		prometheus.CounterOpts{
@@ -596,51 +593,58 @@ func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
 		}
 	}()
 
-	events := make(chan event.Events)
+	events := make(chan event.Events, 10)
+	packets := make(chan string, 10)
 	ueh := &event.UnbufferedEventHandler{C: events}
 
-	parser := line.NewParser()
-	parser.EnableDogstatsdParsing()
-	parser.EnableInfluxdbParsing()
-	parser.EnableLibratoParsing()
-	parser.EnableSignalFXParsing()
+	testParser := line.NewParser()
+	testParser.EnableDogstatsdParsing()
+	testParser.EnableInfluxdbParsing()
+	testParser.EnableLibratoParsing()
+	testParser.EnableSignalFXParsing()
+
+	workers := make([]*parser.Worker, 1)
+	for i := range workers {
+		workers[i] = parser.NewWorker(
+			log.NewNopLogger(),
+			ueh,
+			testParser,
+			nil,
+			linesReceived,
+			*sampleErrors,
+			samplesReceived,
+			tagErrors,
+			tagsReceived,
+		)
+	}
+	go workers[0].Consume(packets)
 
 	go func() {
 		for _, l := range []statsDPacketHandler{&listener.StatsDUDPListener{
-			Conn:            nil,
-			EventHandler:    nil,
-			Logger:          log.NewNopLogger(),
-			LineParser:      parser,
-			UDPPackets:      udpPackets,
-			LinesReceived:   linesReceived,
-			EventsFlushed:   eventsFlushed,
-			SampleErrors:    *sampleErrors,
-			SamplesReceived: samplesReceived,
-			TagErrors:       tagErrors,
-			TagsReceived:    tagsReceived,
+			Conn:         nil,
+			Logger:       log.NewNopLogger(),
+			PacketBuffer: packets,
+			UDPPackets:   udpPackets,
 		}, &mockStatsDTCPListener{listener.StatsDTCPListener{
-			Conn:            nil,
-			EventHandler:    nil,
-			Logger:          log.NewNopLogger(),
-			LineParser:      parser,
-			LinesReceived:   linesReceived,
-			EventsFlushed:   eventsFlushed,
-			SampleErrors:    *sampleErrors,
-			SamplesReceived: samplesReceived,
-			TagErrors:       tagErrors,
-			TagsReceived:    tagsReceived,
-			TCPConnections:  tcpConnections,
-			TCPErrors:       tcpErrors,
-			TCPLineTooLong:  tcpLineTooLong,
+			Conn:           nil,
+			Logger:         log.NewNopLogger(),
+			TCPConnections: tcpConnections,
+			TCPErrors:      tcpErrors,
+			PacketBuffer:   packets,
+			TCPLineTooLong: tcpLineTooLong,
 		}, log.NewNopLogger()}} {
-			l.SetEventHandler(ueh)
+			l.SetPacketBuffer(packets)
 			l.HandlePacket([]byte("bar:200|c|#tag:value\nbar:200|c|#tag:\xc3\x28invalid"))
 		}
-		close(events)
 	}()
 
 	testMapper := mapper.MetricMapper{}
 
+	require.Eventually(t, func() bool {
+		return len(events) > 0
+	}, time.Second, time.Millisecond*10)
+	close(events)
+	close(packets)
 	ex := NewExporter(prometheus.DefaultRegisterer, &testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 	ex.Listen(events)
 }
@@ -776,7 +780,7 @@ func TestCounterIncrement(t *testing.T) {
 
 type statsDPacketHandler interface {
 	HandlePacket(packet []byte)
-	SetEventHandler(eh event.EventHandler)
+	SetPacketBuffer(pb chan string)
 }
 
 type mockStatsDTCPListener struct {

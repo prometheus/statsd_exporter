@@ -20,6 +20,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/statsd_exporter/pkg/parser"
+	"github.com/stretchr/testify/require"
+
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
@@ -531,67 +534,77 @@ func TestHandlePacket(t *testing.T) {
 		},
 	}
 
-	parser := line.NewParser()
-	parser.EnableDogstatsdParsing()
-	parser.EnableInfluxdbParsing()
-	parser.EnableLibratoParsing()
-	parser.EnableSignalFXParsing()
+	testParser := line.NewParser()
+	testParser.EnableDogstatsdParsing()
+	testParser.EnableInfluxdbParsing()
+	testParser.EnableLibratoParsing()
+	testParser.EnableSignalFXParsing()
 
 	for k, l := range []statsDPacketHandler{&listener.StatsDUDPListener{
-		Conn:            nil,
-		EventHandler:    nil,
-		Logger:          log.NewNopLogger(),
-		LineParser:      parser,
-		UDPPackets:      udpPackets,
-		LinesReceived:   linesReceived,
-		EventsFlushed:   eventsFlushed,
-		SampleErrors:    *sampleErrors,
-		SamplesReceived: samplesReceived,
-		TagErrors:       tagErrors,
-		TagsReceived:    tagsReceived,
+		Conn:       nil,
+		Logger:     log.NewNopLogger(),
+		UDPPackets: udpPackets,
 	}, &mockStatsDTCPListener{listener.StatsDTCPListener{
-		Conn:            nil,
-		EventHandler:    nil,
-		Logger:          log.NewNopLogger(),
-		LineParser:      parser,
-		LinesReceived:   linesReceived,
-		EventsFlushed:   eventsFlushed,
-		SampleErrors:    *sampleErrors,
-		SamplesReceived: samplesReceived,
-		TagErrors:       tagErrors,
-		TagsReceived:    tagsReceived,
-		TCPConnections:  tcpConnections,
-		TCPErrors:       tcpErrors,
-		TCPLineTooLong:  tcpLineTooLong,
+		Conn:           nil,
+		Logger:         log.NewNopLogger(),
+		TCPConnections: tcpConnections,
+		TCPErrors:      tcpErrors,
+		TCPLineTooLong: tcpLineTooLong,
 	}, log.NewNopLogger()}} {
+		packets := make(chan string, 32)
 		events := make(chan event.Events, 32)
-		l.SetEventHandler(&event.UnbufferedEventHandler{C: events})
+		workers := make([]*parser.Worker, 1)
+		for i := range workers {
+			workers[i] = parser.NewWorker(
+				log.NewNopLogger(),
+				&event.UnbufferedEventHandler{C: events},
+				testParser,
+				nil,
+				linesReceived,
+				*sampleErrors,
+				samplesReceived,
+				tagErrors,
+				tagsReceived,
+			)
+		}
+		go workers[0].Consume(packets)
+		l.SetPacketBuffer(packets)
 		for i, scenario := range scenarios {
-			l.HandlePacket([]byte(scenario.in))
+			t.Run(scenario.name, func(t *testing.T) {
+				l.HandlePacket([]byte(scenario.in))
 
-			le := len(events)
-			// Flatten actual events.
-			actual := event.Events{}
-			for j := 0; j < le; j++ {
-				actual = append(actual, <-events...)
-			}
-
-			if len(actual) != len(scenario.out) {
-				t.Fatalf("%d.%d. Expected %d events, got %d in scenario '%s'", k, i, len(scenario.out), len(actual), scenario.name)
-			}
-
-			for j, expected := range scenario.out {
-				if !reflect.DeepEqual(&expected, &actual[j]) {
-					t.Fatalf("%d.%d.%d. Expected %#v, got %#v in scenario '%s'", k, i, j, expected, actual[j], scenario.name)
+				le := 0
+				if len(scenario.out) != 0 {
+					// wait until workers produce events
+					require.Eventually(t, func() bool {
+						le = len(events)
+						return le > 0
+					}, time.Second, time.Millisecond*10)
 				}
-			}
+
+				// Flatten actual events.
+				actual := event.Events{}
+				for j := 0; j < le; j++ {
+					actual = append(actual, <-events...)
+				}
+
+				if len(actual) != len(scenario.out) {
+					t.Fatalf("%d.%d. Expected %d events, got %d in scenario '%s'", k, i, len(scenario.out), len(actual), scenario.name)
+				}
+
+				for j, expected := range scenario.out {
+					if !reflect.DeepEqual(&expected, &actual[j]) {
+						t.Fatalf("%d.%d.%d. Expected %#v, got %#v in scenario '%s'", k, i, j, expected, actual[j], scenario.name)
+					}
+				}
+			})
 		}
 	}
 }
 
 type statsDPacketHandler interface {
 	HandlePacket(packet []byte)
-	SetEventHandler(eh event.EventHandler)
+	SetPacketBuffer(pb chan string)
 }
 
 type mockStatsDTCPListener struct {

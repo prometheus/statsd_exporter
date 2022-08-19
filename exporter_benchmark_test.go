@@ -17,6 +17,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/prometheus/statsd_exporter/pkg/parser"
+
 	"github.com/go-kit/log"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -50,11 +52,11 @@ func benchmarkUDPListener(times int, b *testing.B) {
 		}
 	}
 
-	parser := line.NewParser()
-	parser.EnableDogstatsdParsing()
-	parser.EnableInfluxdbParsing()
-	parser.EnableLibratoParsing()
-	parser.EnableSignalFXParsing()
+	testParser := line.NewParser()
+	testParser.EnableDogstatsdParsing()
+	testParser.EnableInfluxdbParsing()
+	testParser.EnableLibratoParsing()
+	testParser.EnableSignalFXParsing()
 
 	// reset benchmark timer to not measure startup costs
 	b.ResetTimer()
@@ -65,25 +67,39 @@ func benchmarkUDPListener(times int, b *testing.B) {
 
 		// there are more events than input lines, need bigger buffer
 		events := make(chan event.Events, len(bytesInput)*times*2)
+		packets := make(chan string, len(input)*times*2)
 
 		l := listener.StatsDUDPListener{
-			EventHandler:    &event.UnbufferedEventHandler{C: events},
-			Logger:          logger,
-			LineParser:      parser,
-			UDPPackets:      udpPackets,
-			LinesReceived:   linesReceived,
-			SamplesReceived: samplesReceived,
-			TagsReceived:    tagsReceived,
+			Logger:       logger,
+			UDPPackets:   udpPackets,
+			PacketBuffer: packets,
+		}
+
+		workers := make([]*parser.Worker, 2)
+		for i := 0; i < len(workers); i++ {
+			workers[i] = parser.NewWorker(
+				logger,
+				&event.UnbufferedEventHandler{C: events},
+				testParser,
+				nil,
+				linesReceived,
+				*sampleErrors,
+				samplesReceived,
+				tagErrors,
+				tagsReceived,
+			)
+			go workers[i].Consume(packets)
 		}
 
 		// resume benchmark timer
 		b.StartTimer()
 
 		for i := 0; i < times; i++ {
-			for _, line := range bytesInput {
-				l.HandlePacket([]byte(line))
+			for _, li := range bytesInput {
+				l.HandlePacket([]byte(li))
 			}
 		}
+		close(packets)
 	}
 }
 

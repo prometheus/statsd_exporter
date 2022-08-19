@@ -24,6 +24,8 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/prometheus/statsd_exporter/pkg/parser"
+
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -249,6 +251,8 @@ func main() {
 		readBuffer           = kingpin.Flag("statsd.read-buffer", "Size (in bytes) of the operating system's transmit read buffer associated with the UDP or Unixgram connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.").Int()
 		cacheSize            = kingpin.Flag("statsd.cache-size", "Maximum size of your metric mapping cache. Relies on least recently used replacement policy if max size is reached.").Default("1000").Int()
 		cacheType            = kingpin.Flag("statsd.cache-type", "Metric mapping cache type. Valid options are \"lru\" and \"random\"").Default("lru").Enum("lru", "random")
+		parserWorkerPool     = kingpin.Flag("statsd.parser-worker-pool-size", "How many workers will process raw statsd packets simultaneously.").Default("1").Uint()
+		packetBufferSize     = kingpin.Flag("statsd.packet-buffer-size", "Size of buffer that holds raw statsd packets for parsing.").Default("5000").Uint()
 		eventQueueSize       = kingpin.Flag("statsd.event-queue-size", "Size of internal queue for processing events.").Default("10000").Uint()
 		eventFlushThreshold  = kingpin.Flag("statsd.event-flush-threshold", "Number of events to hold in queue before flushing.").Default("1000").Int()
 		eventFlushInterval   = kingpin.Flag("statsd.event-flush-interval", "Maximum time between event queue flushes.").Default("200ms").Duration()
@@ -274,22 +278,25 @@ func main() {
 	}
 	prometheus.MustRegister(version.NewCollector("statsd_exporter"))
 
-	parser := line.NewParser()
+	lineParser := line.NewParser()
 	if *dogstatsdTagsEnabled {
-		parser.EnableDogstatsdParsing()
+		lineParser.EnableDogstatsdParsing()
 	}
 	if *influxdbTagsEnabled {
-		parser.EnableInfluxdbParsing()
+		lineParser.EnableInfluxdbParsing()
 	}
 	if *libratoTagsEnabled {
-		parser.EnableLibratoParsing()
+		lineParser.EnableLibratoParsing()
 	}
 	if *signalFXTagsEnabled {
-		parser.EnableSignalFXParsing()
+		lineParser.EnableSignalFXParsing()
 	}
 
 	level.Info(logger).Log("msg", "Starting StatsD -> Prometheus Exporter", "version", version.Info())
 	level.Info(logger).Log("msg", "Build context", "context", version.BuildContext())
+
+	packets := make(chan string, *packetBufferSize)
+	defer close(packets)
 
 	events := make(chan event.Events, *eventQueueSize)
 	defer close(events)
@@ -321,7 +328,17 @@ func main() {
 		}
 	}
 
-	exporter := exporter.NewExporter(prometheus.DefaultRegisterer, thisMapper, logger, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	exporterInstance := exporter.NewExporter(
+		prometheus.DefaultRegisterer,
+		thisMapper,
+		logger,
+		eventsActions,
+		eventsUnmapped,
+		errorEventStats,
+		eventStats,
+		conflictingEventStats,
+		metricsCount,
+	)
 
 	if *checkConfig {
 		level.Info(logger).Log("msg", "Configuration check successful, exiting")
@@ -367,18 +384,11 @@ func main() {
 		}
 
 		ul := &listener.StatsDUDPListener{
-			Conn:            uconn,
-			EventHandler:    eventQueue,
-			Logger:          logger,
-			LineParser:      parser,
-			UDPPackets:      udpPackets,
-			LinesReceived:   linesReceived,
-			EventsFlushed:   eventsFlushed,
-			Relay:           relayTarget,
-			SampleErrors:    *sampleErrors,
-			SamplesReceived: samplesReceived,
-			TagErrors:       tagErrors,
-			TagsReceived:    tagsReceived,
+			Conn:         uconn,
+			Logger:       logger,
+			PacketBuffer: packets,
+
+			UDPPackets: udpPackets,
 		}
 
 		go ul.Listen()
@@ -398,20 +408,13 @@ func main() {
 		defer tconn.Close()
 
 		tl := &listener.StatsDTCPListener{
-			Conn:            tconn,
-			EventHandler:    eventQueue,
-			Logger:          logger,
-			LineParser:      parser,
-			LinesReceived:   linesReceived,
-			EventsFlushed:   eventsFlushed,
-			Relay:           relayTarget,
-			SampleErrors:    *sampleErrors,
-			SamplesReceived: samplesReceived,
-			TagErrors:       tagErrors,
-			TagsReceived:    tagsReceived,
-			TCPConnections:  tcpConnections,
-			TCPErrors:       tcpErrors,
-			TCPLineTooLong:  tcpLineTooLong,
+			Conn:         tconn,
+			Logger:       logger,
+			PacketBuffer: packets,
+
+			TCPConnections: tcpConnections,
+			TCPErrors:      tcpErrors,
+			TCPLineTooLong: tcpLineTooLong,
 		}
 
 		go tl.Listen()
@@ -443,18 +446,11 @@ func main() {
 		}
 
 		ul := &listener.StatsDUnixgramListener{
-			Conn:            uxgconn,
-			EventHandler:    eventQueue,
-			Logger:          logger,
-			LineParser:      parser,
+			Conn:   uxgconn,
+			Logger: logger,
+
 			UnixgramPackets: unixgramPackets,
-			LinesReceived:   linesReceived,
-			EventsFlushed:   eventsFlushed,
-			Relay:           relayTarget,
-			SampleErrors:    *sampleErrors,
-			SamplesReceived: samplesReceived,
-			TagErrors:       tagErrors,
-			TagsReceived:    tagsReceived,
+			PacketBuffer:    packets,
 		}
 
 		go ul.Listen()
@@ -475,6 +471,22 @@ func main() {
 				}
 			}
 		}
+	}
+
+	workers := make([]*parser.Worker, *parserWorkerPool)
+	for i := 0; i < int(*parserWorkerPool); i++ {
+		workers[i] = parser.NewWorker(
+			logger,
+			eventQueue,
+			lineParser,
+			relayTarget,
+			linesReceived,
+			*sampleErrors,
+			samplesReceived,
+			tagErrors,
+			tagsReceived,
+		)
+		go workers[i].Consume(packets)
 	}
 
 	mux := http.DefaultServeMux
@@ -530,7 +542,7 @@ func main() {
 	go serveHTTP(mux, *listenAddress, logger)
 
 	go sighupConfigReloader(*mappingConfig, thisMapper, logger)
-	go exporter.Listen(events)
+	go exporterInstance.Listen(events)
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
