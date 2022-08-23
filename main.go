@@ -473,9 +473,8 @@ func main() {
 		}
 	}
 
-	workers := make([]*parser.Worker, *parserWorkerPool)
 	for i := 0; i < int(*parserWorkerPool); i++ {
-		workers[i] = parser.NewWorker(
+		worker := parser.NewWorker(
 			logger,
 			eventQueue,
 			lineParser,
@@ -486,7 +485,7 @@ func main() {
 			tagErrors,
 			tagsReceived,
 		)
-		go workers[i].Consume(packets)
+		go worker.Consume(packets)
 	}
 
 	mux := http.DefaultServeMux
