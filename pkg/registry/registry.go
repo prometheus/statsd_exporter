@@ -19,6 +19,7 @@ import (
 	"hash"
 	"hash/fnv"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -163,6 +164,15 @@ func (r *Registry) GetCounter(metricName string, labels prometheus.Labels, help 
 
 	if r.MetricConflicts(metricName, metrics.CounterMetricType) {
 		return nil, fmt.Errorf("metric with name %s is already registered", metricName)
+	}
+
+	histogramSuffixes := []string{"_bucket", "_count", "_sum"}
+	for _, suffix := range histogramSuffixes {
+		if strings.HasSuffix(metricName, suffix) {
+			if r.MetricConflicts(strings.TrimSuffix(metricName, suffix), metrics.CounterMetricType) {
+				return nil, fmt.Errorf("metric with name %s is already registered", metricName)
+			}
+		}
 	}
 
 	var counterVec *prometheus.CounterVec
