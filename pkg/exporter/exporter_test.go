@@ -520,10 +520,11 @@ mappings:
 				events <- s.in
 				close(events)
 			}()
-			ex := NewExporter(prometheus.DefaultRegisterer, testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+			registerer := prometheus.NewRegistry()
+			ex := NewExporter(registerer, testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 			ex.Listen(events)
 
-			metrics, err := prometheus.DefaultGatherer.Gather()
+			metrics, err := registerer.Gather()
 			if err != nil {
 				t.Fatalf("Cannot gather from DefaultGatherer: %v", err)
 			}
