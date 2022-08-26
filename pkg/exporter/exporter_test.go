@@ -402,6 +402,48 @@ func TestConflictingMetrics(t *testing.T) {
 			},
 		},
 		{
+			name:     "histogram vs counter",
+			expected: []float64{2},
+			in: event.Events{
+				&event.ObserverEvent{
+					OMetricName: "histogram_test1",
+					OValue:      2,
+				},
+				&event.CounterEvent{
+					CMetricName: "histogram_test1_count",
+					CValue:      1,
+				},
+			},
+		},
+		{
+			name:     "histogram vs counter with sum prefix",
+			expected: []float64{2},
+			in: event.Events{
+				&event.ObserverEvent{
+					OMetricName: "histogram_test1",
+					OValue:      2,
+				},
+				&event.CounterEvent{
+					CMetricName: "histogram_test1_sum",
+					CValue:      1,
+				},
+			},
+		},
+		{
+			name:     "histogram vs counter with bucket suffix",
+			expected: []float64{2},
+			in: event.Events{
+				&event.ObserverEvent{
+					OMetricName: "histogram_test1",
+					OValue:      2,
+				},
+				&event.CounterEvent{
+					CMetricName: "histogram_test1_bucket",
+					CValue:      1,
+				},
+			},
+		},
+		{
 			name:     "counter vs histogram",
 			expected: []float64{1},
 			in: event.Events{
