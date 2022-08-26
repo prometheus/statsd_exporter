@@ -402,7 +402,7 @@ func TestConflictingMetrics(t *testing.T) {
 			},
 		},
 		{
-			name:     "histogram vs counter",
+			name:     "histogram vs counter with count suffix",
 			expected: []float64{2},
 			in: event.Events{
 				&event.ObserverEvent{
@@ -416,7 +416,7 @@ func TestConflictingMetrics(t *testing.T) {
 			},
 		},
 		{
-			name:     "histogram vs counter with sum prefix",
+			name:     "histogram vs counter with sum suffix",
 			expected: []float64{2},
 			in: event.Events{
 				&event.ObserverEvent{
