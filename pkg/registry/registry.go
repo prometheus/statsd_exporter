@@ -220,7 +220,7 @@ func (r *Registry) GetGauge(metricName string, labels prometheus.Labels, help st
 
 	err := r.checkHistogramNameCollision(metricName)
 	if err != nil {
-		return nil, fmt.Errorf("metrics.Metric with name %s conflicts with previously registered histogram", metricName)
+		return nil, fmt.Errorf("metrics.Metric with name %s is already registered", metricName)
 	}
 
 	var gaugeVec *prometheus.GaugeVec
