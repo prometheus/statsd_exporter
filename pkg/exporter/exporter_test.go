@@ -444,6 +444,34 @@ func TestConflictingMetrics(t *testing.T) {
 			},
 		},
 		{
+			name:     "histogram vs gauge with sum suffix",
+			expected: []float64{2},
+			in: event.Events{
+				&event.ObserverEvent{
+					OMetricName: "histogram_test1",
+					OValue:      2,
+				},
+				&event.GaugeEvent{
+					GMetricName: "histogram_test1_sum",
+					GValue:      1,
+				},
+			},
+		},
+		{
+			name:     "histogram vs gauge with count suffix",
+			expected: []float64{2},
+			in: event.Events{
+				&event.ObserverEvent{
+					OMetricName: "histogram_test1",
+					OValue:      2,
+				},
+				&event.GaugeEvent{
+					GMetricName: "histogram_test1_count",
+					GValue:      1,
+				},
+			},
+		},
+		{
 			name:     "counter vs histogram",
 			expected: []float64{1},
 			in: event.Events{
@@ -562,11 +590,11 @@ mappings:
 				events <- s.in
 				close(events)
 			}()
-			registerer := prometheus.NewRegistry()
-			ex := NewExporter(registerer, testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+			reg := prometheus.NewRegistry()
+			ex := NewExporter(reg, testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 			ex.Listen(events)
 
-			metrics, err := registerer.Gather()
+			metrics, err := reg.Gather()
 			if err != nil {
 				t.Fatalf("Cannot gather from DefaultGatherer: %v", err)
 			}
