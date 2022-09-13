@@ -1,3 +1,8 @@
+## 0.22.8 / 2022-09-13
+
+* [BUGFIX] Prevent poisoning with gauge/distribution naming collision ([#461](https://github.com/prometheus/statsd_exporter/pull/461))
+* [CHANGE] Update `client_golang` dependency ([#463](https://github.com/prometheus/statsd_exporter/pull/463))
+
 ## 0.22.7 / 2022-07-08
 
 * [CHANGE] Build with Go 1.18 ([#450](https://github.com/prometheus/statsd_exporter/pull/450))
