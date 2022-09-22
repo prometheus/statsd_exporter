@@ -1,3 +1,7 @@
+## 0.23.0 / Unreleased
+
+* [CHANGE] Print help and version to standard out ([#469](https://github.com/prometheus/statsd_exporter/pull/469))
+
 ## 0.22.8 / 2022-09-13
 
 * [BUGFIX] Prevent poisoning with gauge/distribution naming collision ([#461](https://github.com/prometheus/statsd_exporter/pull/461))
