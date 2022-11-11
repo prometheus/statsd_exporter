@@ -64,7 +64,9 @@ type SummaryOptions struct {
 }
 
 type HistogramOptions struct {
-	Buckets []float64 `yaml:"buckets"`
+	Buckets                     []float64 `yaml:"buckets"`
+	NativeHistogramBucketFactor float64   `yaml:"native_histogram_bucket_factor"`
+	NativeHistogramMaxBuckets   uint32    `yaml:"native_histogram_max_buckets"`
 }
 
 type metricObjective struct {
@@ -87,6 +89,12 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 
 	if len(n.Defaults.HistogramOptions.Buckets) == 0 {
 		n.Defaults.HistogramOptions.Buckets = prometheus.DefBuckets
+	}
+	if n.Defaults.HistogramOptions.NativeHistogramBucketFactor == 0 {
+		n.Defaults.HistogramOptions.NativeHistogramBucketFactor = 1.1
+	}
+	if n.Defaults.HistogramOptions.NativeHistogramMaxBuckets <= 0 {
+		n.Defaults.HistogramOptions.NativeHistogramMaxBuckets = 256
 	}
 
 	if len(n.Defaults.SummaryOptions.Quantiles) == 0 {

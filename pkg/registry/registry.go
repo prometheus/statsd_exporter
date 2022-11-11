@@ -274,10 +274,22 @@ func (r *Registry) GetHistogram(metricName string, labels prometheus.Labels, hel
 		if mapping.HistogramOptions != nil && len(mapping.HistogramOptions.Buckets) > 0 {
 			buckets = mapping.HistogramOptions.Buckets
 		}
+
+		bucketFactor := r.Mapper.Defaults.HistogramOptions.NativeHistogramBucketFactor
+		if mapping.HistogramOptions != nil && mapping.HistogramOptions.NativeHistogramBucketFactor > 0 {
+			bucketFactor = mapping.HistogramOptions.NativeHistogramBucketFactor
+		}
+
+		maxBuckets := r.Mapper.Defaults.HistogramOptions.NativeHistogramMaxBuckets
+		if mapping.HistogramOptions != nil && mapping.HistogramOptions.NativeHistogramMaxBuckets > 0 {
+			maxBuckets = mapping.HistogramOptions.NativeHistogramMaxBuckets
+		}
 		histogramVec = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-			Name:    metricName,
-			Help:    help,
-			Buckets: buckets,
+			Name:                           metricName,
+			Help:                           help,
+			Buckets:                        buckets,
+			NativeHistogramBucketFactor:    bucketFactor,
+			NativeHistogramMaxBucketNumber: maxBuckets,
 		}, labelNames)
 
 		if err := r.Registerer.Register(uncheckedCollector{histogramVec}); err != nil {
