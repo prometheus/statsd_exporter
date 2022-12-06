@@ -296,7 +296,6 @@ mappings:
   name: "${2}_total"
   labels:
     provider: "$1"
-mappings:
 - match: "(.*)\\.(.*)--(.*)\\.status\.(.*)\\.count"
   match_type: regex
   name: "request_total"
