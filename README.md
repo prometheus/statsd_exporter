@@ -296,7 +296,6 @@ mappings:
   name: "${2}_total"
   labels:
     provider: "$1"
-mappings:
 - match: "(.*)\\.(.*)--(.*)\\.status\.(.*)\\.count"
   match_type: regex
   name: "request_total"
@@ -403,6 +402,8 @@ mappings:
   observer_type: histogram
   histogram_options:
     buckets: [ 0.01, 0.025, 0.05, 0.1 ]
+    native_histogram_bucket_factor: 1.1
+    native_histogram_max_buckets: 256
   name: "my_timer"
   labels:
     provider: "$2"
@@ -416,6 +417,11 @@ values](https://godoc.org/github.com/prometheus/client_golang/prometheus#pkg-var
 are used for the histogram buckets:
 `[.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10]`.
 `+Inf` is added automatically.
+If your Prometheus server is enabled to scrape native histograms (v2.40.0+), 
+then you can set the `native_histogram_bucket_factor` to configure precision of the
+buckets in the sparse histogram. More about this in the original [client_golang docs](https://github.com/prometheus/client_golang/blob/449b46435075e6e069e05af920fe028b941033cf/prometheus/histogram.go#L399-L430).
+Also, a configuration of the maximum number of buckets can be set with `native_histogram_max_buckets`, this
+avoids the histograms to grow too large in memory. More about this in the original [client_golang docs](https://github.com/prometheus/client_golang/blob/449b46435075e6e069e05af920fe028b941033cf/prometheus/histogram.go#L443-L467).
 
 `observer_type` is only used when the statsd metric type is a timer, histogram, or distribution.
 `buckets` is only used when the statsd metric type is one of these, and the `observer_type` is set to `histogram`.
@@ -470,6 +476,8 @@ defaults:
   observer_type: histogram
   histogram_options:
     buckets: [.005, .01, .025, .05, .1, .25, .5, 1, 2.5 ]
+    native_histogram_bucket_factor: 1.1
+    native_histogram_max_buckets: 256
   summary_options:
     quantiles:
       - quantile: 0.99
@@ -549,7 +557,7 @@ Possible values for `match_metric_type` are `gauge`, `counter` and `observer`.
 
 There is a cache used to improve the performance of the metric mapping, that can greatly improvement performance.
 The cache has a default maximum of 1000 unique statsd metric names -> prometheus metrics mappings that it can store.
-This maximum can be adjust using the `statsd.cache-size` flag.
+This maximum can be adjusted using the `statsd.cache-size` flag.
 
 If the maximum is reached, entries are by default rotated using the [least recently used replacement policy](https://en.wikipedia.org/wiki/Cache_replacement_policies#Least_recently_used_(LRU)). This strategy is optimal when memory is constrained as only the most recent entries are retained.
 
