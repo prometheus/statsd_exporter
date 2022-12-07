@@ -1,6 +1,7 @@
-## 0.23.0 / Unreleased
+## 0.23.0 / 2022-12-07
 
 * [CHANGE] Print help and version to standard out ([#469](https://github.com/prometheus/statsd_exporter/pull/469))
+* [FEATURE] Support experimental native histograms ([#474](https://github.com/prometheus/statsd_exporter/pull/474))
 
 ## 0.22.8 / 2022-09-13
 
