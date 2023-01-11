@@ -95,6 +95,11 @@ mappings:
     ipv4_t4: "${10}"
     orgid: "${11}"
     oauthid: "${12}"
+- match: "prefixed_glob.prefix_*.*"
+  name: prefixed_glob
+  labels:
+    prefix: "${1}"
+    metric: "${2}"
 - match: "*.*"
   name: "catchall"
   labels:
@@ -149,6 +154,14 @@ mappings:
 						"ipv4_t4":         "1",
 						"orgid":           "12ba97b7eaa1a50001000001",
 						"oauthid":         "",
+					},
+				},
+				{
+					statsdMetric: "prefixed_glob.prefix_myprefix.mymetric",
+					name:         "prefixed_glob",
+					labels: map[string]string{
+						"prefix": "myprefix",
+						"metric": "mymetric",
 					},
 				},
 				{
