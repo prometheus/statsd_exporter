@@ -80,7 +80,7 @@ in the DogStatsD documentation for the concept description and
 If you encounter problems, note that this tagging style is incompatible with
 the original `statsd` implementation.
 
-For [SignalFX dimension](https://docs.signalfx.com/en/latest/integrations/agent/monitors/collectd-statsd.html#adding-dimensions-to-statsd-metrics), add the tags to the metric name in square brackets, as so:
+For [SignalFX dimension](https://github.com/signalfx/signalfx-agent/blob/main/docs/monitors/collectd-statsd.md#adding-dimensions-to-statsd-metrics), add the tags to the metric name in square brackets, as so:
 
 ```
 metric.name[tagName=val,tag2Name=val2]:0|c
