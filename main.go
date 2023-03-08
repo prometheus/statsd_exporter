@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -31,7 +32,6 @@ import (
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
-	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/prometheus/statsd_exporter/pkg/address"
 	"github.com/prometheus/statsd_exporter/pkg/event"
