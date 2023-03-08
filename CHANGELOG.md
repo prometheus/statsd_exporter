@@ -1,3 +1,7 @@
+## 0.23.1 / 2023-03-08
+
+* [SECURITY] Update all dependencies ([#489](https://github.com/prometheus/statsd_exporter/pull/489))
+
 ## 0.23.0 / 2022-12-07
 
 * [CHANGE] Print help and version to standard out ([#469](https://github.com/prometheus/statsd_exporter/pull/469))
