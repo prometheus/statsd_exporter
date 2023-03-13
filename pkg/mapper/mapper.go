@@ -43,7 +43,7 @@ var (
 
 type MetricMapper struct {
 	Registerer prometheus.Registerer
-	Defaults   mapperConfigDefaults `yaml:"defaults"`
+	Defaults   MapperConfigDefaults `yaml:"defaults"`
 	Mappings   []MetricMapping      `yaml:"mappings"`
 	FSM        *fsm.FSM
 	doFSM      bool
@@ -57,7 +57,7 @@ type MetricMapper struct {
 }
 
 type SummaryOptions struct {
-	Quantiles  []metricObjective `yaml:"quantiles"`
+	Quantiles  []MetricObjective `yaml:"quantiles"`
 	MaxAge     time.Duration     `yaml:"max_age"`
 	AgeBuckets uint32            `yaml:"age_buckets"`
 	BufCap     uint32            `yaml:"buf_cap"`
@@ -69,12 +69,12 @@ type HistogramOptions struct {
 	NativeHistogramMaxBuckets   uint32    `yaml:"native_histogram_max_buckets"`
 }
 
-type metricObjective struct {
+type MetricObjective struct {
 	Quantile float64 `yaml:"quantile"`
 	Error    float64 `yaml:"error"`
 }
 
-var defaultQuantiles = []metricObjective{
+var defaultQuantiles = []MetricObjective{
 	{Quantile: 0.5, Error: 0.05},
 	{Quantile: 0.9, Error: 0.01},
 	{Quantile: 0.99, Error: 0.001},

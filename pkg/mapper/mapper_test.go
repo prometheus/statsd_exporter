@@ -27,7 +27,7 @@ type mappings []struct {
 	statsdMetric string
 	name         string
 	labels       map[string]string
-	quantiles    []metricObjective
+	quantiles    []MetricObjective
 	notPresent   bool
 	ttl          time.Duration
 	metricType   MetricType
@@ -570,7 +570,7 @@ mappings:
 					statsdMetric: "test.*.*",
 					name:         "foo",
 					labels:       map[string]string{},
-					quantiles: []metricObjective{
+					quantiles: []MetricObjective{
 						{Quantile: 0.42, Error: 0.04},
 						{Quantile: 0.7, Error: 0.002},
 					},
@@ -597,7 +597,7 @@ mappings:
 					statsdMetric: "test.*.*",
 					name:         "foo",
 					labels:       map[string]string{},
-					quantiles: []metricObjective{
+					quantiles: []MetricObjective{
 						{Quantile: 0.42, Error: 0.04},
 						{Quantile: 0.7, Error: 0.002},
 					},
@@ -618,7 +618,7 @@ mappings:
 					statsdMetric: "test1.*.*",
 					name:         "foo",
 					labels:       map[string]string{},
-					quantiles: []metricObjective{
+					quantiles: []MetricObjective{
 						{Quantile: 0.5, Error: 0.05},
 						{Quantile: 0.9, Error: 0.01},
 						{Quantile: 0.99, Error: 0.001},
@@ -640,7 +640,7 @@ mappings:
 					statsdMetric: "test1.*.*",
 					name:         "foo",
 					labels:       map[string]string{},
-					quantiles: []metricObjective{
+					quantiles: []MetricObjective{
 						{Quantile: 0.5, Error: 0.05},
 						{Quantile: 0.9, Error: 0.01},
 						{Quantile: 0.99, Error: 0.001},
@@ -690,7 +690,7 @@ mappings:
 					statsdMetric: "test.*.*",
 					name:         "foo",
 					labels:       map[string]string{},
-					quantiles: []metricObjective{
+					quantiles: []MetricObjective{
 						{Quantile: 0.42, Error: 0.04},
 						{Quantile: 0.7, Error: 0.002},
 					},
@@ -720,7 +720,7 @@ mappings:
 					statsdMetric: "test.*.*",
 					name:         "foo",
 					labels:       map[string]string{},
-					quantiles: []metricObjective{
+					quantiles: []MetricObjective{
 						{Quantile: 0.42, Error: 0.04},
 						{Quantile: 0.7, Error: 0.002},
 					},
@@ -754,7 +754,7 @@ mappings:
 					statsdMetric: "test.*.*",
 					name:         "foo",
 					labels:       map[string]string{},
-					quantiles: []metricObjective{
+					quantiles: []MetricObjective{
 						{Quantile: 0.42, Error: 0.04},
 						{Quantile: 0.7, Error: 0.002},
 					},
@@ -819,7 +819,7 @@ mappings:
 					statsdMetric: "test.*.*",
 					name:         "foo",
 					labels:       map[string]string{},
-					quantiles: []metricObjective{
+					quantiles: []MetricObjective{
 						{Quantile: 0.42, Error: 0.04},
 						{Quantile: 0.7, Error: 0.002},
 					},
@@ -862,7 +862,7 @@ mappings:
 					statsdMetric: "test.*.*",
 					name:         "foo",
 					labels:       map[string]string{},
-					quantiles: []metricObjective{
+					quantiles: []MetricObjective{
 						{Quantile: 0.42, Error: 0.04},
 						{Quantile: 0.7, Error: 0.002},
 					},
@@ -909,7 +909,7 @@ mappings:
 					statsdMetric: "test.*.*",
 					name:         "foo",
 					labels:       map[string]string{},
-					quantiles: []metricObjective{
+					quantiles: []MetricObjective{
 						{Quantile: 0.42, Error: 0.04},
 						{Quantile: 0.7, Error: 0.002},
 					},
@@ -921,7 +921,7 @@ mappings:
 					statsdMetric: "test_default.*.*",
 					name:         "foo_default",
 					labels:       map[string]string{},
-					quantiles: []metricObjective{
+					quantiles: []MetricObjective{
 						{Quantile: 0.9, Error: 0.1},
 						{Quantile: 0.99, Error: 0.01},
 					},
@@ -965,7 +965,7 @@ mappings:
 					statsdMetric: "test.*.*",
 					name:         "foo",
 					labels:       map[string]string{},
-					quantiles: []metricObjective{
+					quantiles: []MetricObjective{
 						{Quantile: 0.42, Error: 0.04},
 						{Quantile: 0.7, Error: 0.002},
 					},
@@ -977,7 +977,7 @@ mappings:
 					statsdMetric: "test_default.*.*",
 					name:         "foo_default",
 					labels:       map[string]string{},
-					quantiles: []metricObjective{
+					quantiles: []MetricObjective{
 						{Quantile: 0.9, Error: 0.1},
 						{Quantile: 0.99, Error: 0.01},
 					},
@@ -1017,7 +1017,7 @@ mappings:
 					statsdMetric: "test.*.*",
 					name:         "foo",
 					labels:       map[string]string{},
-					quantiles: []metricObjective{
+					quantiles: []MetricObjective{
 						{Quantile: 0.9, Error: 0.1},
 						{Quantile: 0.99, Error: 0.01},
 					},
@@ -1029,7 +1029,7 @@ mappings:
 					statsdMetric: "test_default.*.*",
 					name:         "foo_default",
 					labels:       map[string]string{},
-					quantiles: []metricObjective{
+					quantiles: []MetricObjective{
 						{Quantile: 0.9, Error: 0.1},
 						{Quantile: 0.99, Error: 0.01},
 					},
