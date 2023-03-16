@@ -33,7 +33,7 @@ type MetricMapping struct {
 	ObserverType     ObserverType      `yaml:"observer_type"`
 	TimerType        ObserverType      `yaml:"timer_type,omitempty"` // DEPRECATED - field only present to preserve backwards compatibility in configs. Always empty
 	LegacyBuckets    []float64         `yaml:"buckets"`
-	LegacyQuantiles  []metricObjective `yaml:"quantiles"`
+	LegacyQuantiles  []MetricObjective `yaml:"quantiles"`
 	MatchType        MatchType         `yaml:"match_type"`
 	HelpText         string            `yaml:"help"`
 	Action           ActionType        `yaml:"action"`
