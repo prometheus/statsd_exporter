@@ -113,19 +113,24 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 		metricName = mapper.EscapeMetricName(thisEvent.MetricName())
 	}
 
+	eventValue := thisEvent.Value()
+	if mapping.Scale.Set {
+		eventValue *= mapping.Scale.Val
+	}
+
 	switch ev := thisEvent.(type) {
 	case *event.CounterEvent:
 		// We don't accept negative values for counters. Incrementing the counter with a negative number
 		// will cause the exporter to panic. Instead we will warn and continue to the next event.
-		if thisEvent.Value() < 0.0 {
-			level.Debug(b.Logger).Log("msg", "counter must be non-negative value", "metric", metricName, "event_value", thisEvent.Value())
+		if eventValue < 0.0 {
+			level.Debug(b.Logger).Log("msg", "counter must be non-negative value", "metric", metricName, "event_value", eventValue)
 			b.ErrorEventStats.WithLabelValues("illegal_negative_counter").Inc()
 			return
 		}
 
 		counter, err := b.Registry.GetCounter(metricName, prometheusLabels, help, mapping, b.MetricsCount)
 		if err == nil {
-			counter.Add(thisEvent.Value())
+			counter.Add(eventValue)
 			b.EventStats.WithLabelValues("counter").Inc()
 		} else {
 			level.Debug(b.Logger).Log("msg", regErrF, "metric", metricName, "error", err)
@@ -137,9 +142,9 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 
 		if err == nil {
 			if ev.GRelative {
-				gauge.Add(thisEvent.Value())
+				gauge.Add(eventValue)
 			} else {
-				gauge.Set(thisEvent.Value())
+				gauge.Set(eventValue)
 			}
 			b.EventStats.WithLabelValues("gauge").Inc()
 		} else {
@@ -160,7 +165,7 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 		case mapper.ObserverTypeHistogram:
 			histogram, err := b.Registry.GetHistogram(metricName, prometheusLabels, help, mapping, b.MetricsCount)
 			if err == nil {
-				histogram.Observe(thisEvent.Value())
+				histogram.Observe(eventValue)
 				b.EventStats.WithLabelValues("observer").Inc()
 			} else {
 				level.Debug(b.Logger).Log("msg", regErrF, "metric", metricName, "error", err)
@@ -170,7 +175,7 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 		case mapper.ObserverTypeDefault, mapper.ObserverTypeSummary:
 			summary, err := b.Registry.GetSummary(metricName, prometheusLabels, help, mapping, b.MetricsCount)
 			if err == nil {
-				summary.Observe(thisEvent.Value())
+				summary.Observe(eventValue)
 				b.EventStats.WithLabelValues("observer").Inc()
 			} else {
 				level.Debug(b.Logger).Log("msg", regErrF, "metric", metricName, "error", err)
