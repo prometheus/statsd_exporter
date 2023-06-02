@@ -1,3 +1,8 @@
+## 0.23.2 / 2023-06-02
+
+* [SECURITY] Maintenance release, updating dependencies
+* [ENHANCEMENT][library] Allow instantiating configuration without going through YAML ([#491](https://github.com/prometheus/statsd_exporter/pull/491))
+
 ## 0.23.1 / 2023-03-08
 
 * [SECURITY] Update all dependencies ([#489](https://github.com/prometheus/statsd_exporter/pull/489))
