@@ -1,3 +1,8 @@
+## 0.24.0 / 2023-06-02
+
+* [FEATURE] Improve the landing page experience ([#504](https://github.com/prometheus/statsd_exporter/pull/504))
+* [FEATURE] Support scaling parameter in mapping ([#499](https://github.com/prometheus/statsd_exporter/pull/499))
+
 ## 0.23.3 / 2023-06-02
 
 * [SECURITY] Maintenance release, updating dependencies
