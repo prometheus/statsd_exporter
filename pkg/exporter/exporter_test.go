@@ -845,6 +845,63 @@ func TestCounterIncrement(t *testing.T) {
 	}
 }
 
+func TestScaledMapping(t *testing.T) {
+	events := make(chan event.Events)
+	testMapper := mapper.MetricMapper{}
+	config := `mappings:
+- match: foo.processed_kilobytes
+  name: processed_bytes
+  scale: 1024
+  labels:
+    service: foo`
+	err := testMapper.InitFromYAMLString(config)
+	if err != nil {
+		t.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	// Start exporter with a synchronous channel
+	go func() {
+		ex := NewExporter(prometheus.DefaultRegisterer, &testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+		ex.Listen(events)
+	}()
+
+	// Synchronously send a statsd event to wait for handleEvent execution.
+	// Then close events channel to stop a listener.
+	statsdName := "foo.processed_kilobytes"
+	statsdLabels := map[string]string{}
+	promName := "processed_bytes"
+	promLabels := map[string]string{"service": "foo"}
+	c := event.Events{
+		&event.CounterEvent{
+			CMetricName: statsdName,
+			CValue:      100,
+			CLabels:     statsdLabels,
+		},
+		&event.CounterEvent{
+			CMetricName: statsdName,
+			CValue:      200,
+			CLabels:     statsdLabels,
+		},
+	}
+	events <- c
+	// Push empty event so that we block until the first event is consumed.
+	events <- event.Events{}
+	close(events)
+
+	// Check counter value
+	metrics, err := prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Fatalf("Cannot gather from DefaultGatherer: %v", err)
+	}
+	value := getFloat64(metrics, promName, promLabels)
+	if value == nil {
+		t.Fatal("Counter value should not be nil")
+	}
+	if *value != 300*1024 {
+		t.Fatalf("Counter wasn't incremented properly")
+	}
+}
+
 type statsDPacketHandler interface {
 	HandlePacket(packet []byte)
 	SetEventHandler(eh event.EventHandler)

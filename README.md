@@ -577,6 +577,23 @@ metrics that do not expire.
  expire a metric only by changing the mapping configuration. At least one
  sample must be received for updated mappings to take effect.
 
+### Unit conversions
+
+The `scale` parameter can be used to define unit conversions for metric values. The value is a floating point number to scale metric values by. This can be useful for converting non-base units (e.g. milliseconds, kilobytes) to base units (e.g. seconds, bytes) as recommended in [prometheus best practices](https://prometheus.io/docs/practices/naming/).
+
+```yaml
+mappings:
+- match: foo.latency_ms
+  name: foo_latency_seconds
+  scale: 0.001
+- match: bar.processed_kb
+  name: bar_processed_bytes
+  scale: 1024
+- match: baz.latency_us
+  name: baz_latency_seconds
+  scale: 1e-6
+```
+
  ### Event flushing configuration
 
  Internally `statsd_exporter` runs a goroutine for each network listener (UDP, TCP & Unix Socket).  These each receive and parse metrics received into an event.  For performance purposes, these events are queued internally and flushed to the main exporter goroutine periodically in batches.  The size of this queue and the flush criteria can be tuned with the `--statsd.event-queue-size`, `--statsd.event-flush-threshold` and `--statsd.event-flush-interval`.  However, the defaults should perform well even for very high traffic environments.

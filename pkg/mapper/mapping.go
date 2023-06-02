@@ -41,6 +41,7 @@ type MetricMapping struct {
 	Ttl              time.Duration     `yaml:"ttl"`
 	SummaryOptions   *SummaryOptions   `yaml:"summary_options"`
 	HistogramOptions *HistogramOptions `yaml:"histogram_options"`
+	Scale            MaybeFloat64      `yaml:"scale"`
 }
 
 // UnmarshalYAML is a custom unmarshal function to allow use of deprecated config keys
@@ -66,11 +67,34 @@ func (m *MetricMapping) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	m.Ttl = tmp.Ttl
 	m.SummaryOptions = tmp.SummaryOptions
 	m.HistogramOptions = tmp.HistogramOptions
+	m.Scale = tmp.Scale
 
 	// Use deprecated TimerType if necessary
 	if tmp.ObserverType == "" {
 		m.ObserverType = tmp.TimerType
 	}
 
+	return nil
+}
+
+type MaybeFloat64 struct {
+	Set bool
+	Val float64
+}
+
+func (m *MaybeFloat64) MarshalYAML() (interface{}, error) {
+	if m.Set {
+		return m.Val, nil
+	}
+	return nil, nil
+}
+
+func (m *MaybeFloat64) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var tmp float64
+	if err := unmarshal(&tmp); err != nil {
+		return err
+	}
+	m.Val = tmp
+	m.Set = true
 	return nil
 }

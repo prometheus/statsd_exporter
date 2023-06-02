@@ -35,6 +35,7 @@ type mappings []struct {
 	ageBuckets   uint32
 	bufCap       uint32
 	buckets      []float64
+	scale        MaybeFloat64
 }
 
 func newTestMapperWithCache(cacheType string, size int) *MetricMapper {
@@ -1480,6 +1481,54 @@ mappings:
 				},
 			},
 		},
+		{
+			testName: "Config with 'scale' field",
+			config: `mappings:
+- match: grpc_server.*.*.latency_ms
+  name: grpc_server_handling_seconds
+  scale: 0.001
+  labels:
+    grpc_service: "$1"
+    grpc_method: "$2"`,
+			mappings: mappings{
+				{
+					statsdMetric: "test.a",
+				},
+				{
+					statsdMetric: "grpc_server.Foo.Bar.latency_ms",
+					name:         "grpc_server_handling_seconds",
+					scale:        MaybeFloat64{Val: 0.001, Set: true},
+					labels: map[string]string{
+						"grpc_service": "Foo",
+						"grpc_method":  "Bar",
+					},
+				},
+			},
+		},
+		{
+			testName: "Config with 'scale' using scientific notation",
+			config: `mappings:
+- match: grpc_server.*.*.latency_us
+  name: grpc_server_handling_seconds
+  scale: 1e-6
+  labels:
+    grpc_service: "$1"
+    grpc_method: "$2"`,
+			mappings: mappings{
+				{
+					statsdMetric: "test.a",
+				},
+				{
+					statsdMetric: "grpc_server.Foo.Bar.latency_us",
+					name:         "grpc_server_handling_seconds",
+					scale:        MaybeFloat64{Val: 1e-6, Set: true},
+					labels: map[string]string{
+						"grpc_service": "Foo",
+						"grpc_method":  "Bar",
+					},
+				},
+			},
+		},
 	}
 
 	mapper := MetricMapper{}
@@ -1560,6 +1609,9 @@ mappings:
 				}
 				if mapping.bufCap != 0 && mapping.bufCap != m.SummaryOptions.BufCap {
 					t.Fatalf("%d.%q: Expected max age %v, got %v", i, metric, mapping.bufCap, m.SummaryOptions.BufCap)
+				}
+				if present && mapping.scale != m.Scale {
+					t.Fatalf("%d.%q: Expected scale %v, got %v", i, metric, mapping.scale, m.Scale)
 				}
 			}
 		})
