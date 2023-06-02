@@ -32,6 +32,7 @@ import (
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
+	"github.com/prometheus/exporter-toolkit/web"
 
 	"github.com/prometheus/statsd_exporter/pkg/address"
 	"github.com/prometheus/statsd_exporter/pkg/event"
@@ -480,15 +481,25 @@ func main() {
 
 	mux := http.DefaultServeMux
 	mux.Handle(*metricsEndpoint, promhttp.Handler())
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`<html>
-			<head><title>StatsD Exporter</title></head>
-			<body>
-			<h1>StatsD Exporter</h1>
-			<p><a href="` + *metricsEndpoint + `">Metrics</a></p>
-			</body>
-			</html>`))
-	})
+	if *metricsEndpoint != "/" && *metricsEndpoint != "" {
+		landingConfig := web.LandingConfig{
+			Name:        "StatsD Exporter",
+			Description: "Prometheus Exporter for converting StatsD to Prometheus metrics",
+			Version:     version.Info(),
+			Links: []web.LandingLinks{
+				{
+					Address: *metricsEndpoint,
+					Text:    "Metrics",
+				},
+			},
+		}
+		landingPage, err := web.NewLandingPage(landingConfig)
+		if err != nil {
+			level.Error(logger).Log("err", err)
+			os.Exit(1)
+		}
+		mux.Handle("/", landingPage)
+	}
 
 	quitChan := make(chan struct{}, 1)
 
