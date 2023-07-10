@@ -127,7 +127,7 @@ func (r *Relay) relayOutput() {
 				buffer.Reset()
 				buffer.Write(b)
 			} else {
-				level.Debug(r.logger).Log("msg", "Adding line to buffer", "line", b)
+				level.Debug(r.logger).Log("msg", "Adding line to buffer", "line", string(b))
 				buffer.Write(b)
 			}
 		}
@@ -140,7 +140,7 @@ func (r *Relay) sendPacket(buf []byte) error {
 		level.Debug(r.logger).Log("msg", "Empty buffer, nothing to send")
 		return nil
 	}
-	level.Debug(r.logger).Log("msg", "Sending packet", "length", len(buf), "data", buf)
+	level.Debug(r.logger).Log("msg", "Sending packet", "length", len(buf), "data", string(buf))
 	_, err := r.conn.WriteToUDP(buf, r.addr)
 	r.packetsTotal.Inc()
 	return err
@@ -158,7 +158,7 @@ func (r *Relay) RelayLine(l string) {
 		r.longLinesTotal.Inc()
 		return
 	}
-	level.Debug(r.logger).Log("msg", "Relaying line", "line", l)
+	level.Debug(r.logger).Log("msg", "Relaying line", "line", string(l))
 	if !strings.HasSuffix(l, "\n") {
 		l = l + "\n"
 	}

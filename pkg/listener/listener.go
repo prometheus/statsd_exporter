@@ -133,7 +133,7 @@ func (l *StatsDTCPListener) HandleConn(c *net.TCPConn) {
 			}
 			break
 		}
-		level.Debug(l.Logger).Log("msg", "Incoming line", "proto", "tcp", "line", line)
+		level.Debug(l.Logger).Log("msg", "Incoming line", "proto", "tcp", "line", string(line))
 		if isPrefix {
 			l.TCPLineTooLong.Inc()
 			level.Debug(l.Logger).Log("msg", "Read failed: line too long", "addr", c.RemoteAddr())
