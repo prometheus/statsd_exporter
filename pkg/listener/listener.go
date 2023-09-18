@@ -77,7 +77,6 @@ func (l *StatsDUDPListener) EnqueueUdpPacket(packet []byte) {
 }
 
 func (l *StatsDUDPListener) ProcessUdpPacketQueue() {
-	level.Info(l.Logger).Log("msg", "Running in pipelining mode")
 	for {
 		packet := <-l.UdpPacketQueue
 		l.HandlePacket(packet)
