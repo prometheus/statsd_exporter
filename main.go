@@ -261,6 +261,7 @@ func main() {
 		signalFXTagsEnabled  = kingpin.Flag("statsd.parse-signalfx-tags", "Parse SignalFX style tags. Enabled by default.").Default("true").Bool()
 		relayAddr            = kingpin.Flag("statsd.relay.address", "The UDP relay target address (host:port)").String()
 		relayPacketLen       = kingpin.Flag("statsd.relay.packet-length", "Maximum relay output packet length to avoid fragmentation").Default("1400").Uint()
+		udpPacketQueueSize   = kingpin.Flag("statsd.udp-packet-queue-size", "Size of internal queue for processing udp packets.").Default("10000").Int()
 	)
 
 	promlogConfig := &promlog.Config{}
@@ -368,6 +369,8 @@ func main() {
 			}
 		}
 
+		udpPacketQueue := make(chan []byte, *udpPacketQueueSize)
+
 		ul := &listener.StatsDUDPListener{
 			Conn:            uconn,
 			EventHandler:    eventQueue,
@@ -381,6 +384,7 @@ func main() {
 			SamplesReceived: samplesReceived,
 			TagErrors:       tagErrors,
 			TagsReceived:    tagsReceived,
+			UdpPacketQueue:  udpPacketQueue,
 		}
 
 		go ul.Listen()
