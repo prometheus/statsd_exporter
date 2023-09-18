@@ -71,6 +71,7 @@ func (l *StatsDUDPListener) Listen() {
 }
 
 func (l *StatsDUDPListener) EnqueueUdpPacket(packet []byte) {
+	l.UDPPackets.Inc()
 	packetCopy := make([]byte, len(packet))
 	copy(packetCopy, packet)
 	l.UdpPacketQueue <- packetCopy
@@ -84,7 +85,6 @@ func (l *StatsDUDPListener) ProcessUdpPacketQueue() {
 }
 
 func (l *StatsDUDPListener) HandlePacket(packet []byte) {
-	l.UDPPackets.Inc()
 	lines := strings.Split(string(packet), "\n")
 	for _, line := range lines {
 		level.Debug(l.Logger).Log("msg", "Incoming line", "proto", "udp", "line", line)
