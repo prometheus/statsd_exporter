@@ -66,13 +66,14 @@ func (l *StatsDUDPListener) Listen() {
 			level.Error(l.Logger).Log("error", err)
 			return
 		}
-		l.EnqueueUdpPacket(buf[0:n])
+		// avoid making copies of slices since we need to minimize the time spent here in order not to drop packets
+		l.EnqueueUdpPacket(buf, n)
 	}
 }
 
-func (l *StatsDUDPListener) EnqueueUdpPacket(packet []byte) {
+func (l *StatsDUDPListener) EnqueueUdpPacket(packet []byte, n int) {
 	l.UDPPackets.Inc()
-	packetCopy := make([]byte, len(packet))
+	packetCopy := make([]byte, n)
 	copy(packetCopy, packet)
 	l.UdpPacketQueue <- packetCopy
 }
