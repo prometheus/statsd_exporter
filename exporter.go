@@ -47,8 +47,8 @@ var (
 	illegalCharsRE = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 
 	hash   = fnv.New64a()
-	strBuf bytes.Buffer // Used for hashing.
-	intBuf = make([]byte, 8)
+	strBuf bytes.Buffer      // Used for hashing.
+	intBuf = make([]byte, 8) //nolint:gomnd
 )
 
 func labelNames(labels prometheus.Labels) []string {
@@ -94,7 +94,7 @@ func (c *CounterContainer) Get(metricName string, labels prometheus.Labels, help
 			Help: help,
 		}, labelNames(labels))
 		if err := prometheus.Register(counterVec); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to register to prometheus:%w", err)
 		}
 		c.Elements[metricName] = counterVec
 	}
@@ -544,7 +544,7 @@ func lineToEvents(line string) Events {
 		return events
 	}
 
-	elements := strings.SplitN(line, ":", 2)
+	elements := strings.SplitN(line, ":", 2) //nolint:gomnd
 	if len(elements) < 2 || len(elements[0]) == 0 || !utf8.ValidString(line) {
 		sampleErrors.WithLabelValues("malformed_line").Inc()
 		log.Debugln("Bad line from StatsD:", line)
@@ -561,8 +561,9 @@ func lineToEvents(line string) Events {
 samples:
 	for _, sample := range samples {
 		samplesReceived.Inc()
-		components := strings.Split(sample, "|")
 		samplingFactor := 1.0
+
+		components := strings.Split(sample, "|")
 		if len(components) < 2 || len(components) > 4 {
 			sampleErrors.WithLabelValues("malformed_component").Inc()
 			log.Debugln("Bad component on line:", line)

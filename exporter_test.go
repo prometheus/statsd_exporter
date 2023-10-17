@@ -201,7 +201,9 @@ mappings:
 		t.Fatalf("Config load error: %s %s", config, err)
 	}
 	events := make(chan Events)
+
 	defer close(events)
+
 	go func() {
 		ex := NewExporter(testMapper)
 		ex.Listen(events)

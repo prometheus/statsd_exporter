@@ -15,6 +15,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -125,7 +126,7 @@ func watchConfig(fileName string, mapper *mapper.MetricMapper) {
 func dumpFSM(mapper *mapper.MetricMapper, dumpFilename string) error {
 	f, err := os.Create(dumpFilename)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not create file:%w", err)
 	}
 	log.Infoln("Start dumping FSM to", dumpFilename)
 	w := bufio.NewWriter(f)
@@ -168,7 +169,7 @@ func main() {
 
 	go serveHTTP(*listenAddress, *metricsEndpoint)
 
-	events := make(chan Events, 1024)
+	events := make(chan Events, 1024) //nolint:gomnd
 	defer close(events)
 
 	if *statsdListenUDP != "" {
