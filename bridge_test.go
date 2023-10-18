@@ -26,7 +26,8 @@ func TestHandlePacket(t *testing.T) {
 	}{
 		{
 			name: "empty",
-		}, {
+		},
+		{
 			name: "simple counter",
 			in:   "foo:2|c",
 			out: Events{
@@ -36,7 +37,8 @@ func TestHandlePacket(t *testing.T) {
 					labels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "simple gauge",
 			in:   "foo:3|g",
 			out: Events{
@@ -46,7 +48,8 @@ func TestHandlePacket(t *testing.T) {
 					labels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "gauge decrement",
 			in:   "foo:-10|g",
 			out: Events{
@@ -57,7 +60,8 @@ func TestHandlePacket(t *testing.T) {
 					labels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "simple timer",
 			in:   "foo:200|ms",
 			out: Events{
@@ -67,7 +71,8 @@ func TestHandlePacket(t *testing.T) {
 					labels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "datadog tag extension",
 			in:   "foo:100|c|#tag1:bar,tag2:baz",
 			out: Events{
@@ -77,7 +82,8 @@ func TestHandlePacket(t *testing.T) {
 					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "datadog tag extension with # in all keys (as sent by datadog php client)",
 			in:   "foo:100|c|#tag1:bar,#tag2:baz",
 			out: Events{
@@ -87,7 +93,8 @@ func TestHandlePacket(t *testing.T) {
 					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "datadog tag extension with tag keys unsupported by prometheus",
 			in:   "foo:100|c|#09digits:0,tag.with.dots:1",
 			out: Events{
@@ -97,7 +104,8 @@ func TestHandlePacket(t *testing.T) {
 					labels:     map[string]string{"_09digits": "0", "tag_with_dots": "1"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "datadog tag extension with valueless tags: ignored",
 			in:   "foo:100|c|#tag_without_a_value",
 			out: Events{
@@ -107,7 +115,8 @@ func TestHandlePacket(t *testing.T) {
 					labels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "datadog tag extension with valueless tags (edge case)",
 			in:   "foo:100|c|#tag_without_a_value,tag:value",
 			out: Events{
@@ -117,7 +126,8 @@ func TestHandlePacket(t *testing.T) {
 					labels:     map[string]string{"tag": "value"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "datadog tag extension with empty tags (edge case)",
 			in:   "foo:100|c|#tag:value,,",
 			out: Events{
@@ -127,7 +137,8 @@ func TestHandlePacket(t *testing.T) {
 					labels:     map[string]string{"tag": "value"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "datadog tag extension with sampling",
 			in:   "foo:100|c|@0.1|#tag1:bar,#tag2:baz",
 			out: Events{
@@ -137,7 +148,8 @@ func TestHandlePacket(t *testing.T) {
 					labels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "datadog tag extension with multiple colons",
 			in:   "foo:100|c|@0.1|#tag1:foo:bar",
 			out: Events{
@@ -147,13 +159,16 @@ func TestHandlePacket(t *testing.T) {
 					labels:     map[string]string{"tag1": "foo:bar"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "datadog tag extension with invalid utf8 tag values",
 			in:   "foo:100|c|@0.1|#tag:\xc3\x28invalid",
-		}, {
+		},
+		{
 			name: "datadog tag extension with both valid and invalid utf8 tag values",
 			in:   "foo:100|c|@0.1|#tag1:valid,tag2:\xc3\x28invalid",
-		}, {
+		},
+		{
 			name: "multiple metrics with invalid datadog utf8 tag values",
 			in:   "foo:200|c|#tag:value\nfoo:300|c|#tag:\xc3\x28invalid",
 			out: Events{
@@ -163,7 +178,8 @@ func TestHandlePacket(t *testing.T) {
 					labels:     map[string]string{"tag": "value"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "combined multiline metrics",
 			in:   "foo:200|ms:300|ms:5|c|@0.1:6|g\nbar:1|c:5|ms",
 			out: Events{
@@ -198,7 +214,8 @@ func TestHandlePacket(t *testing.T) {
 					labels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "timings with sampling factor",
 			in:   "foo.timing:0.5|ms|@0.1",
 			out: Events{
@@ -213,16 +230,20 @@ func TestHandlePacket(t *testing.T) {
 				&TimerEvent{metricName: "foo.timing", value: 0.5, labels: map[string]string{}},
 				&TimerEvent{metricName: "foo.timing", value: 0.5, labels: map[string]string{}},
 			},
-		}, {
+		},
+		{
 			name: "bad line",
 			in:   "foo",
-		}, {
+		},
+		{
 			name: "bad component",
 			in:   "foo:1",
-		}, {
+		},
+		{
 			name: "bad value",
 			in:   "foo:1o|c",
-		}, {
+		},
+		{
 			name: "illegal sampling factor",
 			in:   "foo:1|c|@bar",
 			out: Events{
@@ -232,7 +253,8 @@ func TestHandlePacket(t *testing.T) {
 					labels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "zero sampling factor",
 			in:   "foo:2|c|@0",
 			out: Events{
@@ -242,7 +264,8 @@ func TestHandlePacket(t *testing.T) {
 					labels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "illegal stat type",
 			in:   "foo:2|t",
 		},
@@ -288,7 +311,7 @@ func TestHandlePacket(t *testing.T) {
 			}
 
 			for j, expected := range scenario.out {
-				if !reflect.DeepEqual(&expected, &actual[j]) {
+				if !reflect.DeepEqual(&expected, &actual[j]) { //nolint:gosec
 					t.Fatalf("%d.%d.%d. Expected %#v, got %#v in scenario '%s'", k, i, j, expected, actual[j], scenario.name)
 				}
 			}

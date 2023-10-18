@@ -141,7 +141,7 @@ mappings:
 				},
 			},
 		},
-		//Config with backtracking
+		// Config with backtracking
 		{
 			config: `
 defaults:
@@ -177,7 +177,7 @@ mappings:
 				},
 			},
 		},
-		//Config with backtracking, the non-matched rule has star(s)
+		// Config with backtracking, the non-matched rule has star(s)
 		// A metric like full.name.anothertest will first match full.name.* and then tries
 		// to match *.dummy.* and then failed.
 		// This test case makes sure the captures in the non-matched later rule
@@ -215,7 +215,7 @@ mappings:
 				},
 			},
 		},
-		//Config with super sets, disables ordering
+		// Config with super sets, disables ordering
 		{
 			config: `
 defaults:
@@ -249,7 +249,7 @@ mappings:
 				},
 			},
 		},
-		//Config with super sets, keeps ordering
+		// Config with super sets, keeps ordering
 		{
 			config: `
 defaults:
@@ -491,7 +491,7 @@ mappings:
     `,
 			configBad: true,
 		},
-		//Config with uncompilable regex.
+		// Config with uncompilable regex.
 		{
 			config: `---
 mappings:
@@ -502,7 +502,7 @@ mappings:
     `,
 			configBad: true,
 		},
-		//Config with non-matched metric.
+		// Config with non-matched metric.
 		{
 			config: `---
 mappings:
@@ -519,7 +519,7 @@ mappings:
 				},
 			},
 		},
-		//Config with no name.
+		// Config with no name.
 		{
 			config: `---
 mappings:

@@ -31,7 +31,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
-
 	"github.com/prometheus/statsd_exporter/pkg/clock"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
@@ -56,7 +55,9 @@ func labelNames(labels prometheus.Labels) []string {
 	for labelName := range labels {
 		names = append(names, labelName)
 	}
+
 	sort.Strings(names)
+
 	return names
 }
 
@@ -72,6 +73,7 @@ func hashNameAndLabels(name string, labels prometheus.Labels) uint64 {
 	hash.Write(strBuf.Bytes())
 	binary.BigEndian.PutUint64(intBuf, model.LabelsToSignature(labels))
 	hash.Write(intBuf)
+
 	return hash.Sum64()
 }
 
@@ -93,12 +95,20 @@ func (c *CounterContainer) Get(metricName string, labels prometheus.Labels, help
 			Name: metricName,
 			Help: help,
 		}, labelNames(labels))
+
 		if err := prometheus.Register(counterVec); err != nil {
 			return nil, fmt.Errorf("failed to register to prometheus:%w", err)
 		}
+
 		c.Elements[metricName] = counterVec
 	}
-	return counterVec.GetMetricWith(labels)
+
+	cnt, err := counterVec.GetMetricWith(labels)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get metrics:%w", err)
+	}
+
+	return cnt, nil
 }
 
 func (c *CounterContainer) Delete(metricName string, labels prometheus.Labels) {
@@ -125,11 +135,18 @@ func (c *GaugeContainer) Get(metricName string, labels prometheus.Labels, help s
 			Help: help,
 		}, labelNames(labels))
 		if err := prometheus.Register(gaugeVec); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("could not register prometheus:%w", err)
 		}
+
 		c.Elements[metricName] = gaugeVec
 	}
-	return gaugeVec.GetMetricWith(labels)
+
+	gv, err := gaugeVec.GetMetricWith(labels)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get metrics width:%w", err)
+	}
+
+	return gv, nil
 }
 
 func (c *GaugeContainer) Delete(metricName string, labels prometheus.Labels) {
@@ -157,22 +174,33 @@ func (c *SummaryContainer) Get(metricName string, labels prometheus.Labels, help
 		if mapping != nil && mapping.Quantiles != nil && len(mapping.Quantiles) > 0 {
 			quantiles = mapping.Quantiles
 		}
+
 		objectives := make(map[float64]float64)
+
 		for _, q := range quantiles {
 			objectives[q.Quantile] = q.Error
 		}
+
 		summaryVec = prometheus.NewSummaryVec(
 			prometheus.SummaryOpts{
 				Name:       metricName,
 				Help:       help,
 				Objectives: objectives,
 			}, labelNames(labels))
+
 		if err := prometheus.Register(summaryVec); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("could not register to prometheus:%w", err)
 		}
+
 		c.Elements[metricName] = summaryVec
 	}
-	return summaryVec.GetMetricWith(labels)
+
+	sv, err := summaryVec.GetMetricWith(labels)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get metrics width:%w", err)
+	}
+
+	return sv, nil
 }
 
 func (c *SummaryContainer) Delete(metricName string, labels prometheus.Labels) {
@@ -200,18 +228,27 @@ func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, he
 		if mapping != nil && mapping.Buckets != nil && len(mapping.Buckets) > 0 {
 			buckets = mapping.Buckets
 		}
+
 		histogramVec = prometheus.NewHistogramVec(
 			prometheus.HistogramOpts{
 				Name:    metricName,
 				Help:    help,
 				Buckets: buckets,
 			}, labelNames(labels))
+
 		if err := prometheus.Register(histogramVec); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("could not register to prometheus:%w", err)
 		}
+
 		c.Elements[metricName] = histogramVec
 	}
-	return histogramVec.GetMetricWith(labels)
+
+	po, err := histogramVec.GetMetricWith(labels)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get metrics width:%w", err)
+	}
+
+	return po, nil
 }
 
 func (c *HistogramContainer) Delete(metricName string, labels prometheus.Labels) {
@@ -247,8 +284,8 @@ type GaugeEvent struct {
 
 func (g *GaugeEvent) MetricName() string            { return g.metricName }
 func (g *GaugeEvent) Value() float64                { return g.value }
-func (c *GaugeEvent) Labels() map[string]string     { return c.labels }
-func (c *GaugeEvent) MetricType() mapper.MetricType { return mapper.MetricTypeGauge }
+func (g *GaugeEvent) Labels() map[string]string     { return g.labels }
+func (g *GaugeEvent) MetricType() mapper.MetricType { return mapper.MetricTypeGauge }
 
 type TimerEvent struct {
 	metricName string
@@ -258,8 +295,8 @@ type TimerEvent struct {
 
 func (t *TimerEvent) MetricName() string            { return t.metricName }
 func (t *TimerEvent) Value() float64                { return t.value }
-func (c *TimerEvent) Labels() map[string]string     { return c.labels }
-func (c *TimerEvent) MetricType() mapper.MetricType { return mapper.MetricTypeTimer }
+func (t *TimerEvent) Labels() map[string]string     { return t.labels }
+func (t *TimerEvent) MetricType() mapper.MetricType { return mapper.MetricTypeTimer }
 
 type Events []Event
 
@@ -286,6 +323,7 @@ func escapeMetricName(metricName string) string {
 
 	// Replace all illegal metric chars with underscores.
 	metricName = illegalCharsRE.ReplaceAllString(metricName, "_")
+
 	return metricName
 }
 
@@ -302,8 +340,10 @@ func (b *Exporter) Listen(e <-chan Events) {
 			if !ok {
 				log.Debug("Channel is closed. Break out of Exporter.Listener.")
 				removeStaleMetricsTicker.Stop()
+
 				return
 			}
+
 			for _, event := range events {
 				b.handleEvent(event)
 			}
@@ -312,7 +352,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 }
 
 // handleEvent processes a single Event according to the configured mapping.
-func (b *Exporter) handleEvent(event Event) {
+func (b *Exporter) handleEvent(event Event) { //nolint:gocognit,gocyclo
 	mapping, labels, present := b.mapper.GetMapping(event.MetricName(), event.MetricType())
 	if mapping == nil {
 		mapping = &mapper.MetricMapping{}
@@ -330,10 +370,13 @@ func (b *Exporter) handleEvent(event Event) {
 		help = mapping.HelpText
 	}
 
-	metricName := ""
+	var metricName string
+
 	prometheusLabels := event.Labels()
+
 	if present {
 		metricName = escapeMetricName(mapping.Name)
+
 		for label, value := range labels {
 			prometheusLabels[label] = value
 		}
@@ -349,6 +392,7 @@ func (b *Exporter) handleEvent(event Event) {
 		if event.Value() < 0.0 {
 			log.Debugf("Counter %q is: '%f' (counter must be non-negative value)", metricName, event.Value())
 			eventStats.WithLabelValues("illegal_negative_counter").Inc()
+
 			return
 		}
 
@@ -379,7 +423,9 @@ func (b *Exporter) handleEvent(event Event) {
 			} else {
 				gauge.Set(event.Value())
 			}
+
 			b.saveLabelValues(metricName, prometheusLabels, mapping.Ttl)
+
 			eventStats.WithLabelValues("gauge").Inc()
 		} else {
 			log.Debugf(regErrF, metricName, err)
@@ -391,6 +437,7 @@ func (b *Exporter) handleEvent(event Event) {
 		if mapping != nil {
 			t = mapping.TimerType
 		}
+
 		if t == mapper.TimerTypeDefault {
 			t = b.mapper.Defaults.TimerType
 		}
@@ -404,7 +451,8 @@ func (b *Exporter) handleEvent(event Event) {
 				mapping,
 			)
 			if err == nil {
-				histogram.Observe(event.Value() / 1000) // prometheus presumes seconds, statsd millisecond
+				// prometheus presumes seconds, statsd millisecond
+				histogram.Observe(event.Value() / 1000) //nolint:gomnd
 				b.saveLabelValues(metricName, prometheusLabels, mapping.Ttl)
 				eventStats.WithLabelValues("timer").Inc()
 			} else {
@@ -420,7 +468,8 @@ func (b *Exporter) handleEvent(event Event) {
 				mapping,
 			)
 			if err == nil {
-				summary.Observe(event.Value() / 1000) // prometheus presumes seconds, statsd millisecond
+				// prometheus presumes seconds, statsd millisecond
+				summary.Observe(event.Value() / 1000) //nolint:gomnd
 				b.saveLabelValues(metricName, prometheusLabels, mapping.Ttl)
 				eventStats.WithLabelValues("timer").Inc()
 			} else {
@@ -438,7 +487,7 @@ func (b *Exporter) handleEvent(event Event) {
 	}
 }
 
-// removeStaleMetrics removes label values set from metric with stale values
+// removeStaleMetrics removes label values set from metric with stale values.
 func (b *Exporter) removeStaleMetrics() {
 	now := clock.Now()
 	// delete timeseries with expired ttl
@@ -447,6 +496,7 @@ func (b *Exporter) removeStaleMetrics() {
 			if lvs.ttl == 0 {
 				continue
 			}
+
 			if lvs.lastRegisteredAt.Add(lvs.ttl).Before(now) {
 				b.Counters.Delete(metricName, lvs.labels)
 				b.Gauges.Delete(metricName, lvs.labels)
@@ -458,14 +508,16 @@ func (b *Exporter) removeStaleMetrics() {
 	}
 }
 
-// saveLabelValues stores label values set to labelValues and update lastRegisteredAt time and ttl value
+// saveLabelValues stores label values set to labelValues and update lastRegisteredAt time and ttl value.
 func (b *Exporter) saveLabelValues(metricName string, labels prometheus.Labels, ttl time.Duration) {
 	metric, hasMetric := b.labelValues[metricName]
 	if !hasMetric {
 		metric = make(map[uint64]*LabelValues)
 		b.labelValues[metricName] = metric
 	}
+
 	hash := hashNameAndLabels(metricName, labels)
+
 	metricLabelValues, ok := metric[hash]
 	if !ok {
 		metricLabelValues = &LabelValues{
@@ -474,6 +526,7 @@ func (b *Exporter) saveLabelValues(metricName string, labels prometheus.Labels, 
 		}
 		b.labelValues[metricName][hash] = metricLabelValues
 	}
+
 	now := clock.Now()
 	metricLabelValues.lastRegisteredAt = now
 	// Update ttl from mapping
@@ -496,20 +549,20 @@ func buildEvent(statType, metric string, value float64, relative bool, labels ma
 	case "c":
 		return &CounterEvent{
 			metricName: metric,
-			value:      float64(value),
+			value:      float64(value), //nolint:unconvert
 			labels:     labels,
 		}, nil
 	case "g":
 		return &GaugeEvent{
 			metricName: metric,
-			value:      float64(value),
+			value:      float64(value), //nolint:unconvert
 			relative:   relative,
 			labels:     labels,
 		}, nil
 	case "ms", "h":
 		return &TimerEvent{
 			metricName: metric,
-			value:      float64(value),
+			value:      float64(value), //nolint:unconvert
 			labels:     labels,
 		}, nil
 	case "s":
@@ -521,24 +574,28 @@ func buildEvent(statType, metric string, value float64, relative bool, labels ma
 
 func parseDogStatsDTagsToLabels(component string) map[string]string {
 	labels := map[string]string{}
-	tagsReceived.Inc()
 	tags := strings.Split(component, ",")
+
+	tagsReceived.Inc()
+
 	for _, t := range tags {
 		t = strings.TrimPrefix(t, "#")
-		kv := strings.SplitN(t, ":", 2)
+		kv := strings.SplitN(t, ":", 2) //nolint:gomnd
 
 		if len(kv) < 2 || len(kv[1]) == 0 {
 			tagErrors.Inc()
 			log.Debugf("Malformed or empty DogStatsD tag %s in component %s", t, component)
+
 			continue
 		}
 
 		labels[escapeMetricName(kv[0])] = kv[1]
 	}
+
 	return labels
 }
 
-func lineToEvents(line string) Events {
+func lineToEvents(line string) Events { //nolint:gocyclo,gocognit
 	events := Events{}
 	if line == "" {
 		return events
@@ -548,10 +605,14 @@ func lineToEvents(line string) Events {
 	if len(elements) < 2 || len(elements[0]) == 0 || !utf8.ValidString(line) {
 		sampleErrors.WithLabelValues("malformed_line").Inc()
 		log.Debugln("Bad line from StatsD:", line)
+
 		return events
 	}
+
 	metric := elements[0]
+
 	var samples []string
+
 	if strings.Contains(elements[1], "|#") {
 		// using datadog extensions, disable multi-metrics
 		samples = elements[1:]
@@ -561,17 +622,18 @@ func lineToEvents(line string) Events {
 samples:
 	for _, sample := range samples {
 		samplesReceived.Inc()
-		samplingFactor := 1.0
+		samplingFactor := 1.0 //nolint:ineffassign,wastedassign
 
 		components := strings.Split(sample, "|")
 		if len(components) < 2 || len(components) > 4 {
 			sampleErrors.WithLabelValues("malformed_component").Inc()
 			log.Debugln("Bad component on line:", line)
+
 			continue
 		}
 		valueStr, statType := components[0], components[1]
 
-		var relative = false
+		relative := false
 		if strings.Index(valueStr, "+") == 0 || strings.Index(valueStr, "-") == 0 {
 			relative = true
 		}
@@ -580,16 +642,19 @@ samples:
 		if err != nil {
 			log.Debugf("Bad value %s on line: %s", valueStr, line)
 			sampleErrors.WithLabelValues("malformed_value").Inc()
+
 			continue
 		}
 
 		multiplyEvents := 1
 		labels := map[string]string{}
-		if len(components) >= 3 {
+
+		if len(components) >= 3 { //nolint:nestif,gomnd
 			for _, component := range components[2:] {
 				if len(component) == 0 {
 					log.Debugln("Empty component on line: ", line)
 					sampleErrors.WithLabelValues("malformed_component").Inc()
+
 					continue samples
 				}
 			}
@@ -600,6 +665,7 @@ samples:
 					if statType != "c" && statType != "ms" {
 						log.Debugln("Illegal sampling factor for non-counter metric on line", line)
 						sampleErrors.WithLabelValues("illegal_sample_factor").Inc()
+
 						continue
 					}
 					samplingFactor, err = strconv.ParseFloat(component[1:], 64)
@@ -621,6 +687,7 @@ samples:
 				default:
 					log.Debugf("Invalid sampling factor or tag section %s on line %s", components[2], line)
 					sampleErrors.WithLabelValues("invalid_sample_factor").Inc()
+
 					continue
 				}
 			}
@@ -631,11 +698,13 @@ samples:
 			if err != nil {
 				log.Debugf("Error building event on line %s: %s", line, err)
 				sampleErrors.WithLabelValues("illegal_event").Inc()
+
 				continue
 			}
 			events = append(events, event)
 		}
 	}
+
 	return events
 }
 
@@ -645,7 +714,8 @@ type StatsDUDPListener struct {
 }
 
 func (l *StatsDUDPListener) Listen(e chan<- Events) {
-	buf := make([]byte, 65535)
+	buf := make([]byte, 65535) //nolint:gomnd
+
 	for {
 		n, _, err := l.conn.ReadFromUDP(buf)
 		if err != nil {
@@ -662,10 +732,13 @@ func (l *StatsDUDPListener) Listen(e chan<- Events) {
 
 func (l *StatsDUDPListener) handlePacket(packet []byte, e chan<- Events) {
 	udpPackets.Inc()
-	lines := strings.Split(string(packet), "\n")
+
 	events := Events{}
+
+	lines := strings.Split(string(packet), "\n")
 	for _, line := range lines {
 		linesReceived.Inc()
+
 		events = append(events, lineToEvents(line)...)
 	}
 	e <- events
@@ -681,6 +754,7 @@ func (l *StatsDTCPListener) Listen(e chan<- Events) {
 		if err != nil {
 			log.Fatalf("AcceptTCP failed: %v", err)
 		}
+
 		go l.handleConn(c, e)
 	}
 }
@@ -691,6 +765,7 @@ func (l *StatsDTCPListener) handleConn(c *net.TCPConn, e chan<- Events) {
 	tcpConnections.Inc()
 
 	r := bufio.NewReader(c)
+
 	for {
 		line, isPrefix, err := r.ReadLine()
 		if err != nil {
@@ -698,13 +773,17 @@ func (l *StatsDTCPListener) handleConn(c *net.TCPConn, e chan<- Events) {
 				tcpErrors.Inc()
 				log.Debugf("Read %s failed: %v", c.RemoteAddr(), err)
 			}
+
 			break
 		}
+
 		if isPrefix {
 			tcpLineTooLong.Inc()
 			log.Debugf("Read %s failed: line too long", c.RemoteAddr())
+
 			break
 		}
+
 		linesReceived.Inc()
 		e <- lineToEvents(string(line))
 	}

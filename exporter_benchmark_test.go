@@ -18,7 +18,7 @@ import (
 	"testing"
 )
 
-func benchmarkExporter(times int, b *testing.B) {
+func benchmarkExporter(times int, b *testing.B) { //nolint:thelper
 	input := []string{
 		"foo1:2|c",
 		"foo2:3|g",
@@ -31,12 +31,15 @@ func benchmarkExporter(times int, b *testing.B) {
 		"foo15:200|ms:300|ms:5|c|@0.1:6|g\nfoo15a:1|c:5|ms",
 		"some_very_useful_metrics_with_quite_a_log_name:13|c",
 	}
+
 	bytesInput := make([]string, len(input)*times)
+
 	for run := 0; run < times; run++ {
 		for i := 0; i < len(input); i++ {
 			bytesInput[run*len(input)+i] = fmt.Sprintf("run%d%s", run, input[i])
 		}
 	}
+
 	for n := 0; n < b.N; n++ {
 		l := StatsDUDPListener{}
 		// there are more events than input lines, need bigger buffer
@@ -53,9 +56,11 @@ func benchmarkExporter(times int, b *testing.B) {
 func BenchmarkExporter1(b *testing.B) {
 	benchmarkExporter(1, b)
 }
+
 func BenchmarkExporter5(b *testing.B) {
 	benchmarkExporter(5, b)
 }
+
 func BenchmarkExporter50(b *testing.B) {
 	benchmarkExporter(50, b)
 }

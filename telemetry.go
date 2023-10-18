@@ -104,7 +104,7 @@ var (
 	)
 )
 
-func init() {
+func init() { //nolint:gochecknoinits
 	prometheus.MustRegister(eventStats)
 	prometheus.MustRegister(eventsUnmapped)
 	prometheus.MustRegister(udpPackets)
