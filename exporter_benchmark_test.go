@@ -65,6 +65,7 @@ func benchmarkUDPListener(times int, b *testing.B) {
 
 		// there are more events than input lines, need bigger buffer
 		events := make(chan event.Events, len(bytesInput)*times*2)
+		udpChan := make(chan []byte, len(bytesInput)*times*2)
 
 		l := listener.StatsDUDPListener{
 			EventHandler:    &event.UnbufferedEventHandler{C: events},
@@ -74,6 +75,7 @@ func benchmarkUDPListener(times int, b *testing.B) {
 			LinesReceived:   linesReceived,
 			SamplesReceived: samplesReceived,
 			TagsReceived:    tagsReceived,
+			UdpPacketQueue:  udpChan,
 		}
 
 		// resume benchmark timer

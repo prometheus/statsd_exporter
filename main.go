@@ -71,6 +71,12 @@ var (
 			Help: "The total number of StatsD packets received over UDP.",
 		},
 	)
+	udpPacketDrops = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_udp_packet_drops_total",
+			Help: "The total number of dropped StatsD packets which received over UDP.",
+		},
+	)
 	tcpConnections = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_tcp_connections_total",
@@ -261,6 +267,7 @@ func main() {
 		signalFXTagsEnabled  = kingpin.Flag("statsd.parse-signalfx-tags", "Parse SignalFX style tags. Enabled by default.").Default("true").Bool()
 		relayAddr            = kingpin.Flag("statsd.relay.address", "The UDP relay target address (host:port)").String()
 		relayPacketLen       = kingpin.Flag("statsd.relay.packet-length", "Maximum relay output packet length to avoid fragmentation").Default("1400").Uint()
+		udpPacketQueueSize   = kingpin.Flag("statsd.udp-packet-queue-size", "Size of internal queue for processing UDP packets.").Default("10000").Int()
 	)
 
 	promlogConfig := &promlog.Config{}
@@ -368,12 +375,15 @@ func main() {
 			}
 		}
 
+		udpPacketQueue := make(chan []byte, *udpPacketQueueSize)
+
 		ul := &listener.StatsDUDPListener{
 			Conn:            uconn,
 			EventHandler:    eventQueue,
 			Logger:          logger,
 			LineParser:      parser,
 			UDPPackets:      udpPackets,
+			UDPPacketDrops:  udpPacketDrops,
 			LinesReceived:   linesReceived,
 			EventsFlushed:   eventsFlushed,
 			Relay:           relayTarget,
@@ -381,6 +391,7 @@ func main() {
 			SamplesReceived: samplesReceived,
 			TagErrors:       tagErrors,
 			TagsReceived:    tagsReceived,
+			UdpPacketQueue:  udpPacketQueue,
 		}
 
 		go ul.Listen()

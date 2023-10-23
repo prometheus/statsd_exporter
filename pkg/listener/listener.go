@@ -38,6 +38,7 @@ type StatsDUDPListener struct {
 	Logger          log.Logger
 	LineParser      Parser
 	UDPPackets      prometheus.Counter
+	UDPPacketDrops  prometheus.Counter
 	LinesReceived   prometheus.Counter
 	EventsFlushed   prometheus.Counter
 	Relay           *relay.Relay
@@ -45,6 +46,7 @@ type StatsDUDPListener struct {
 	SamplesReceived prometheus.Counter
 	TagErrors       prometheus.Counter
 	TagsReceived    prometheus.Counter
+	UdpPacketQueue  chan []byte
 }
 
 func (l *StatsDUDPListener) SetEventHandler(eh event.EventHandler) {
@@ -53,6 +55,7 @@ func (l *StatsDUDPListener) SetEventHandler(eh event.EventHandler) {
 
 func (l *StatsDUDPListener) Listen() {
 	buf := make([]byte, 65535)
+	go l.ProcessUdpPacketQueue()
 	for {
 		n, _, err := l.Conn.ReadFromUDP(buf)
 		if err != nil {
@@ -64,12 +67,31 @@ func (l *StatsDUDPListener) Listen() {
 			level.Error(l.Logger).Log("error", err)
 			return
 		}
-		l.HandlePacket(buf[0:n])
+
+		l.EnqueueUdpPacket(buf, n)
+	}
+}
+
+func (l *StatsDUDPListener) EnqueueUdpPacket(packet []byte, n int) {
+	l.UDPPackets.Inc()
+	packetCopy := make([]byte, n)
+	copy(packetCopy, packet)
+	select {
+	case l.UdpPacketQueue <- packetCopy:
+		// do nothing
+	default:
+		l.UDPPacketDrops.Inc()
+	}
+}
+
+func (l *StatsDUDPListener) ProcessUdpPacketQueue() {
+	for {
+		packet := <-l.UdpPacketQueue
+		l.HandlePacket(packet)
 	}
 }
 
 func (l *StatsDUDPListener) HandlePacket(packet []byte) {
-	l.UDPPackets.Inc()
 	lines := strings.Split(string(packet), "\n")
 	for _, line := range lines {
 		level.Debug(l.Logger).Log("msg", "Incoming line", "proto", "udp", "line", line)
