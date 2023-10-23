@@ -1,3 +1,16 @@
+## 0.25.0 / 2023-10-23
+
+* [CHANGE] Update `client_golang` ([#508](https://github.com/prometheus/statsd_exporter/pull/508), [#513](https://github.com/prometheus/statsd_exporter/pull/513))
+* [ENHANCEMENT] Process UDP packets asynchronously ([#511](https://github.com/prometheus/statsd_exporter/pull/511))
+* [BUGFIX] Debug-log incoming lines in cleartext ([#510](https://github.com/prometheus/statsd_exporter/pull/510))
+* [SECURITY] Update `golang.org/x/net` ([#516](https://github.com/prometheus/statsd_exporter/pull/516))
+
+This release is less likely to drop UDP packets under very high traffic.
+Additonally, when it does, it now attempts to record that this happened in the metric `statsd_exporter_udp_packet_drops_total`, where previously this could only be detected from operating system metrics.
+If you are already monitoring for OS-level UDP packet drops, you _must_ also monitor this metric.
+The exporter will pull packets from the UDP socket queue much more quickly and queue them internally before processing.
+Existing monitoring for packet drops will no longer be sufficient to detect dropped events, but attribution to the exporter is easier with this new metric.
+
 ## 0.24.0 / 2023-06-02
 
 * [FEATURE] Improve the landing page experience ([#504](https://github.com/prometheus/statsd_exporter/pull/504))
