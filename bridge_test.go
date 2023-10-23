@@ -543,6 +543,7 @@ func TestHandlePacket(t *testing.T) {
 		Logger:          log.NewNopLogger(),
 		LineParser:      parser,
 		UDPPackets:      udpPackets,
+		UDPPacketDrops:  udpPacketDrops,
 		LinesReceived:   linesReceived,
 		EventsFlushed:   eventsFlushed,
 		SampleErrors:    *sampleErrors,

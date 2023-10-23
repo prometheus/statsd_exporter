@@ -56,6 +56,12 @@ var (
 			Help: "The total number of StatsD packets received over UDP.",
 		},
 	)
+	udpPacketDrops = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_udp_packet_drops_total",
+			Help: "The total number of dropped StatsD packets which received over UDP.",
+		},
+	)
 	tcpConnections = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_tcp_connections_total",
@@ -683,6 +689,7 @@ func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
 			Logger:          log.NewNopLogger(),
 			LineParser:      parser,
 			UDPPackets:      udpPackets,
+			UDPPacketDrops:  udpPacketDrops,
 			LinesReceived:   linesReceived,
 			EventsFlushed:   eventsFlushed,
 			SampleErrors:    *sampleErrors,

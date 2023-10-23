@@ -38,6 +38,7 @@ type StatsDUDPListener struct {
 	Logger          log.Logger
 	LineParser      Parser
 	UDPPackets      prometheus.Counter
+	UDPPacketDrops  prometheus.Counter
 	LinesReceived   prometheus.Counter
 	EventsFlushed   prometheus.Counter
 	Relay           *relay.Relay
@@ -66,7 +67,7 @@ func (l *StatsDUDPListener) Listen() {
 			level.Error(l.Logger).Log("error", err)
 			return
 		}
-		// avoid making copies of slices since we need to minimize the time spent here in order not to drop packets
+
 		l.EnqueueUdpPacket(buf, n)
 	}
 }
@@ -75,7 +76,12 @@ func (l *StatsDUDPListener) EnqueueUdpPacket(packet []byte, n int) {
 	l.UDPPackets.Inc()
 	packetCopy := make([]byte, n)
 	copy(packetCopy, packet)
-	l.UdpPacketQueue <- packetCopy
+	select {
+	case l.UdpPacketQueue <- packetCopy:
+		// do nothing
+	default:
+		l.UDPPacketDrops.Inc()
+	}
 }
 
 func (l *StatsDUDPListener) ProcessUdpPacketQueue() {

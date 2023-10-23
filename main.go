@@ -71,6 +71,12 @@ var (
 			Help: "The total number of StatsD packets received over UDP.",
 		},
 	)
+	udpPacketDrops = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "statsd_exporter_udp_packet_drops_total",
+			Help: "The total number of dropped StatsD packets which received over UDP.",
+		},
+	)
 	tcpConnections = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_tcp_connections_total",
@@ -377,6 +383,7 @@ func main() {
 			Logger:          logger,
 			LineParser:      parser,
 			UDPPackets:      udpPackets,
+			UDPPacketDrops:  udpPacketDrops,
 			LinesReceived:   linesReceived,
 			EventsFlushed:   eventsFlushed,
 			Relay:           relayTarget,
