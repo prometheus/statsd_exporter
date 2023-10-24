@@ -6,10 +6,12 @@
 * [SECURITY] Update `golang.org/x/net` ([#516](https://github.com/prometheus/statsd_exporter/pull/516))
 
 This release is less likely to drop UDP packets under very high traffic.
-Additonally, when it does, it now attempts to record that this happened in the metric `statsd_exporter_udp_packet_drops_total`, where previously this could only be detected from operating system metrics.
+Additionally, when it does, it now attempts to record that this happened in the metric `statsd_exporter_udp_packet_drops_total`, where previously this could only be detected from operating system metrics.
 If you are already monitoring for OS-level UDP packet drops, you _must_ also monitor this metric.
 The exporter will pull packets from the UDP socket queue much more quickly and queue them internally before processing.
 Existing monitoring for packet drops will no longer be sufficient to detect dropped events, but attribution to the exporter is easier with this new metric.
+
+Many thanks to @sumeshpremraj and @kullanici0606 for their contributions, and @pedro-stanaka for helping with the async UDP processing!
 
 ## 0.24.0 / 2023-06-02
 
