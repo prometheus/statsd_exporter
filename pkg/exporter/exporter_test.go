@@ -277,7 +277,7 @@ mappings:
 // TestLabelParsing verifies that labels getting parsed out of metric
 // names are being properly created.
 func TestLabelParsing(t *testing.T) {
-	codes := [2]string{"200", "300"}
+	codes := [3]string{"200", "300", "400"}
 
 	events := make(chan event.Events)
 	go func() {
@@ -291,6 +291,11 @@ func TestLabelParsing(t *testing.T) {
 				CMetricName: "counter.test.300",
 				CValue:      1,
 				CLabels:     make(map[string]string),
+			},
+			&event.CounterEvent{
+				CMetricName: "counter.test.400",
+				CValue:      1,
+				CLabels:     map[string]string{"code": "should be overwritten"},
 			},
 		}
 		events <- c
@@ -326,6 +331,51 @@ mappings:
 		if getFloat64(metrics, "counter_test", labels) == nil {
 			t.Fatalf("Could not find metrics for counter_test code %s", code)
 		}
+	}
+}
+
+func TestHonorLabels(t *testing.T) {
+	metricName := "some_counter"
+	events := make(chan event.Events)
+	go func() {
+		c := event.Events{
+			&event.CounterEvent{
+				CMetricName: metricName,
+				CValue:      1,
+				CLabels:     map[string]string{"some_label": "bar"},
+			},
+		}
+		events <- c
+		close(events)
+	}()
+
+	config := `
+mappings:
+  - match: .*
+    match_type: regex
+    name: $0
+    labels:
+      some_label: foo
+    honor_labels: true
+`
+	testMapper := &mapper.MetricMapper{
+		Logger: log.NewNopLogger(),
+	}
+	err := testMapper.InitFromYAMLString(config)
+	if err != nil {
+		t.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	ex := NewExporter(prometheus.DefaultRegisterer, testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	ex.Listen(events)
+
+	metrics, err := prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Fatalf("Cannot gather from DefaultGatherer: %v", err)
+	}
+
+	if getFloat64(metrics, metricName, map[string]string{"some_label": "bar"}) == nil {
+		t.Fatalf("Could not find metrics for %s with label set", metricName)
 	}
 }
 

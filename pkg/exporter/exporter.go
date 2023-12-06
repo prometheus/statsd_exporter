@@ -105,6 +105,10 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 		}
 		metricName = mapper.EscapeMetricName(mapping.Name)
 		for label, value := range labels {
+			if _, ok := prometheusLabels[label]; mapping.HonorLabels && ok {
+				continue
+			}
+
 			prometheusLabels[label] = value
 		}
 		b.EventsActions.WithLabelValues(string(mapping.Action)).Inc()
