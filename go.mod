@@ -3,7 +3,7 @@ module github.com/prometheus/statsd_exporter
 go 1.18
 
 require (
-	github.com/alecthomas/kingpin/v2 v2.3.2
+	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/go-kit/log v0.2.1
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 	github.com/prometheus/client_golang v1.17.0
