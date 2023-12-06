@@ -1,3 +1,10 @@
+## 0.26.0 / 2023-12-06
+
+* [CHANGE] Update dependencies: prometheus/common, client model, and Go 1.21
+* [FEATURE] Add option to honor original labels from event tags over labels specified in mapping configuration ([#521](https://github.com/prometheus/statsd_exporter/pull/521))
+
+Thank you @rabenhorst for the `honor_labels` contribution!
+
 ## 0.25.0 / 2023-10-23
 
 * [CHANGE] Update `client_golang` ([#508](https://github.com/prometheus/statsd_exporter/pull/508), [#513](https://github.com/prometheus/statsd_exporter/pull/513))

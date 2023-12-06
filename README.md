@@ -97,6 +97,9 @@ The exporter parses all tagging formats by default, but individual tagging forma
 --no-statsd.parse-signalfx-tags
 ```
 
+By default, labels explicitly specified in configuration take precedence over labels from tags.
+To set the label from the statsd event tag, use [`honor_labels`](#honor-labels).
+
 ## Building and Running
 
 NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/kingpin) flags library. With this change, flag behaviour is POSIX-ish:
@@ -353,6 +356,13 @@ mappings:
   labels:
     code: "$1"
 ```
+
+### Honor labels
+
+By default, labels specified in the mapping configuration take precedence over tags in the statsd event.
+
+To set the label value to the original tag value, if present, specify `honor_labels: true` in the mapping configuration.
+In this case, the label specified in the mapping acts as a default.
 
 ### StatsD timers and distributions
 
