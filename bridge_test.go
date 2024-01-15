@@ -82,6 +82,58 @@ func TestHandlePacket(t *testing.T) {
 				},
 			},
 		}, {
+			name: "gauge increment",
+			in:   "foo:+10|g",
+			out: event.Events{
+				&event.GaugeEvent{
+					GMetricName: "foo",
+					GValue:      10,
+					GRelative:   true,
+					GLabels:     map[string]string{},
+				},
+			},
+		}, {
+			name: "gauge set negative",
+			in:   "foo:0|g\nfoo:-1|g",
+			out: event.Events{
+				&event.GaugeEvent{
+					GMetricName: "foo",
+					GValue:      0,
+					GRelative:   false,
+					GLabels:     map[string]string{},
+				},
+				&event.GaugeEvent{
+					GMetricName: "foo",
+					GValue:      -1,
+					GRelative:   true,
+					GLabels:     map[string]string{},
+				},
+			},
+		}, {
+			// Test the sequence given here https://github.com/statsd/statsd/blob/master/docs/metric_types.md#gauges
+			name: "gauge up and down",
+			in:   "gaugor:333|g\ngaugor:-10|g\ngaugor:+4|g",
+			out: event.Events{
+				&event.GaugeEvent{
+					GMetricName: "gaugor",
+					GValue:      333,
+					GRelative:   false,
+					GLabels:     map[string]string{},
+				},
+				&event.GaugeEvent{
+					GMetricName: "gaugor",
+					GValue:      -10,
+					GRelative:   true,
+					GLabels:     map[string]string{},
+				},
+				&event.GaugeEvent{
+					GMetricName: "gaugor",
+					GValue:      4,
+					GRelative:   true,
+					GLabels:     map[string]string{},
+				},
+			},
+		}, {
 			name: "simple timer",
 			in:   "foo:200|ms",
 			out: event.Events{

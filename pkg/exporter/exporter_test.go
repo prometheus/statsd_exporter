@@ -902,6 +902,58 @@ func TestCounterIncrement(t *testing.T) {
 	}
 }
 
+// Test case from https://github.com/statsd/statsd/blob/master/docs/metric_types.md#gauges
+func TestGaugeIncrementDecrement(t *testing.T) {
+	// Start exporter with a synchronous channel
+	events := make(chan event.Events)
+	go func() {
+		testMapper := mapper.MetricMapper{}
+		ex := NewExporter(prometheus.DefaultRegisterer, &testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+		ex.Listen(events)
+	}()
+
+	// Synchronously send a statsd event to wait for handleEvent execution.
+	// Then close events channel to stop a listener.
+	name := "gaugor"
+	c := event.Events{
+		&event.GaugeEvent{
+			GMetricName: "gaugor",
+			GValue:      333,
+			GRelative:   false,
+			GLabels:     map[string]string{},
+		},
+		&event.GaugeEvent{
+			GMetricName: "gaugor",
+			GValue:      -10,
+			GRelative:   true,
+			GLabels:     map[string]string{},
+		},
+		&event.GaugeEvent{
+			GMetricName: "gaugor",
+			GValue:      4,
+			GRelative:   true,
+			GLabels:     map[string]string{},
+		},
+	}
+	events <- c
+	// Push empty event so that we block until the first event is consumed.
+	events <- event.Events{}
+	close(events)
+
+	// Check histogram value
+	metrics, err := prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Fatalf("Cannot gather from DefaultGatherer: %v", err)
+	}
+	value := getFloat64(metrics, name, nil)
+	if value == nil {
+		t.Fatal("gauge value should not be nil")
+	}
+	if *value != 327 {
+		t.Fatalf("gauge wasn't incremented and decremented properly")
+	}
+}
+
 func TestScaledMapping(t *testing.T) {
 	events := make(chan event.Events)
 	testMapper := mapper.MetricMapper{}
