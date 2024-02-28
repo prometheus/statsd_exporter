@@ -334,6 +334,72 @@ mappings:
 	}
 }
 
+// TestGlobalLabels verifies that labels specified in defaults.global_labels
+// are merged into the labels of the event and are overridden by event labels
+func TestGlobalLabels(t *testing.T) {
+	codes := [3]string{"200", "300", "400"}
+
+	events := make(chan event.Events)
+	go func() {
+		c := event.Events{
+			&event.CounterEvent{
+				CMetricName: "counter.test.200",
+				CValue:      1,
+				CLabels:     make(map[string]string),
+			},
+			&event.CounterEvent{
+				CMetricName: "counter.test.300",
+				CValue:      1,
+				CLabels:     make(map[string]string),
+			},
+			&event.CounterEvent{
+				CMetricName: "counter.test.400",
+				CValue:      1,
+				CLabels:     map[string]string{"code": "should be overwritten"},
+			},
+		}
+		events <- c
+		close(events)
+	}()
+
+	config := `
+defaults:
+  global_labels:
+    extra1: extra1_val
+    code: should_be_overwritten
+mappings:
+- match: counter.test.*
+  name: "counter_test"
+  labels:
+    code: $1
+`
+
+	testMapper := &mapper.MetricMapper{}
+	err := testMapper.InitFromYAMLString(config)
+	if err != nil {
+		t.Fatalf("Config load error: %s %s", config, err)
+	}
+
+	ex := NewExporter(prometheus.DefaultRegisterer, testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	ex.Listen(events)
+
+	metrics, err := prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Fatalf("Cannot gather from DefaultGatherer: %v", err)
+	}
+
+	labels := map[string]string{
+		"extra1": "extra1_val",
+	}
+
+	for _, code := range codes {
+		labels["code"] = code
+		if getFloat64(metrics, "counter_test", labels) == nil {
+			t.Fatalf("Could not find metrics for counter_test code %s", code)
+		}
+	}
+}
+
 func TestHonorLabels(t *testing.T) {
 	metricName := "some_counter"
 	events := make(chan event.Events)

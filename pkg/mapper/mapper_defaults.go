@@ -13,15 +13,20 @@
 
 package mapper
 
-import "time"
+import (
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+)
 
 type MapperConfigDefaults struct {
-	ObserverType        ObserverType     `yaml:"observer_type"`
-	MatchType           MatchType        `yaml:"match_type"`
-	GlobDisableOrdering bool             `yaml:"glob_disable_ordering"`
-	Ttl                 time.Duration    `yaml:"ttl"`
-	SummaryOptions      SummaryOptions   `yaml:"summary_options"`
-	HistogramOptions    HistogramOptions `yaml:"histogram_options"`
+	ObserverType        ObserverType      `yaml:"observer_type"`
+	MatchType           MatchType         `yaml:"match_type"`
+	GlobDisableOrdering bool              `yaml:"glob_disable_ordering"`
+	Ttl                 time.Duration     `yaml:"ttl"`
+	SummaryOptions      SummaryOptions    `yaml:"summary_options"`
+	HistogramOptions    HistogramOptions  `yaml:"histogram_options"`
+	GlobalLabels        prometheus.Labels `yaml:"global_labels"`
 }
 
 // mapperConfigDefaultsAlias is used to unmarshal the yaml config into mapperConfigDefaults and allows deprecated fields
@@ -35,6 +40,7 @@ type mapperConfigDefaultsAlias struct {
 	Ttl                 time.Duration     `yaml:"ttl"`
 	SummaryOptions      SummaryOptions    `yaml:"summary_options"`
 	HistogramOptions    HistogramOptions  `yaml:"histogram_options"`
+	GlobalLabels        prometheus.Labels `yaml:"global_labels"`
 }
 
 // UnmarshalYAML is a custom unmarshal function to allow use of deprecated config keys
@@ -52,6 +58,7 @@ func (d *MapperConfigDefaults) UnmarshalYAML(unmarshal func(interface{}) error) 
 	d.Ttl = tmp.Ttl
 	d.SummaryOptions = tmp.SummaryOptions
 	d.HistogramOptions = tmp.HistogramOptions
+	d.GlobalLabels = tmp.GlobalLabels
 
 	// Use deprecated TimerType if necessary
 	if tmp.ObserverType == "" {

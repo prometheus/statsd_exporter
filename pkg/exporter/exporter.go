@@ -96,7 +96,17 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 		help = mapping.HelpText
 	}
 
-	prometheusLabels := thisEvent.Labels()
+	// labels on the event will override the global labels
+	var prometheusLabels prometheus.Labels
+	if b.Mapper.Defaults.GlobalLabels != nil {
+		prometheusLabels = b.Mapper.Defaults.GlobalLabels
+		for k, v := range thisEvent.Labels() {
+			prometheusLabels[k] = v
+		}
+	} else {
+		prometheusLabels = thisEvent.Labels()
+	}
+
 	if present {
 		if mapping.Name == "" {
 			level.Debug(b.Logger).Log("msg", "The mapping generates an empty metric name", "metric_name", thisEvent.MetricName(), "match", mapping.Match)

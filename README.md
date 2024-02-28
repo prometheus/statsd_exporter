@@ -471,8 +471,8 @@ mappings:
 
 ### Global defaults
 
-One may also set defaults for the observer type, histogram options, summary options, and match type.
-These will be used by all mappings that do not define them.
+One may also set defaults for the observer type, histogram options, summary options, match type, and global labels.
+These will be used by all mappings that do not define them. Global labels will be overridden by labels derived from mappings.
 
 An option that can only be configured in `defaults` is `glob_disable_ordering`, which is `false` if omitted.
 By setting this to `true`, `glob` match type will not honor the occurance of rules in the mapping rules file and always treat `*` as lower priority than a concrete string.
@@ -504,6 +504,9 @@ defaults:
   match_type: glob
   glob_disable_ordering: false
   ttl: 0 # metrics do not expire
+  global_labels:
+    example1: value1
+    example2: value2
 mappings:
 # This will be a histogram using the buckets set in `defaults`.
 - match: "test.timing.*.*.*"
