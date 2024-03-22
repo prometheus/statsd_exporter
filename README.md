@@ -108,71 +108,7 @@ NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/king
 * boolean long flags are disabled by prefixing with no (`--flag-name` is true, `--no-flag-name` is false)
 * multiple short flags can be combined (but there currently is only one)
 * flag processing stops at the first `--`
-
-    ```
-    usage: statsd_exporter [<flags>]
-
-    Flags:
-      -h, --help                    Show context-sensitive help (also try
-                                    --help-long and --help-man).
-          --web.listen-address=":9102"
-                                    The address on which to expose the web interface
-                                    and generated Prometheus metrics.
-          --web.enable-lifecycle    Enable shutdown and reload via HTTP request.
-          --web.telemetry-path="/metrics"
-                                    Path under which to expose metrics.
-          --statsd.listen-udp=":9125"
-                                    The UDP address on which to receive statsd
-                                    metric lines. "" disables it.
-          --statsd.listen-tcp=":9125"
-                                    The TCP address on which to receive statsd
-                                    metric lines. "" disables it.
-          --statsd.listen-unixgram=""
-                                    The Unixgram socket path to receive statsd
-                                    metric lines in datagram. "" disables it.
-          --statsd.unixsocket-mode="755"
-                                    The permission mode of the unix socket.
-          --statsd.mapping-config=STATSD.MAPPING-CONFIG
-                                    Metric mapping configuration file name.
-          --statsd.read-buffer=STATSD.READ-BUFFER
-                                    Size (in bytes) of the operating system's
-                                    transmit read buffer associated with the UDP or
-                                    Unixgram connection. Please make sure the kernel
-                                    parameters net.core.rmem_max is set to a value
-                                    greater than the value specified.
-          --statsd.cache-size=1000  Maximum size of your metric mapping cache.
-                                    Relies on least recently used replacement policy
-                                    if max size is reached.
-          --statsd.cache-type=lru   Metric mapping cache type. Valid options are
-                                    "lru" and "random"
-          --statsd.event-queue-size=10000
-                                    Size of internal queue for processing events
-          --statsd.event-flush-threshold=1000
-                                    Number of events to hold in queue before
-                                    flushing
-          --statsd.event-flush-interval=200ms
-                                    Maximum time between event queue flushes.
-          --debug.dump-fsm=""       The path to dump internal FSM generated for
-                                    glob matching as Dot file.
-          --check-config            Check configuration and exit.
-          --statsd.parse-dogstatsd-tags  
-                                    Parse DogStatsd style tags. Enabled by default.
-          --statsd.parse-influxdb-tags  
-                                    Parse InfluxDB style tags. Enabled by default.
-          --statsd.parse-librato-tags  
-                                    Parse Librato style tags. Enabled by default.
-          --statsd.parse-signalfx-tags  
-                                    Parse SignalFX style tags. Enabled by default.
-          --statsd.relay.address=STATSD.RELAY.ADDRESS  
-                                    The UDP relay target address (host:port)
-          --statsd.relay.packet-length=1400  
-                                    Maximum relay output packet length to avoid fragmentation
-          --log.level=info          Only log messages with the given severity or
-                                    above. One of: [debug, info, warn, error]
-          --log.format=logfmt       Output format of log messages. One of: [logfmt,
-                                    json]
-          --version                 Show application version.
-    ```
+* see `--help` for a full list of flags
 
 ## Lifecycle API
 
@@ -604,7 +540,7 @@ mappings:
   scale: 1e-6
 ```
 
- ### Event flushing configuration
+### Event flushing configuration
 
  Internally `statsd_exporter` runs a goroutine for each network listener (UDP, TCP & Unix Socket).  These each receive and parse metrics received into an event.  For performance purposes, these events are queued internally and flushed to the main exporter goroutine periodically in batches.  The size of this queue and the flush criteria can be tuned with the `--statsd.event-queue-size`, `--statsd.event-flush-threshold` and `--statsd.event-flush-interval`.  However, the defaults should perform well even for very high traffic environments.
 
@@ -633,7 +569,6 @@ Semantic versioning of the exporter is based on the impact on users of the expor
 
 We encourage re-use of these packages and welcome [issues](https://github.com/prometheus/statsd_exporter/issues?q=is%3Aopen+is%3Aissue+label%3Alibrary) related to their usability as a library.
 
-[travis]: https://travis-ci.org/prometheus/statsd_exporter
 [circleci]: https://circleci.com/gh/prometheus/statsd_exporter
 [quay]: https://quay.io/repository/prometheus/statsd-exporter
 [hub]: https://hub.docker.com/r/prom/statsd-exporter/
