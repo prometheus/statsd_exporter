@@ -1,3 +1,9 @@
+## 0.26.1 / 2024-03-22
+
+* [SECURITY] Update dependencies, including `google.golang.org/protobuf` for CVE-2024-24786
+
+This is a maintenance release.
+
 ## 0.26.0 / 2023-12-06
 
 * [CHANGE] Update dependencies: prometheus/common, client model, and Go 1.21
