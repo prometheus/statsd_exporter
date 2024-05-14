@@ -27,6 +27,7 @@ import (
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
+	versioncollector "github.com/prometheus/client_golang/prometheus/collectors/version"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promlog"
@@ -281,7 +282,7 @@ func main() {
 		level.Error(logger).Log("msg", "failed to set log level", "error", err)
 		os.Exit(1)
 	}
-	prometheus.MustRegister(version.NewCollector("statsd_exporter"))
+	prometheus.MustRegister(versioncollector.NewCollector("statsd_exporter"))
 
 	parser := line.NewParser()
 	if *dogstatsdTagsEnabled {
