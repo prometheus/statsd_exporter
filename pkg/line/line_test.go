@@ -403,6 +403,17 @@ func TestLineToEvents(t *testing.T) {
 		"datadog tag extension with both valid and invalid utf8 tag values": {
 			in: "foo:100|c|@0.1|#tag1:valid,tag2:\xc3\x28invalid",
 		},
+		"datadog timings with extended aggregation values": {
+			in: "foo_timing:0.5:120:3000:10:20000:0.01|ms|#tag1:bar,#tag2:baz",
+			out: event.Events{
+				&event.ObserverEvent{OMetricName: "foo_timing", OValue: 0.0005, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
+				&event.ObserverEvent{OMetricName: "foo_timing", OValue: 0.120, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
+				&event.ObserverEvent{OMetricName: "foo_timing", OValue: 3, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
+				&event.ObserverEvent{OMetricName: "foo_timing", OValue: 0.01, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
+				&event.ObserverEvent{OMetricName: "foo_timing", OValue: 20, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
+				&event.ObserverEvent{OMetricName: "foo_timing", OValue: 0.00001, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
+			},
+		},
 		"timings with sampling factor": {
 			in: "foo.timing:0.5|ms|@0.1",
 			out: event.Events{

@@ -229,8 +229,21 @@ func (p *Parser) LineToEvents(line string, sampleErrors prometheus.CounterVec, s
 			return events
 		}
 
-		// disable multi-metrics
-		samples = elements[1:]
+		// handle DogStatsD extended aggregation
+		lineParts := strings.SplitN(elements[1], "|", 2)
+		if strings.Contains(lineParts[0], ":") {
+			aggValues := strings.Split(lineParts[0], ":")
+			aggLines := make([]string, len(aggValues))
+			tags := lineParts[1]
+
+			for i, aggValue := range aggValues {
+				aggLines[i] = strings.Join([]string{aggValue, tags}, "|")
+			}
+			samples = aggLines
+		} else {
+			// disable multi-metrics
+			samples = elements[1:]
+		}
 	} else {
 		samples = strings.Split(elements[1], ":")
 	}
