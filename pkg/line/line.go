@@ -229,17 +229,34 @@ func (p *Parser) LineToEvents(line string, sampleErrors prometheus.CounterVec, s
 			return events
 		}
 
-		// handle DogStatsD extended aggregation
-		lineParts := strings.SplitN(elements[1], "|", 2)
+		lineParts := strings.SplitN(elements[1], "|", 3)
 		if strings.Contains(lineParts[0], ":") {
-			aggValues := strings.Split(lineParts[0], ":")
-			aggLines := make([]string, len(aggValues))
-			tags := lineParts[1]
-
-			for i, aggValue := range aggValues {
-				aggLines[i] = strings.Join([]string{aggValue, tags}, "|")
+			// handle DogStatsD extended aggregation
+			var isValidAggType bool
+			switch lineParts[1] {
+			case
+				"ms", // timer
+				"h",  // histogram
+				"d":  // distribution
+				isValidAggType = true
+			default:
+				isValidAggType = false
 			}
-			samples = aggLines
+
+			if isValidAggType {
+				aggValues := strings.Split(lineParts[0], ":")
+				aggLines := make([]string, len(aggValues))
+
+				for i, aggValue := range aggValues {
+					aggLines[i] = strings.Join([]string{aggValue, lineParts[1], lineParts[2]}, "|")
+				}
+
+				samples = aggLines
+			} else {
+				sampleErrors.WithLabelValues("invalid_extended_aggregate_type").Inc()
+				level.Debug(logger).Log("msg", "Bad line (invalid extended aggregate type) from StatsD", "line", line)
+				return events
+			}
 		} else {
 			// disable multi-metrics
 			samples = elements[1:]

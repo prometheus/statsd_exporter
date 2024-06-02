@@ -414,6 +414,34 @@ func TestLineToEvents(t *testing.T) {
 				&event.ObserverEvent{OMetricName: "foo_timing", OValue: 0.00001, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
 			},
 		},
+		"datadog histogram with extended aggregation values": {
+			in: "foo_histogram:0.5:120:3000:10:20000:0.01|h|#tag1:bar,#tag2:baz",
+			out: event.Events{
+				&event.ObserverEvent{OMetricName: "foo_histogram", OValue: 0.5, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
+				&event.ObserverEvent{OMetricName: "foo_histogram", OValue: 120, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
+				&event.ObserverEvent{OMetricName: "foo_histogram", OValue: 3000, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
+				&event.ObserverEvent{OMetricName: "foo_histogram", OValue: 10, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
+				&event.ObserverEvent{OMetricName: "foo_histogram", OValue: 20000, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
+				&event.ObserverEvent{OMetricName: "foo_histogram", OValue: 0.01, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
+			},
+		},
+		"datadog distribution with extended aggregation values": {
+			in: "foo_distribution:0.5:120:3000:10:20000:0.01|d|#tag1:bar,#tag2:baz",
+			out: event.Events{
+				&event.ObserverEvent{OMetricName: "foo_distribution", OValue: 0.5, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
+				&event.ObserverEvent{OMetricName: "foo_distribution", OValue: 120, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
+				&event.ObserverEvent{OMetricName: "foo_distribution", OValue: 3000, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
+				&event.ObserverEvent{OMetricName: "foo_distribution", OValue: 10, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
+				&event.ObserverEvent{OMetricName: "foo_distribution", OValue: 20000, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
+				&event.ObserverEvent{OMetricName: "foo_distribution", OValue: 0.01, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
+			},
+		},
+		"datadog counter with invalid extended aggregation values": {
+			in: "foo_counter:0.5:120:3000:10:20000:0.01|c|#tag1:bar,#tag2:baz",
+		},
+		"datadog gauge with invalid extended aggregation values": {
+			in: "foo_gauge:0.5:120:3000:10:20000:0.01|g|#tag1:bar,#tag2:baz",
+		},
 		"timings with sampling factor": {
 			in: "foo.timing:0.5|ms|@0.1",
 			out: event.Events{
