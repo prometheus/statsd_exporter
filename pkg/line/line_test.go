@@ -679,6 +679,18 @@ func TestLineToEvents(t *testing.T) {
 		"datadog gauge with invalid extended aggregation values": {
 			in: "foo_gauge:0.5:120:3000:10:20000:0.01|g|#tag1:bar,tag2:baz",
 		},
+		"datadog timing with extended aggregation values and invalid signalfx tags": {
+			in: "foo.[tag1=bar,tag2=baz]test:0.5:120:3000:10:20000:0.01|ms",
+		},
+		"SignalFX counter with invalid Datadog style extended aggregation values": {
+			in: "foo.[tag1=bar,tag2=baz]test:0.5:120:3000:10:20000:0.01|c",
+		},
+		"SignalFX no tags counter with invalid Datadog style extended aggregation values": {
+			in: "foo.[]test:0.5:120:3000:10:20000:0.01|c",
+		},
+		"SignalFX no tags with invalid Datadog style extended aggregation values and timings type": {
+			in: "foo.[]test:0.5:120:3000:10:20000:0.01|ms",
+		},
 		"timings with sampling factor": {
 			in: "foo.timing:0.5|ms|@0.1",
 			out: event.Events{
