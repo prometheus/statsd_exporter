@@ -217,7 +217,7 @@ func (p *Parser) LineToEvents(line string, sampleErrors prometheus.CounterVec, s
 
 	labels := map[string]string{}
 	metric := p.parseNameAndTags(elements[0], labels, tagErrors, logger)
-	usingDogStatsDTags := strings.Contains(line, "|#")
+	usingDogStatsDTags := strings.Contains(elements[1], "|#")
 	if usingDogStatsDTags && len(labels) > 0 {
 		// using DogStatsD tags
 
