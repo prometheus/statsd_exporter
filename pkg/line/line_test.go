@@ -691,6 +691,12 @@ func TestLineToEvents(t *testing.T) {
 		"SignalFX no tags with invalid Datadog style extended aggregation values and timings type": {
 			in: "foo.[]test:0.5:120:3000:10:20000:0.01|ms",
 		},
+		"Influx no tags with invalid Datadog style extended aggregation values and timings type": {
+			in: "foo.test:0.5:120:3000:10:20000:0.01|ms",
+		},
+		"Influx no tags with invalid Datadog style extended aggregation values and histogram type": {
+			in: "foo.test:0.5:120:3000:10:20000:0.01|ms",
+		},
 		"timings with sampling factor": {
 			in: "foo.timing:0.5|ms|@0.1",
 			out: event.Events{
