@@ -404,57 +404,334 @@ func TestLineToEvents(t *testing.T) {
 			in: "foo:100|c|@0.1|#tag1:valid,tag2:\xc3\x28invalid",
 		},
 		"datadog timings with extended aggregation values": {
-			in: "foo_timing:0.5:120:3000:10:20000:0.01|ms|#tag1:bar,#tag2:baz",
+			in: "foo_timing:0.5:120:3000:10:20000:0.01|ms|#tag1:bar,tag2:baz",
 			out: event.Events{
-				&event.ObserverEvent{OMetricName: "foo_timing", OValue: 0.0005, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
-				&event.ObserverEvent{OMetricName: "foo_timing", OValue: 0.120, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
-				&event.ObserverEvent{OMetricName: "foo_timing", OValue: 3, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
-				&event.ObserverEvent{OMetricName: "foo_timing", OValue: 0.01, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
-				&event.ObserverEvent{OMetricName: "foo_timing", OValue: 20, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
-				&event.ObserverEvent{OMetricName: "foo_timing", OValue: 0.00001, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.0005,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.120,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      3,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.01,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      20,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.00001,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
 			},
 		},
-		"datadog histogram with extended aggregation values": {
-			in: "foo_histogram:0.5:120:3000:10:20000:0.01|h|#tag1:bar,#tag2:baz",
+		"datadog timings with extended aggregation values without tags": {
+			in: "foo_timing:0.5:120:3000:10:20000:0.01|ms",
 			out: event.Events{
-				&event.ObserverEvent{OMetricName: "foo_histogram", OValue: 0.5, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
-				&event.ObserverEvent{OMetricName: "foo_histogram", OValue: 120, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
-				&event.ObserverEvent{OMetricName: "foo_histogram", OValue: 3000, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
-				&event.ObserverEvent{OMetricName: "foo_histogram", OValue: 10, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
-				&event.ObserverEvent{OMetricName: "foo_histogram", OValue: 20000, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
-				&event.ObserverEvent{OMetricName: "foo_histogram", OValue: 0.01, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.0005,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.120,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      3,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.01,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      20,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.00001,
+					OLabels:     map[string]string{},
+				},
+			},
+		},
+		"datadog timings with extended aggregation values and sampling but without tags": {
+			in: "foo_timing:0.5:120:3000:10:20000:0.01|ms|@0.5",
+			out: event.Events{
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.0005,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.0005,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.120,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.120,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      3,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      3,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.01,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.01,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      20,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      20,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.00001,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.00001,
+					OLabels:     map[string]string{},
+				},
+			},
+		},
+		"datadog timings with extended aggregation values, sampling, and tags": {
+			in: "foo_timing:0.5:120:3000:10:20000:0.01|ms|@0.5|#tag1:bar,tag2:baz",
+			out: event.Events{
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.0005,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.0005,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.120,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.120,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      3,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      3,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.01,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.01,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      20,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      20,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.00001,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_timing",
+					OValue:      0.00001,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+			},
+		},
+		"datadog histogram with extended aggregation values and tags": {
+			in: "foo_histogram:0.5:120:3000:10:20000:0.01|h|#tag1:bar,tag2:baz",
+			out: event.Events{
+				&event.ObserverEvent{
+					OMetricName: "foo_histogram",
+					OValue:      0.5,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_histogram",
+					OValue:      120,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_histogram",
+					OValue:      3000,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_histogram",
+					OValue:      10,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_histogram",
+					OValue:      20000,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_histogram",
+					OValue:      0.01,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
 			},
 		},
 		"datadog distribution with extended aggregation values": {
-			in: "foo_distribution:0.5:120:3000:10:20000:0.01|d|#tag1:bar,#tag2:baz",
+			in: "foo_distribution:0.5:120:3000:10:20000:0.01|d|#tag1:bar,tag2:baz",
 			out: event.Events{
-				&event.ObserverEvent{OMetricName: "foo_distribution", OValue: 0.5, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
-				&event.ObserverEvent{OMetricName: "foo_distribution", OValue: 120, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
-				&event.ObserverEvent{OMetricName: "foo_distribution", OValue: 3000, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
-				&event.ObserverEvent{OMetricName: "foo_distribution", OValue: 10, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
-				&event.ObserverEvent{OMetricName: "foo_distribution", OValue: 20000, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
-				&event.ObserverEvent{OMetricName: "foo_distribution", OValue: 0.01, OLabels: map[string]string{"tag1": "bar", "tag2": "baz"}},
+				&event.ObserverEvent{
+					OMetricName: "foo_distribution",
+					OValue:      0.5,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_distribution",
+					OValue:      120,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_distribution",
+					OValue:      3000,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_distribution",
+					OValue:      10,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_distribution",
+					OValue:      20000,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo_distribution",
+					OValue:      0.01,
+					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
+				},
 			},
 		},
 		"datadog counter with invalid extended aggregation values": {
-			in: "foo_counter:0.5:120:3000:10:20000:0.01|c|#tag1:bar,#tag2:baz",
+			in: "foo_counter:0.5:120:3000:10:20000:0.01|c|#tag1:bar,tag2:baz",
 		},
 		"datadog gauge with invalid extended aggregation values": {
-			in: "foo_gauge:0.5:120:3000:10:20000:0.01|g|#tag1:bar,#tag2:baz",
+			in: "foo_gauge:0.5:120:3000:10:20000:0.01|g|#tag1:bar,tag2:baz",
 		},
 		"timings with sampling factor": {
 			in: "foo.timing:0.5|ms|@0.1",
 			out: event.Events{
-				&event.ObserverEvent{OMetricName: "foo.timing", OValue: 0.0005, OLabels: map[string]string{}},
-				&event.ObserverEvent{OMetricName: "foo.timing", OValue: 0.0005, OLabels: map[string]string{}},
-				&event.ObserverEvent{OMetricName: "foo.timing", OValue: 0.0005, OLabels: map[string]string{}},
-				&event.ObserverEvent{OMetricName: "foo.timing", OValue: 0.0005, OLabels: map[string]string{}},
-				&event.ObserverEvent{OMetricName: "foo.timing", OValue: 0.0005, OLabels: map[string]string{}},
-				&event.ObserverEvent{OMetricName: "foo.timing", OValue: 0.0005, OLabels: map[string]string{}},
-				&event.ObserverEvent{OMetricName: "foo.timing", OValue: 0.0005, OLabels: map[string]string{}},
-				&event.ObserverEvent{OMetricName: "foo.timing", OValue: 0.0005, OLabels: map[string]string{}},
-				&event.ObserverEvent{OMetricName: "foo.timing", OValue: 0.0005, OLabels: map[string]string{}},
-				&event.ObserverEvent{OMetricName: "foo.timing", OValue: 0.0005, OLabels: map[string]string{}},
+				&event.ObserverEvent{
+					OMetricName: "foo.timing",
+					OValue:      0.0005,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo.timing",
+					OValue:      0.0005,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo.timing",
+					OValue:      0.0005,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo.timing",
+					OValue:      0.0005,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo.timing",
+					OValue:      0.0005,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo.timing",
+					OValue:      0.0005,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo.timing",
+					OValue:      0.0005,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo.timing",
+					OValue:      0.0005,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo.timing",
+					OValue:      0.0005,
+					OLabels:     map[string]string{},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo.timing",
+					OValue:      0.0005,
+					OLabels:     map[string]string{},
+				},
 			},
 		},
 		"bad line": {
