@@ -1,7 +1,9 @@
-## 0.27.0 / 2024-08-18
+## 0.27.1 / 2024-08-18
 
 * [FEATURE] Support [dogstatsd extended aggregation](https://github.com/DataDog/datadog-go/blob/master/README.md#extended-aggregation) ([#558](https://github.com/prometheus/statsd_exporter/pull/558))
 * [SECURITY] Update dependencies
+
+Thank you [@GrgDev](https://github.com/GrgDev) for the contribution!
 
 ## 0.26.1 / 2024-03-22
 
