@@ -217,18 +217,44 @@ func (p *Parser) LineToEvents(line string, sampleErrors prometheus.CounterVec, s
 
 	labels := map[string]string{}
 	metric := p.parseNameAndTags(elements[0], labels, tagErrors, logger)
-
-	var samples []string
-	if strings.Contains(elements[1], "|#") {
+	usingDogStatsDTags := strings.Contains(elements[1], "|#")
+	if usingDogStatsDTags && len(labels) > 0 {
 		// using DogStatsD tags
 
 		// don't allow mixed tagging styles
-		if len(labels) > 0 {
-			sampleErrors.WithLabelValues("mixed_tagging_styles").Inc()
-			level.Debug(logger).Log("msg", "Bad line (multiple tagging styles) from StatsD", "line", line)
-			return events
+		sampleErrors.WithLabelValues("mixed_tagging_styles").Inc()
+		level.Debug(logger).Log("msg", "Bad line (multiple tagging styles) from StatsD", "line", line)
+		return events
+	}
+
+	var samples []string
+	lineParts := strings.SplitN(elements[1], "|", 3)
+	if strings.Contains(lineParts[0], ":") {
+		// handle DogStatsD extended aggregation
+		isValidAggType := false
+		switch lineParts[1] {
+		case
+			"ms", // timer
+			"h",  // histogram
+			"d":  // distribution
+			isValidAggType = true
 		}
 
+		if isValidAggType {
+			aggValues := strings.Split(lineParts[0], ":")
+			aggLines := make([]string, len(aggValues))
+			_, aggLineSuffix, _ := strings.Cut(elements[1], "|")
+
+			for i, aggValue := range aggValues {
+				aggLines[i] = strings.Join([]string{aggValue, aggLineSuffix}, "|")
+			}
+			samples = aggLines
+		} else {
+			sampleErrors.WithLabelValues("invalid_extended_aggregate_type").Inc()
+			level.Debug(logger).Log("msg", "Bad line (invalid extended aggregate type) from StatsD", "line", line)
+			return events
+		}
+	} else if usingDogStatsDTags {
 		// disable multi-metrics
 		samples = elements[1:]
 	} else {
