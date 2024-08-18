@@ -5,16 +5,13 @@ linters:
   disable:
     - errcheck
   enable:
-    - deadcode
     - goimports
     - gosimple
     - govet
     - ineffassign
     - nakedret
     - staticcheck
-    - structcheck
     - unused
-    - varcheck
     - whitespace
 linters-settings:
   govet:
