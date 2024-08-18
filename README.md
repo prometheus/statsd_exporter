@@ -79,6 +79,7 @@ in the DogStatsD documentation for the concept description and
 [Datagram Format](https://docs.datadoghq.com/developers/dogstatsd/datagram_shell/).
 If you encounter problems, note that this tagging style is incompatible with
 the original `statsd` implementation.
+The exporter also supports [DogStatD extended aggregations](https://github.com/prometheus/statsd_exporter/pull/558) in combination with DogStatsD tags, but not other tagging styles.
 
 For [SignalFX dimension](https://github.com/signalfx/signalfx-agent/blob/main/docs/monitors/collectd-statsd.md#adding-dimensions-to-statsd-metrics), add the tags to the metric name in square brackets, as so:
 

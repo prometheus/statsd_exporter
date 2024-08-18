@@ -1,3 +1,8 @@
+## 0.27.0 / 2024-08-18
+
+* [FEATURE] Support [dogstatsd extended aggregation](https://github.com/DataDog/datadog-go/blob/master/README.md#extended-aggregation) ([#558](https://github.com/prometheus/statsd_exporter/pull/558))
+* [SECURITY] Update dependencies
+
 ## 0.26.1 / 2024-03-22
 
 * [SECURITY] Update dependencies, including `google.golang.org/protobuf` for CVE-2024-24786
