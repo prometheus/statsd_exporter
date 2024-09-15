@@ -35,7 +35,7 @@ func (f *FSM) DumpFSM(w io.Writer) {
 			if idx == 0 {
 				// color for metric types
 				w.Write([]byte(fmt.Sprintf("%d [color=\"#D6B656\",fillcolor=\"#FFF2CC\"];\n", len(states)-1)))
-			} else if transition.transitions == nil || len(transition.transitions) == 0 {
+			} else if len(transition.transitions) == 0 {
 				// color for end state
 				w.Write([]byte(fmt.Sprintf("%d [color=\"#82B366\",fillcolor=\"#D5E8D4\"];\n", len(states)-1)))
 			}
