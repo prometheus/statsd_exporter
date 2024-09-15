@@ -15,7 +15,9 @@ linters:
     - whitespace
 linters-settings:
   govet:
-    check-shadowing: true
+    enable-all: true
+    disable:
+      - fieldalignment
 issues:
   exclude-use-default: false
   exclude:
