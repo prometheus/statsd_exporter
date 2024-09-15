@@ -201,10 +201,10 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 			if currentMapping.HistogramOptions == nil {
 				currentMapping.HistogramOptions = &HistogramOptions{}
 			}
-			if currentMapping.LegacyBuckets != nil && len(currentMapping.LegacyBuckets) != 0 {
+			if len(currentMapping.LegacyBuckets) != 0 {
 				currentMapping.HistogramOptions.Buckets = currentMapping.LegacyBuckets
 			}
-			if currentMapping.HistogramOptions.Buckets == nil || len(currentMapping.HistogramOptions.Buckets) == 0 {
+			if len(currentMapping.HistogramOptions.Buckets) == 0 {
 				currentMapping.HistogramOptions.Buckets = n.Defaults.HistogramOptions.Buckets
 			}
 		}
@@ -216,10 +216,10 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 			if currentMapping.SummaryOptions == nil {
 				currentMapping.SummaryOptions = &SummaryOptions{}
 			}
-			if currentMapping.LegacyQuantiles != nil && len(currentMapping.LegacyQuantiles) != 0 {
+			if len(currentMapping.LegacyQuantiles) != 0 {
 				currentMapping.SummaryOptions.Quantiles = currentMapping.LegacyQuantiles
 			}
-			if currentMapping.SummaryOptions.Quantiles == nil || len(currentMapping.SummaryOptions.Quantiles) == 0 {
+			if len(currentMapping.SummaryOptions.Quantiles) == 0 {
 				currentMapping.SummaryOptions.Quantiles = n.Defaults.SummaryOptions.Quantiles
 			}
 			if currentMapping.SummaryOptions.MaxAge == 0 {
