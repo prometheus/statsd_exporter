@@ -1,3 +1,7 @@
+## 0.27.2-pr579 / 2024-09-16
+
+* [BUGFIX] Fix panic on certain invalid lines ([#579](https://github.com/prometheus/statsd_exporter/pull/579))
+
 ## 0.27.1 / 2024-08-18
 
 * [FEATURE] Support [dogstatsd extended aggregation](https://github.com/DataDog/datadog-go/blob/master/README.md#extended-aggregation) ([#558](https://github.com/prometheus/statsd_exporter/pull/558))
