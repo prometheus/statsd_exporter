@@ -823,6 +823,12 @@ func TestLineToEvents(t *testing.T) {
 				},
 			},
 		},
+		"invalid event split over lines part 1": {
+			in: "karafka.consumer.consume.cpu_idle_second:  0.111090  -0.055903  -0.195390 (  2.419002)",
+		},
+		"invalid event split over lines part 2": {
+			in: "|h|#consumer:Kafka::SharedConfigurationConsumer,topic:shared_configuration_update,partition:1,consumer_group:tc_rc_us",
+		},
 	}
 
 	parser := NewParser()

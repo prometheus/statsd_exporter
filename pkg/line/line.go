@@ -211,7 +211,7 @@ func (p *Parser) LineToEvents(line string, sampleErrors prometheus.CounterVec, s
 	elements := strings.SplitN(line, ":", 2)
 	if len(elements) < 2 || len(elements[0]) == 0 || !utf8.ValidString(line) {
 		sampleErrors.WithLabelValues("malformed_line").Inc()
-		level.Debug(logger).Log("msg", "Bad line from StatsD", "line", line)
+		level.Debug(logger).Log("msg", "bad line", "line", line)
 		return events
 	}
 
@@ -223,12 +223,17 @@ func (p *Parser) LineToEvents(line string, sampleErrors prometheus.CounterVec, s
 
 		// don't allow mixed tagging styles
 		sampleErrors.WithLabelValues("mixed_tagging_styles").Inc()
-		level.Debug(logger).Log("msg", "Bad line (multiple tagging styles) from StatsD", "line", line)
+		level.Debug(logger).Log("msg", "bad line: multiple tagging styles", "line", line)
 		return events
 	}
 
 	var samples []string
 	lineParts := strings.SplitN(elements[1], "|", 3)
+	if len(lineParts) < 2 {
+		sampleErrors.WithLabelValues("not_enough_parts_after_colon").Inc()
+		level.Debug(logger).Log("msg", "bad line: not enough '|'-delimited parts after first ':'", "line", line)
+		return events
+	}
 	if strings.Contains(lineParts[0], ":") {
 		// handle DogStatsD extended aggregation
 		isValidAggType := false
@@ -251,7 +256,7 @@ func (p *Parser) LineToEvents(line string, sampleErrors prometheus.CounterVec, s
 			samples = aggLines
 		} else {
 			sampleErrors.WithLabelValues("invalid_extended_aggregate_type").Inc()
-			level.Debug(logger).Log("msg", "Bad line (invalid extended aggregate type) from StatsD", "line", line)
+			level.Debug(logger).Log("msg", "bad line: invalid extended aggregate type", "line", line)
 			return events
 		}
 	} else if usingDogStatsDTags {
@@ -267,7 +272,7 @@ samples:
 		components := strings.Split(sample, "|")
 		if len(components) < 2 || len(components) > 4 {
 			sampleErrors.WithLabelValues("malformed_component").Inc()
-			level.Debug(logger).Log("msg", "Bad component", "line", line)
+			level.Debug(logger).Log("msg", "bad component", "line", line)
 			continue
 		}
 		valueStr, statType := components[0], components[1]
@@ -279,7 +284,7 @@ samples:
 
 		value, err := strconv.ParseFloat(valueStr, 64)
 		if err != nil {
-			level.Debug(logger).Log("msg", "Bad value", "value", valueStr, "line", line)
+			level.Debug(logger).Log("msg", "bad value", "value", valueStr, "line", line)
 			sampleErrors.WithLabelValues("malformed_value").Inc()
 			continue
 		}
