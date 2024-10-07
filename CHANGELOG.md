@@ -1,4 +1,4 @@
-## 0.27.2-pr579 / 2024-09-16
+## 0.27.2 / 2024-10-07
 
 * [BUGFIX] Fix panic on certain invalid lines ([#579](https://github.com/prometheus/statsd_exporter/pull/579))
 
