@@ -16,7 +16,7 @@ package main
 import (
 	"testing"
 
-	"github.com/go-kit/log"
+	"github.com/prometheus/common/promslog"
 
 	"github.com/prometheus/statsd_exporter/pkg/line"
 )
@@ -36,7 +36,7 @@ var (
 		"foo15:200|ms:300|ms:5|c|@0.1:6|g\nfoo15a:1|c:5|ms",
 		"some_very_useful_metrics_with_quite_a_log_name:13|c",
 	}
-	nopLogger = log.NewNopLogger()
+	nopLogger = promslog.NewNopLogger()
 )
 
 func benchmarkLinesToEvents(times int, b *testing.B, input []string) {
