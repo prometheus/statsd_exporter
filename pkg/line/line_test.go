@@ -17,8 +17,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/promslog"
 
 	"github.com/prometheus/statsd_exporter/pkg/event"
 )
@@ -49,7 +49,7 @@ var (
 			Help: "The number of errors parsing DogStatsD tags.",
 		},
 	)
-	nopLogger = log.NewNopLogger()
+	nopLogger = promslog.NewNopLogger()
 )
 
 func TestLineToEvents(t *testing.T) {

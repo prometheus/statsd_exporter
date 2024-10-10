@@ -18,7 +18,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/go-kit/log"
+	"github.com/prometheus/common/promslog"
 
 	"github.com/prometheus/statsd_exporter/pkg/mappercache/lru"
 	"github.com/prometheus/statsd_exporter/pkg/mappercache/randomreplacement"
@@ -245,7 +245,7 @@ mappings:
 	}
 
 	mapper := MetricMapper{
-		Logger: log.NewNopLogger(),
+		Logger: promslog.NewNopLogger(),
 	}
 	err := mapper.InitFromYAMLString(config)
 	if err != nil {

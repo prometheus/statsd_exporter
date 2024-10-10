@@ -16,24 +16,22 @@ package relay
 import (
 	"bytes"
 	"fmt"
+	"log/slog"
 	"net"
 	"strings"
 	"time"
 
 	"github.com/prometheus/statsd_exporter/pkg/clock"
 
-	"github.com/go-kit/log"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/prometheus/statsd_exporter/pkg/level"
 )
 
 type Relay struct {
 	addr          *net.UDPAddr
 	bufferChannel chan []byte
 	conn          *net.UDPConn
-	logger        log.Logger
+	logger        *slog.Logger
 	packetLength  uint
 
 	packetsTotal      prometheus.Counter
@@ -67,7 +65,7 @@ var (
 
 // NewRelay creates a statsd UDP relay. It can be used to send copies of statsd raw
 // lines to a separate service.
-func NewRelay(l log.Logger, target string, packetLength uint) (*Relay, error) {
+func NewRelay(l *slog.Logger, target string, packetLength uint) (*Relay, error) {
 	addr, err := net.ResolveUDPAddr("udp", target)
 	if err != nil {
 		return nil, fmt.Errorf("unable to resolve target %s, err: %w", target, err)
@@ -110,24 +108,24 @@ func (r *Relay) relayOutput() {
 		case <-relayInterval.C:
 			err = r.sendPacket(buffer.Bytes())
 			if err != nil {
-				level.Error(r.logger).Log("msg", "Error sending UDP packet", "error", err)
+				r.logger.Error("Error sending UDP packet", "error", err)
 				return
 			}
 			// Clear out the buffer.
 			buffer.Reset()
 		case b := <-r.bufferChannel:
 			if uint(len(b)+buffer.Len()) > r.packetLength {
-				level.Debug(r.logger).Log("msg", "Buffer full, sending packet", "length", buffer.Len())
+				r.logger.Debug("Buffer full, sending packet", "length", buffer.Len())
 				err = r.sendPacket(buffer.Bytes())
 				if err != nil {
-					level.Error(r.logger).Log("msg", "Error sending UDP packet", "error", err)
+					r.logger.Error("Error sending UDP packet", "error", err)
 					return
 				}
 				// Seed the new buffer with the new line.
 				buffer.Reset()
 				buffer.Write(b)
 			} else {
-				level.Debug(r.logger).Log("msg", "Adding line to buffer", "line", string(b))
+				r.logger.Debug("Adding line to buffer", "line", string(b))
 				buffer.Write(b)
 			}
 		}
@@ -137,10 +135,10 @@ func (r *Relay) relayOutput() {
 // sendPacket sends a single relay line to the destination target.
 func (r *Relay) sendPacket(buf []byte) error {
 	if len(buf) == 0 {
-		level.Debug(r.logger).Log("msg", "Empty buffer, nothing to send")
+		r.logger.Debug("Empty buffer, nothing to send")
 		return nil
 	}
-	level.Debug(r.logger).Log("msg", "Sending packet", "length", len(buf), "data", string(buf))
+	r.logger.Debug("Sending packet", "length", len(buf), "data", string(buf))
 	_, err := r.conn.WriteToUDP(buf, r.addr)
 	r.packetsTotal.Inc()
 	return err
@@ -150,15 +148,15 @@ func (r *Relay) sendPacket(buf []byte) error {
 func (r *Relay) RelayLine(l string) {
 	lineLength := uint(len(l))
 	if lineLength == 0 {
-		level.Debug(r.logger).Log("msg", "Empty line, not relaying")
+		r.logger.Debug("Empty line, not relaying")
 		return
 	}
 	if lineLength > r.packetLength-1 {
-		level.Warn(r.logger).Log("msg", "line too long, not relaying", "length", lineLength, "max", r.packetLength)
+		r.logger.Warn("line too long, not relaying", "length", lineLength, "max", r.packetLength)
 		r.longLinesTotal.Inc()
 		return
 	}
-	level.Debug(r.logger).Log("msg", "Relaying line", "line", string(l))
+	r.logger.Debug("Relaying line", "line", string(l))
 	if !strings.HasSuffix(l, "\n") {
 		l = l + "\n"
 	}
