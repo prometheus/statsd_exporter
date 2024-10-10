@@ -14,15 +14,14 @@
 package exporter
 
 import (
+	"log/slog"
 	"os"
 	"time"
 
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/prometheus/statsd_exporter/pkg/clock"
 	"github.com/prometheus/statsd_exporter/pkg/event"
-	"github.com/prometheus/statsd_exporter/pkg/level"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 	"github.com/prometheus/statsd_exporter/pkg/registry"
 )
@@ -43,7 +42,7 @@ type Registry interface {
 type Exporter struct {
 	Mapper                *mapper.MetricMapper
 	Registry              Registry
-	Logger                log.Logger
+	Logger                *slog.Logger
 	EventsActions         *prometheus.CounterVec
 	EventsUnmapped        prometheus.Counter
 	ErrorEventStats       *prometheus.CounterVec
@@ -63,7 +62,7 @@ func (b *Exporter) Listen(e <-chan event.Events) {
 			b.Registry.RemoveStaleMetrics()
 		case events, ok := <-e:
 			if !ok {
-				level.Debug(b.Logger).Log("msg", "Channel is closed. Break out of Exporter.Listener.")
+				b.Logger.Debug("Channel is closed. Break out of Exporter.Listener.")
 				removeStaleMetricsTicker.Stop()
 				return
 			}
@@ -99,7 +98,7 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 	prometheusLabels := thisEvent.Labels()
 	if present {
 		if mapping.Name == "" {
-			level.Debug(b.Logger).Log("msg", "The mapping generates an empty metric name", "metric_name", thisEvent.MetricName(), "match", mapping.Match)
+			b.Logger.Debug("The mapping generates an empty metric name", "metric_name", thisEvent.MetricName(), "match", mapping.Match)
 			b.ErrorEventStats.WithLabelValues("empty_metric_name").Inc()
 			return
 		}
@@ -127,7 +126,7 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 		// We don't accept negative values for counters. Incrementing the counter with a negative number
 		// will cause the exporter to panic. Instead we will warn and continue to the next event.
 		if eventValue < 0.0 {
-			level.Debug(b.Logger).Log("msg", "counter must be non-negative value", "metric", metricName, "event_value", eventValue)
+			b.Logger.Debug("counter must be non-negative value", "metric", metricName, "event_value", eventValue)
 			b.ErrorEventStats.WithLabelValues("illegal_negative_counter").Inc()
 			return
 		}
@@ -137,7 +136,7 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 			counter.Add(eventValue)
 			b.EventStats.WithLabelValues("counter").Inc()
 		} else {
-			level.Debug(b.Logger).Log("msg", regErrF, "metric", metricName, "error", err)
+			b.Logger.Debug(regErrF, "metric", metricName, "error", err)
 			b.ConflictingEventStats.WithLabelValues("counter").Inc()
 		}
 
@@ -152,7 +151,7 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 			}
 			b.EventStats.WithLabelValues("gauge").Inc()
 		} else {
-			level.Debug(b.Logger).Log("msg", regErrF, "metric", metricName, "error", err)
+			b.Logger.Debug(regErrF, "metric", metricName, "error", err)
 			b.ConflictingEventStats.WithLabelValues("gauge").Inc()
 		}
 
@@ -172,7 +171,7 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 				histogram.Observe(eventValue)
 				b.EventStats.WithLabelValues("observer").Inc()
 			} else {
-				level.Debug(b.Logger).Log("msg", regErrF, "metric", metricName, "error", err)
+				b.Logger.Debug(regErrF, "metric", metricName, "error", err)
 				b.ConflictingEventStats.WithLabelValues("observer").Inc()
 			}
 
@@ -182,22 +181,22 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 				summary.Observe(eventValue)
 				b.EventStats.WithLabelValues("observer").Inc()
 			} else {
-				level.Debug(b.Logger).Log("msg", regErrF, "metric", metricName, "error", err)
+				b.Logger.Debug(regErrF, "metric", metricName, "error", err)
 				b.ConflictingEventStats.WithLabelValues("observer").Inc()
 			}
 
 		default:
-			level.Error(b.Logger).Log("msg", "unknown observer type", "type", t)
+			b.Logger.Error("unknown observer type", "type", t)
 			os.Exit(1)
 		}
 
 	default:
-		level.Debug(b.Logger).Log("msg", "Unsupported event type")
+		b.Logger.Debug("Unsupported event type")
 		b.EventStats.WithLabelValues("illegal").Inc()
 	}
 }
 
-func NewExporter(reg prometheus.Registerer, mapper *mapper.MetricMapper, logger log.Logger, eventsActions *prometheus.CounterVec, eventsUnmapped prometheus.Counter, errorEventStats *prometheus.CounterVec, eventStats *prometheus.CounterVec, conflictingEventStats *prometheus.CounterVec, metricsCount *prometheus.GaugeVec) *Exporter {
+func NewExporter(reg prometheus.Registerer, mapper *mapper.MetricMapper, logger *slog.Logger, eventsActions *prometheus.CounterVec, eventsUnmapped prometheus.Counter, errorEventStats *prometheus.CounterVec, eventStats *prometheus.CounterVec, conflictingEventStats *prometheus.CounterVec, metricsCount *prometheus.GaugeVec) *Exporter {
 	return &Exporter{
 		Mapper:                mapper,
 		Registry:              registry.NewRegistry(reg, mapper),

@@ -15,14 +15,15 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"net"
 	"reflect"
 	"testing"
 	"time"
 
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
+	"github.com/prometheus/common/promslog"
 
 	"github.com/prometheus/statsd_exporter/pkg/clock"
 	"github.com/prometheus/statsd_exporter/pkg/event"
@@ -592,7 +593,7 @@ func TestHandlePacket(t *testing.T) {
 	for k, l := range []statsDPacketHandler{&listener.StatsDUDPListener{
 		Conn:            nil,
 		EventHandler:    nil,
-		Logger:          log.NewNopLogger(),
+		Logger:          promslog.NewNopLogger(),
 		LineParser:      parser,
 		UDPPackets:      udpPackets,
 		UDPPacketDrops:  udpPacketDrops,
@@ -605,7 +606,7 @@ func TestHandlePacket(t *testing.T) {
 	}, &mockStatsDTCPListener{listener.StatsDTCPListener{
 		Conn:            nil,
 		EventHandler:    nil,
-		Logger:          log.NewNopLogger(),
+		Logger:          promslog.NewNopLogger(),
 		LineParser:      parser,
 		LinesReceived:   linesReceived,
 		EventsFlushed:   eventsFlushed,
@@ -616,7 +617,7 @@ func TestHandlePacket(t *testing.T) {
 		TCPConnections:  tcpConnections,
 		TCPErrors:       tcpErrors,
 		TCPLineTooLong:  tcpLineTooLong,
-	}, log.NewNopLogger()}} {
+	}, promslog.NewNopLogger()}} {
 		events := make(chan event.Events, 32)
 		l.SetEventHandler(&event.UnbufferedEventHandler{C: events})
 		for i, scenario := range scenarios {
@@ -649,7 +650,7 @@ type statsDPacketHandler interface {
 
 type mockStatsDTCPListener struct {
 	listener.StatsDTCPListener
-	log.Logger
+	*slog.Logger
 }
 
 func (ml *mockStatsDTCPListener) HandlePacket(packet []byte) {
@@ -710,7 +711,7 @@ mappings:
 	events := make(chan event.Events)
 	defer close(events)
 	go func() {
-		ex := exporter.NewExporter(prometheus.DefaultRegisterer, testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+		ex := exporter.NewExporter(prometheus.DefaultRegisterer, testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 		ex.Listen(events)
 	}()
 
