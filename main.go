@@ -16,6 +16,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -269,8 +270,10 @@ func main() {
 		relayAddr            = kingpin.Flag("statsd.relay.address", "The UDP relay target address (host:port)").String()
 		relayPacketLen       = kingpin.Flag("statsd.relay.packet-length", "Maximum relay output packet length to avoid fragmentation").Default("1400").Uint()
 		udpPacketQueueSize   = kingpin.Flag("statsd.udp-packet-queue-size", "Size of internal queue for processing UDP packets.").Default("10000").Int()
+		disableGoMetrics     = kingpin.Flag("collector.disable-go-runtime-metrics", "Disable collection of Go runtime metrics").Default("false").Bool()
 	)
 
+	registry := prometheus.NewRegistry()
 	promlogConfig := &promlog.Config{}
 	flag.AddFlags(kingpin.CommandLine, promlogConfig)
 	kingpin.Version(version.Print("statsd_exporter"))
@@ -282,7 +285,7 @@ func main() {
 		level.Error(logger).Log("msg", "failed to set log level", "error", err)
 		os.Exit(1)
 	}
-	prometheus.MustRegister(versioncollector.NewCollector("statsd_exporter"))
+	registry.MustRegister(versioncollector.NewCollector("statsd_exporter"))
 
 	parser := line.NewParser()
 	if *dogstatsdTagsEnabled {
@@ -296,6 +299,9 @@ func main() {
 	}
 	if *signalFXTagsEnabled {
 		parser.EnableSignalFXParsing()
+	}
+	if !*disableGoMetrics {
+		registry.MustRegister(collectors.NewGoCollector())
 	}
 
 	level.Info(logger).Log("msg", "Starting StatsD -> Prometheus Exporter", "version", version.Info())
@@ -331,7 +337,7 @@ func main() {
 		}
 	}
 
-	exporter := exporter.NewExporter(prometheus.DefaultRegisterer, thisMapper, logger, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	exporter := exporter.NewExporter(registry, thisMapper, logger, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 
 	if *checkConfig {
 		level.Info(logger).Log("msg", "Configuration check successful, exiting")
@@ -492,7 +498,7 @@ func main() {
 	}
 
 	mux := http.DefaultServeMux
-	mux.Handle(*metricsEndpoint, promhttp.Handler())
+	mux.Handle(*metricsEndpoint, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 	if *metricsEndpoint != "/" && *metricsEndpoint != "" {
 		landingConfig := web.LandingConfig{
 			Name:        "StatsD Exporter",
