@@ -17,9 +17,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/go-kit/log"
-
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/promslog"
 
 	"github.com/prometheus/statsd_exporter/pkg/event"
 	"github.com/prometheus/statsd_exporter/pkg/exporter"
@@ -43,7 +42,7 @@ func benchmarkUDPListener(times int, b *testing.B) {
 		"some_very_useful_metrics_with_quite_a_log_name:13|c",
 	}
 	bytesInput := make([]string, len(input)*times)
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	for run := 0; run < times; run++ {
 		for i := 0; i < len(input); i++ {
 			bytesInput[run*len(input)+i] = fmt.Sprintf("run%d%s", run, input[i])
@@ -175,7 +174,7 @@ mappings:
 		b.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	ex := exporter.NewExporter(prometheus.DefaultRegisterer, testMapper, log.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	ex := exporter.NewExporter(prometheus.DefaultRegisterer, testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
 
 	// reset benchmark timer to not measure startup costs
 	b.ResetTimer()

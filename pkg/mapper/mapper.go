@@ -15,16 +15,16 @@ package mapper
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"regexp"
 	"sync"
 	"time"
 
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/promslog"
 	"gopkg.in/yaml.v2"
 
-	"github.com/prometheus/statsd_exporter/pkg/level"
 	"github.com/prometheus/statsd_exporter/pkg/mapper/fsm"
 )
 
@@ -53,7 +53,7 @@ type MetricMapper struct {
 
 	MappingsCount prometheus.Gauge
 
-	Logger log.Logger
+	Logger *slog.Logger
 }
 
 type SummaryOptions struct {
@@ -174,12 +174,12 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 
 		if currentMapping.LegacyQuantiles != nil &&
 			(currentMapping.SummaryOptions == nil || currentMapping.SummaryOptions.Quantiles != nil) {
-			level.Warn(m.Logger).Log("msg", "using the top level quantiles is deprecated.  Please use quantiles in the summary_options hierarchy")
+			m.Logger.Warn("using the top level quantiles is deprecated.  Please use quantiles in the summary_options hierarchy")
 		}
 
 		if currentMapping.LegacyBuckets != nil &&
 			(currentMapping.HistogramOptions == nil || currentMapping.HistogramOptions.Buckets != nil) {
-			level.Warn(m.Logger).Log("msg", "using the top level buckets is deprecated.  Please use buckets in the histogram_options hierarchy")
+			m.Logger.Warn("using the top level buckets is deprecated.  Please use buckets in the histogram_options hierarchy")
 		}
 
 		if currentMapping.SummaryOptions != nil &&
@@ -242,7 +242,7 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 	defer m.mutex.Unlock()
 
 	if m.Logger == nil {
-		m.Logger = log.NewNopLogger()
+		m.Logger = promslog.NewNopLogger()
 	}
 
 	m.Defaults = n.Defaults

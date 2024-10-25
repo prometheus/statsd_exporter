@@ -14,12 +14,9 @@
 package fsm
 
 import (
+	"log/slog"
 	"regexp"
 	"strings"
-
-	"github.com/go-kit/log"
-
-	"github.com/prometheus/statsd_exporter/pkg/level"
 )
 
 type mappingState struct {
@@ -234,7 +231,7 @@ func (f *FSM) GetMapping(statsdMetric string, statsdMetricType string) (*mapping
 
 // TestIfNeedBacktracking tests if backtrack is needed for given list of mappings
 // and whether ordering is disabled.
-func TestIfNeedBacktracking(mappings []string, orderingDisabled bool, logger log.Logger) bool {
+func TestIfNeedBacktracking(mappings []string, orderingDisabled bool, logger *slog.Logger) bool {
 	backtrackingNeeded := false
 	// A has * in rules, but there's other transisitions at the same state,
 	// this makes A the cause of backtracking
@@ -250,7 +247,7 @@ func TestIfNeedBacktracking(mappings []string, orderingDisabled bool, logger log
 		metricRe = strings.Replace(metricRe, "*", "([^.]*)", -1)
 		regex, err := regexp.Compile("^" + metricRe + "$")
 		if err != nil {
-			level.Warn(logger).Log("msg", "Invalid match, cannot compile regex in mapping", "mapping", mapping, "err", err)
+			logger.Warn("Invalid match, cannot compile regex in mapping", "mapping", mapping, "err", err)
 		}
 		// put into array no matter there's error or not, we will skip later if regex is nil
 		ruleREByLength[l] = append(ruleREByLength[l], regex)
@@ -293,7 +290,7 @@ func TestIfNeedBacktracking(mappings []string, orderingDisabled bool, logger log
 				if i2 != i1 && len(re1.FindStringSubmatchIndex(r2)) > 0 {
 					// log if we care about ordering and the superset occurs before
 					if !orderingDisabled && i1 < i2 {
-						level.Warn(logger).Log("msg", "match is a super set of match but in a lower order, the first will never be matched", "first_match", r1, "second_match", r2)
+						logger.Warn("match is a super set of match but in a lower order, the first will never be matched", "first_match", r1, "second_match", r2)
 					}
 					currentRuleNeedBacktrack = false
 				}
@@ -311,7 +308,7 @@ func TestIfNeedBacktracking(mappings []string, orderingDisabled bool, logger log
 			}
 
 			if currentRuleNeedBacktrack {
-				level.Warn(logger).Log("msg", "backtracking required because of match. Performance may be degraded", "match", r1)
+				logger.Warn("backtracking required because of match. Performance may be degraded", "match", r1)
 				backtrackingNeeded = true
 			}
 		}

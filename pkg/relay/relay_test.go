@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
+	"github.com/prometheus/common/promslog"
 	"github.com/prometheus/statsd_exporter/pkg/clock"
 	"github.com/stvp/go-udp-testing"
 )
@@ -54,7 +54,7 @@ func TestRelay_RelayLine(t *testing.T) {
 			}
 			clock.ClockInstance.Instant = time.Unix(0, 0)
 
-			logger := log.NewNopLogger()
+			logger := promslog.NewNopLogger()
 			r, err := NewRelay(
 				logger,
 				"localhost:1160",
