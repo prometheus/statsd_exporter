@@ -1,3 +1,10 @@
+## 0.28.0 / 2024-10-25
+
+* [CHANGE] Update exporter-toolkit & switch to slog ([#586](https://github.com/prometheus/statsd_exporter/pull/586))
+* [CHANGE] Update client_golang and prometheus-common
+
+This is a breaking change for library users.
+
 ## 0.27.2 / 2024-10-07
 
 * [BUGFIX] Fix panic on certain invalid lines ([#579](https://github.com/prometheus/statsd_exporter/pull/579))
