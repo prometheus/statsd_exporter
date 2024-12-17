@@ -39,6 +39,7 @@ func (c *CounterEvent) MetricName() string            { return c.CMetricName }
 func (c *CounterEvent) Value() float64                { return c.CValue }
 func (c *CounterEvent) Labels() map[string]string     { return c.CLabels }
 func (c *CounterEvent) MetricType() mapper.MetricType { return mapper.MetricTypeCounter }
+func (c *CounterEvent) Values() []float64             { return []float64{c.CValue} }
 
 type GaugeEvent struct {
 	GMetricName string
@@ -51,6 +52,7 @@ func (g *GaugeEvent) MetricName() string            { return g.GMetricName }
 func (g *GaugeEvent) Value() float64                { return g.GValue }
 func (g *GaugeEvent) Labels() map[string]string     { return g.GLabels }
 func (g *GaugeEvent) MetricType() mapper.MetricType { return mapper.MetricTypeGauge }
+func (g *GaugeEvent) Values() []float64             { return []float64{g.GValue} }
 
 type ObserverEvent struct {
 	OMetricName string
@@ -62,6 +64,7 @@ func (o *ObserverEvent) MetricName() string            { return o.OMetricName }
 func (o *ObserverEvent) Value() float64                { return o.OValue }
 func (o *ObserverEvent) Labels() map[string]string     { return o.OLabels }
 func (o *ObserverEvent) MetricType() mapper.MetricType { return mapper.MetricTypeObserver }
+func (o *ObserverEvent) Values() []float64             { return []float64{o.OValue} }
 
 type Events []Event
 
@@ -136,3 +139,68 @@ type UnbufferedEventHandler struct {
 func (ueh *UnbufferedEventHandler) Queue(events Events) {
 	ueh.C <- events
 }
+
+// MultiValueEvent is an event that contains multiple values, it is going to replace the existing Event interface.
+type MultiValueEvent interface {
+	MetricName() string
+	Value() float64
+	Labels() map[string]string
+	MetricType() mapper.MetricType
+	Values() []float64
+}
+
+type MultiObserverEvent struct {
+	OMetricName string
+	OValues     []float64 // DataDog extensions allow multiple values in a single sample
+	OLabels     map[string]string
+	SampleRate  float64
+}
+
+type ExplodableEvent interface {
+	Explode() []Event
+}
+
+func (m *MultiObserverEvent) MetricName() string            { return m.OMetricName }
+func (m *MultiObserverEvent) Value() float64                { return m.OValues[0] }
+func (m *MultiObserverEvent) Labels() map[string]string     { return m.OLabels }
+func (m *MultiObserverEvent) MetricType() mapper.MetricType { return mapper.MetricTypeObserver }
+func (m *MultiObserverEvent) Values() []float64             { return m.OValues }
+
+// Explode returns a list of events that are the result of exploding the multi-value event.
+// This will be used as a middle-step in the pipeline to convert multi-value events to single-value events.
+// And keep the exporter code compatible with previous versions.
+func (m *MultiObserverEvent) Explode() []Event {
+	if len(m.OValues) == 1 && m.SampleRate == 0 {
+		return []Event{m}
+	}
+
+	events := make([]Event, 0, len(m.OValues))
+	for _, value := range m.OValues {
+		labels := make(map[string]string, len(m.OLabels))
+		for k, v := range m.OLabels {
+			labels[k] = v
+		}
+
+		events = append(events, &ObserverEvent{
+			OMetricName: m.OMetricName,
+			OValue:      value,
+			OLabels:     labels,
+		})
+	}
+
+	if m.SampleRate > 0 && m.SampleRate < 1 {
+		multiplier := int(1 / m.SampleRate)
+		multipliedEvents := make([]Event, 0, len(events)*multiplier)
+		for i := 0; i < multiplier; i++ {
+			multipliedEvents = append(multipliedEvents, events...)
+		}
+		return multipliedEvents
+	}
+
+	return events
+}
+
+var (
+	_ ExplodableEvent = &MultiObserverEvent{}
+	_ MultiValueEvent = &MultiObserverEvent{}
+)
