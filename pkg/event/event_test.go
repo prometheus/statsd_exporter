@@ -123,6 +123,42 @@ func TestMultiValueEvent(t *testing.T) {
 			wantType:   mapper.MetricTypeObserver,
 			wantLabels: map[string]string{"label": "value"},
 		},
+		{
+			name: "CounterEvent implements MultiValueEvent",
+			event: &CounterEvent{
+				CMetricName: "test_counter",
+				CValue:      42.0,
+				CLabels:     map[string]string{"label": "value"},
+			},
+			wantValues: []float64{42.0},
+			wantName:   "test_counter",
+			wantType:   mapper.MetricTypeCounter,
+			wantLabels: map[string]string{"label": "value"},
+		},
+		{
+			name: "GaugeEvent implements MultiValueEvent",
+			event: &GaugeEvent{
+				GMetricName: "test_gauge",
+				GValue:      123.0,
+				GLabels:     map[string]string{"label": "value"},
+			},
+			wantValues: []float64{123.0},
+			wantName:   "test_gauge",
+			wantType:   mapper.MetricTypeGauge,
+			wantLabels: map[string]string{"label": "value"},
+		},
+		{
+			name: "ObserverEvent implements MultiValueEvent",
+			event: &ObserverEvent{
+				OMetricName: "test_observer",
+				OValue:      99.0,
+				OLabels:     map[string]string{"label": "value"},
+			},
+			wantValues: []float64{99.0},
+			wantName:   "test_observer",
+			wantType:   mapper.MetricTypeObserver,
+			wantLabels: map[string]string{"label": "value"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -138,9 +174,6 @@ func TestMultiValueEvent(t *testing.T) {
 			}
 			if got := tt.event.Labels(); !reflect.DeepEqual(got, tt.wantLabels) {
 				t.Errorf("MultiValueEvent.Labels() = %v, want %v", got, tt.wantLabels)
-			}
-			if got := tt.event.Value(); got != tt.wantValues[0] {
-				t.Errorf("MultiValueEvent.Value() = %v, want %v", got, tt.wantValues[0])
 			}
 		})
 	}
@@ -239,40 +272,45 @@ func TestMultiObserverEvent_Explode(t *testing.T) {
 }
 
 func TestEventImplementations(t *testing.T) {
-	tests := []struct {
-		name  string
-		event interface{}
-	}{
-		{
-			name:  "MultiObserverEvent implements MultiValueEvent",
-			event: &MultiObserverEvent{},
-		},
-		{
-			name:  "MultiObserverEvent implements ExplodableEvent",
-			event: &MultiObserverEvent{},
-		},
-		{
-			name:  "MultiObserverEvent implements Event",
-			event: &MultiObserverEvent{},
-		},
-	}
+	t.Run("MultiObserverEvent implements MultiValueEvent", func(t *testing.T) {
+		event := &MultiObserverEvent{}
+		if _, ok := interface{}(event).(MultiValueEvent); !ok {
+			t.Error("MultiObserverEvent does not implement MultiValueEvent")
+		}
+	})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			switch tt.name {
-			case "MultiObserverEvent implements MultiValueEvent":
-				if _, ok := tt.event.(MultiValueEvent); !ok {
-					t.Error("MultiObserverEvent does not implement MultiValueEvent")
-				}
-			case "MultiObserverEvent implements ExplodableEvent":
-				if _, ok := tt.event.(ExplodableEvent); !ok {
-					t.Error("MultiObserverEvent does not implement ExplodableEvent")
-				}
-			case "MultiObserverEvent implements Event":
-				if _, ok := tt.event.(Event); !ok {
-					t.Error("MultiObserverEvent does not implement Event")
-				}
-			}
-		})
-	}
+	t.Run("MultiObserverEvent implements ExplodableEvent", func(t *testing.T) {
+		event := &MultiObserverEvent{}
+		if _, ok := interface{}(event).(ExplodableEvent); !ok {
+			t.Error("MultiObserverEvent does not implement ExplodableEvent")
+		}
+	})
+
+	t.Run("MultiObserverEvent implements Event", func(t *testing.T) {
+		event := &MultiObserverEvent{}
+		if _, ok := interface{}(event).(Event); !ok {
+			t.Error("MultiObserverEvent does not implement Event")
+		}
+	})
+
+	t.Run("CounterEvent implements MultiValueEvent", func(t *testing.T) {
+		event := &CounterEvent{}
+		if _, ok := interface{}(event).(MultiValueEvent); !ok {
+			t.Error("CounterEvent does not implement MultiValueEvent")
+		}
+	})
+
+	t.Run("GaugeEvent implements MultiValueEvent", func(t *testing.T) {
+		event := &GaugeEvent{}
+		if _, ok := interface{}(event).(MultiValueEvent); !ok {
+			t.Error("GaugeEvent does not implement MultiValueEvent")
+		}
+	})
+
+	t.Run("ObserverEvent implements MultiValueEvent", func(t *testing.T) {
+		event := &ObserverEvent{}
+		if _, ok := interface{}(event).(MultiValueEvent); !ok {
+			t.Error("ObserverEvent does not implement MultiValueEvent")
+		}
+	})
 }

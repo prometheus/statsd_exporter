@@ -143,7 +143,6 @@ func (ueh *UnbufferedEventHandler) Queue(events Events) {
 // MultiValueEvent is an event that contains multiple values, it is going to replace the existing Event interface.
 type MultiValueEvent interface {
 	MetricName() string
-	Value() float64
 	Labels() map[string]string
 	MetricType() mapper.MetricType
 	Values() []float64
@@ -203,4 +202,7 @@ func (m *MultiObserverEvent) Explode() []Event {
 var (
 	_ ExplodableEvent = &MultiObserverEvent{}
 	_ MultiValueEvent = &MultiObserverEvent{}
+	_ MultiValueEvent = &CounterEvent{}
+	_ MultiValueEvent = &GaugeEvent{}
+	_ MultiValueEvent = &ObserverEvent{}
 )
