@@ -179,7 +179,7 @@ func TestMultiValueEvent(t *testing.T) {
 	}
 }
 
-func TestMultiObserverEvent_Explode(t *testing.T) {
+func TestMultiObserverEvent_Expand(t *testing.T) {
 	tests := []struct {
 		name       string
 		event      *MultiObserverEvent
@@ -263,54 +263,10 @@ func TestMultiObserverEvent_Explode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.event.Explode()
+			got := tt.event.Expand()
 			if !reflect.DeepEqual(got, tt.wantEvents) {
-				t.Errorf("MultiObserverEvent.Explode() = %v, want %v", got, tt.wantEvents)
+				t.Errorf("MultiObserverEvent.Expand() = %v, want %v", got, tt.wantEvents)
 			}
 		})
 	}
-}
-
-func TestEventImplementations(t *testing.T) {
-	t.Run("MultiObserverEvent implements MultiValueEvent", func(t *testing.T) {
-		event := &MultiObserverEvent{}
-		if _, ok := interface{}(event).(MultiValueEvent); !ok {
-			t.Error("MultiObserverEvent does not implement MultiValueEvent")
-		}
-	})
-
-	t.Run("MultiObserverEvent implements ExplodableEvent", func(t *testing.T) {
-		event := &MultiObserverEvent{}
-		if _, ok := interface{}(event).(ExplodableEvent); !ok {
-			t.Error("MultiObserverEvent does not implement ExplodableEvent")
-		}
-	})
-
-	t.Run("MultiObserverEvent implements Event", func(t *testing.T) {
-		event := &MultiObserverEvent{}
-		if _, ok := interface{}(event).(Event); !ok {
-			t.Error("MultiObserverEvent does not implement Event")
-		}
-	})
-
-	t.Run("CounterEvent implements MultiValueEvent", func(t *testing.T) {
-		event := &CounterEvent{}
-		if _, ok := interface{}(event).(MultiValueEvent); !ok {
-			t.Error("CounterEvent does not implement MultiValueEvent")
-		}
-	})
-
-	t.Run("GaugeEvent implements MultiValueEvent", func(t *testing.T) {
-		event := &GaugeEvent{}
-		if _, ok := interface{}(event).(MultiValueEvent); !ok {
-			t.Error("GaugeEvent does not implement MultiValueEvent")
-		}
-	})
-
-	t.Run("ObserverEvent implements MultiValueEvent", func(t *testing.T) {
-		event := &ObserverEvent{}
-		if _, ok := interface{}(event).(MultiValueEvent); !ok {
-			t.Error("ObserverEvent does not implement MultiValueEvent")
-		}
-	})
 }

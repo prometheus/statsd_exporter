@@ -155,8 +155,8 @@ type MultiObserverEvent struct {
 	SampleRate  float64
 }
 
-type ExplodableEvent interface {
-	Explode() []Event
+type ExpandableEvent interface {
+	Expand() []Event
 }
 
 func (m *MultiObserverEvent) MetricName() string            { return m.OMetricName }
@@ -165,10 +165,10 @@ func (m *MultiObserverEvent) Labels() map[string]string     { return m.OLabels }
 func (m *MultiObserverEvent) MetricType() mapper.MetricType { return mapper.MetricTypeObserver }
 func (m *MultiObserverEvent) Values() []float64             { return m.OValues }
 
-// Explode returns a list of events that are the result of exploding the multi-value event.
+// Expand returns a list of events that are the result of expanding the multi-value event.
 // This will be used as a middle-step in the pipeline to convert multi-value events to single-value events.
 // And keep the exporter code compatible with previous versions.
-func (m *MultiObserverEvent) Explode() []Event {
+func (m *MultiObserverEvent) Expand() []Event {
 	if len(m.OValues) == 1 && m.SampleRate == 0 {
 		return []Event{m}
 	}
@@ -200,7 +200,7 @@ func (m *MultiObserverEvent) Explode() []Event {
 }
 
 var (
-	_ ExplodableEvent = &MultiObserverEvent{}
+	_ ExpandableEvent = &MultiObserverEvent{}
 	_ MultiValueEvent = &MultiObserverEvent{}
 	_ MultiValueEvent = &CounterEvent{}
 	_ MultiValueEvent = &GaugeEvent{}
