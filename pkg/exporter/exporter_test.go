@@ -117,7 +117,7 @@ var (
 			Name: "statsd_exporter_events_conflict_total",
 			Help: "The total number of StatsD events with conflicting names.",
 		},
-		[]string{"type"},
+		[]string{"type", "metric_name"},
 	)
 	errorEventStats = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
