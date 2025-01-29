@@ -173,8 +173,15 @@ var (
 	)
 )
 
-func serveHTTP(mux http.Handler, listenAddress string, logger *slog.Logger) {
-	logger.Error(http.ListenAndServe(listenAddress, mux).Error())
+func serveHTTP(mux http.Handler, listenAddress string, listenTLSCert string, listenTLSKey string, logger *slog.Logger) {
+	if listenTLSCert == "" && listenTLSKey == "" {
+		logger.Info("Accepting Prometheus Requests over HTTP", "addr", listenAddress)
+		logger.Error(http.ListenAndServe(listenAddress, mux).Error())
+	} else {
+		logger.Info("Accepting Prometheus Requests over HTTPS", "addr", listenAddress)
+		logger.Error(http.ListenAndServeTLS(listenAddress, listenTLSCert, listenTLSKey, mux).Error())
+	}
+
 	os.Exit(1)
 }
 
@@ -245,6 +252,8 @@ func getCache(cacheSize int, cacheType string, registerer prometheus.Registerer)
 func main() {
 	var (
 		listenAddress        = kingpin.Flag("web.listen-address", "The address on which to expose the web interface and generated Prometheus metrics.").Default(":9102").String()
+		listenTLSCert        = kingpin.Flag("web.listen-tls-cert", "TLS certificate filename for the web interface.  Enables TLS when set.  \"\" disables TLS").Default("").String()
+		listenTLSKey         = kingpin.Flag("web.listen-tls-key", "TLS key filename for the web interface.  Enables TLS when set.  \"\" disables TLS").Default("").String()
 		enableLifecycle      = kingpin.Flag("web.enable-lifecycle", "Enable shutdown and reload via HTTP request.").Default("false").Bool()
 		metricsEndpoint      = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
 		statsdListenUDP      = kingpin.Flag("statsd.listen-udp", "The UDP address on which to receive statsd metric lines. \"\" disables it.").Default(":9125").String()
@@ -344,7 +353,6 @@ func main() {
 	}
 
 	logger.Info("Accepting StatsD Traffic", "udp", *statsdListenUDP, "tcp", *statsdListenTCP, "unixgram", *statsdListenUnixgram)
-	logger.Info("Accepting Prometheus Requests", "addr", *listenAddress)
 
 	if *statsdListenUDP == "" && *statsdListenTCP == "" && *statsdListenUnixgram == "" {
 		logger.Error("At least one of UDP/TCP/Unixgram listeners must be specified.")
@@ -546,7 +554,7 @@ func main() {
 		}
 	})
 
-	go serveHTTP(mux, *listenAddress, logger)
+	go serveHTTP(mux, *listenAddress, *listenTLSCert, *listenTLSKey, logger)
 
 	go sighupConfigReloader(*mappingConfig, thisMapper, logger)
 	go exporter.Listen(events)
