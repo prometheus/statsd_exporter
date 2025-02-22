@@ -14,11 +14,15 @@
 package event
 
 import (
+	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/prometheus/statsd_exporter/pkg/clock"
+	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
 
 var eventsFlushed = prometheus.NewCounter(
@@ -83,5 +87,208 @@ func TestEventIntervalFlush(t *testing.T) {
 
 	if len(events) != 10 {
 		t.Fatal("Expected 10 events in the event channel, but got", len(events))
+	}
+}
+
+func TestMultiValueEvent(t *testing.T) {
+	tests := []struct {
+		name       string
+		event      MultiValueEvent
+		wantValues []float64
+		wantName   string
+		wantType   mapper.MetricType
+		wantLabels map[string]string
+	}{
+		{
+			name: "MultiObserverEvent with single value",
+			event: &MultiObserverEvent{
+				OMetricName: "test_metric",
+				OValues:     []float64{1.0},
+				OLabels:     map[string]string{"label": "value"},
+				SampleRate:  0,
+			},
+			wantValues: []float64{1.0},
+			wantName:   "test_metric",
+			wantType:   mapper.MetricTypeObserver,
+			wantLabels: map[string]string{"label": "value"},
+		},
+		{
+			name: "MultiObserverEvent with multiple values",
+			event: &MultiObserverEvent{
+				OMetricName: "test_metric",
+				OValues:     []float64{1.0, 2.0, 3.0},
+				OLabels:     map[string]string{"label": "value"},
+				SampleRate:  0.5,
+			},
+			wantValues: []float64{1.0, 2.0, 3.0},
+			wantName:   "test_metric",
+			wantType:   mapper.MetricTypeObserver,
+			wantLabels: map[string]string{"label": "value"},
+		},
+		{
+			name: "CounterEvent implements MultiValueEvent",
+			event: &CounterEvent{
+				CMetricName: "test_counter",
+				CValue:      42.0,
+				CLabels:     map[string]string{"label": "value"},
+			},
+			wantValues: []float64{42.0},
+			wantName:   "test_counter",
+			wantType:   mapper.MetricTypeCounter,
+			wantLabels: map[string]string{"label": "value"},
+		},
+		{
+			name: "GaugeEvent implements MultiValueEvent",
+			event: &GaugeEvent{
+				GMetricName: "test_gauge",
+				GValue:      123.0,
+				GLabels:     map[string]string{"label": "value"},
+			},
+			wantValues: []float64{123.0},
+			wantName:   "test_gauge",
+			wantType:   mapper.MetricTypeGauge,
+			wantLabels: map[string]string{"label": "value"},
+		},
+		{
+			name: "ObserverEvent implements MultiValueEvent",
+			event: &ObserverEvent{
+				OMetricName: "test_observer",
+				OValue:      99.0,
+				OLabels:     map[string]string{"label": "value"},
+			},
+			wantValues: []float64{99.0},
+			wantName:   "test_observer",
+			wantType:   mapper.MetricTypeObserver,
+			wantLabels: map[string]string{"label": "value"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.event.Values(); !reflect.DeepEqual(got, tt.wantValues) {
+				t.Errorf("MultiValueEvent.Values() = %v, want %v", got, tt.wantValues)
+			}
+			if got := tt.event.MetricName(); got != tt.wantName {
+				t.Errorf("MultiValueEvent.MetricName() = %v, want %v", got, tt.wantName)
+			}
+			if got := tt.event.MetricType(); got != tt.wantType {
+				t.Errorf("MultiValueEvent.MetricType() = %v, want %v", got, tt.wantType)
+			}
+			if got := tt.event.Labels(); !reflect.DeepEqual(got, tt.wantLabels) {
+				t.Errorf("MultiValueEvent.Labels() = %v, want %v", got, tt.wantLabels)
+			}
+		})
+	}
+}
+
+func TestMultiObserverEvent_Expand(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name       string
+		event      *MultiObserverEvent
+		wantEvents []Event
+	}{
+		{
+			name: "single value no sampling",
+			event: &MultiObserverEvent{
+				OMetricName: "test_metric",
+				OValues:     []float64{1.0},
+				OLabels:     map[string]string{"label": "value"},
+				SampleRate:  0,
+			},
+			wantEvents: []Event{
+				&ObserverEvent{
+					OMetricName: "test_metric",
+					OValue:      1.0,
+					OLabels:     map[string]string{"label": "value"},
+				},
+			},
+		},
+		{
+			name: "multiple values no sampling",
+			event: &MultiObserverEvent{
+				OMetricName: "test_metric",
+				OValues:     []float64{1.0, 2.0, 3.0},
+				OLabels:     map[string]string{"label": "value"},
+				SampleRate:  0,
+			},
+			wantEvents: []Event{
+				&ObserverEvent{
+					OMetricName: "test_metric",
+					OValue:      1.0,
+					OLabels:     map[string]string{"label": "value"},
+				},
+				&ObserverEvent{
+					OMetricName: "test_metric",
+					OValue:      2.0,
+					OLabels:     map[string]string{"label": "value"},
+				},
+				&ObserverEvent{
+					OMetricName: "test_metric",
+					OValue:      3.0,
+					OLabels:     map[string]string{"label": "value"},
+				},
+			},
+		},
+		{
+			name: "multiple values with sampling",
+			event: &MultiObserverEvent{
+				OMetricName: "test_metric",
+				OValues:     []float64{1.0, 2.0},
+				OLabels:     map[string]string{"label": "value"},
+				SampleRate:  0.5,
+			},
+			wantEvents: []Event{
+				&ObserverEvent{
+					OMetricName: "test_metric",
+					OValue:      1.0,
+					OLabels:     map[string]string{"label": "value"},
+				},
+				&ObserverEvent{
+					OMetricName: "test_metric",
+					OValue:      2.0,
+					OLabels:     map[string]string{"label": "value"},
+				},
+				&ObserverEvent{
+					OMetricName: "test_metric",
+					OValue:      1.0,
+					OLabels:     map[string]string{"label": "value"},
+				},
+				&ObserverEvent{
+					OMetricName: "test_metric",
+					OValue:      2.0,
+					OLabels:     map[string]string{"label": "value"},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := tt.event.Expand()
+			if len(tt.wantEvents) != len(got) {
+				t.Fatalf("Expected %d events, but got %d", len(tt.wantEvents), len(got))
+			}
+
+			eventCount := func(events []Event) map[string]int {
+				counts := make(map[string]int)
+				for _, event := range events {
+					oe := event.(*ObserverEvent)
+					key := fmt.Sprintf("%s%f%v", oe.OMetricName, oe.OValue, oe.OLabels)
+					counts[key]++
+				}
+				return counts
+			}
+
+			wantMap := eventCount(tt.wantEvents)
+			gotMap := eventCount(got)
+
+			for key, count := range wantMap {
+				if gotMap[key] != count {
+					t.Fatalf("Event mismatch for key %v: expected %d, got %d", key, count, gotMap[key])
+				}
+			}
+		})
 	}
 }
