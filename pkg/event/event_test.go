@@ -14,11 +14,13 @@
 package event
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/prometheus/statsd_exporter/pkg/clock"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
@@ -180,6 +182,7 @@ func TestMultiValueEvent(t *testing.T) {
 }
 
 func TestMultiObserverEvent_Expand(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		event      *MultiObserverEvent
@@ -194,11 +197,10 @@ func TestMultiObserverEvent_Expand(t *testing.T) {
 				SampleRate:  0,
 			},
 			wantEvents: []Event{
-				&MultiObserverEvent{
+				&ObserverEvent{
 					OMetricName: "test_metric",
-					OValues:     []float64{1.0},
+					OValue:      1.0,
 					OLabels:     map[string]string{"label": "value"},
-					SampleRate:  0,
 				},
 			},
 		},
@@ -263,9 +265,29 @@ func TestMultiObserverEvent_Expand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := tt.event.Expand()
-			if !reflect.DeepEqual(got, tt.wantEvents) {
-				t.Errorf("MultiObserverEvent.Expand() = %v, want %v", got, tt.wantEvents)
+			if len(tt.wantEvents) != len(got) {
+				t.Fatalf("Expected %d events, but got %d", len(tt.wantEvents), len(got))
+			}
+
+			eventCount := func(events []Event) map[string]int {
+				counts := make(map[string]int)
+				for _, event := range events {
+					oe := event.(*ObserverEvent)
+					key := fmt.Sprintf("%s%f%v", oe.OMetricName, oe.OValue, oe.OLabels)
+					counts[key]++
+				}
+				return counts
+			}
+
+			wantMap := eventCount(tt.wantEvents)
+			gotMap := eventCount(got)
+
+			for key, count := range wantMap {
+				if gotMap[key] != count {
+					t.Fatalf("Event mismatch for key %v: expected %d, got %d", key, count, gotMap[key])
+				}
 			}
 		})
 	}

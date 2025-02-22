@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/prometheus/statsd_exporter/pkg/clock"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
@@ -170,20 +171,21 @@ func (m *MultiObserverEvent) Values() []float64             { return m.OValues }
 // And keep the exporter code compatible with previous versions.
 func (m *MultiObserverEvent) Expand() []Event {
 	if len(m.OValues) == 1 && m.SampleRate == 0 {
-		return []Event{m}
+		return []Event{
+			&ObserverEvent{
+				OMetricName: m.OMetricName,
+				OValue:      m.OValues[0],
+				OLabels:     copyLabels(m.OLabels),
+			},
+		}
 	}
 
 	events := make([]Event, 0, len(m.OValues))
 	for _, value := range m.OValues {
-		labels := make(map[string]string, len(m.OLabels))
-		for k, v := range m.OLabels {
-			labels[k] = v
-		}
-
 		events = append(events, &ObserverEvent{
 			OMetricName: m.OMetricName,
 			OValue:      value,
-			OLabels:     labels,
+			OLabels:     copyLabels(m.OLabels),
 		})
 	}
 
@@ -191,12 +193,28 @@ func (m *MultiObserverEvent) Expand() []Event {
 		multiplier := int(1 / m.SampleRate)
 		multipliedEvents := make([]Event, 0, len(events)*multiplier)
 		for i := 0; i < multiplier; i++ {
-			multipliedEvents = append(multipliedEvents, events...)
+			for _, event := range events {
+				e := event.(*ObserverEvent)
+				multipliedEvents = append(multipliedEvents, &ObserverEvent{
+					OMetricName: e.OMetricName,
+					OValue:      e.OValue,
+					OLabels:     copyLabels(e.OLabels),
+				})
+			}
 		}
 		return multipliedEvents
 	}
 
 	return events
+}
+
+// Helper function to copy labels map
+func copyLabels(labels map[string]string) map[string]string {
+	newLabels := make(map[string]string, len(labels))
+	for k, v := range labels {
+		newLabels[k] = v
+	}
+	return newLabels
 }
 
 var (
