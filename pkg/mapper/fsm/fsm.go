@@ -243,8 +243,8 @@ func TestIfNeedBacktracking(mappings []string, orderingDisabled bool, logger *sl
 		l := len(strings.Split(mapping, "."))
 		ruleByLength[l] = append(ruleByLength[l], mapping)
 
-		metricRe := strings.Replace(mapping, ".", "\\.", -1)
-		metricRe = strings.Replace(metricRe, "*", "([^.]*)", -1)
+		metricRe := strings.ReplaceAll(mapping, ".", "\\.")
+		metricRe = strings.ReplaceAll(metricRe, "*", "([^.]*)")
 		regex, err := regexp.Compile("^" + metricRe + "$")
 		if err != nil {
 			logger.Warn("Invalid match, cannot compile regex in mapping", "mapping", mapping, "err", err)
@@ -272,8 +272,8 @@ func TestIfNeedBacktracking(mappings []string, orderingDisabled bool, logger *sl
 				}
 				// translate the substring of r1 from 0 to the index of current * into regex
 				// A.B.C.*.E.* will becomes ^A\.B\.C\. and ^A\.B\.C\.\*\.E\.
-				reStr := strings.Replace(r1[:index], ".", "\\.", -1)
-				reStr = strings.Replace(reStr, "*", "\\*", -1)
+				reStr := strings.ReplaceAll(r1[:index], ".", "\\.")
+				reStr = strings.ReplaceAll(reStr, "*", "\\*")
 				re := regexp.MustCompile("^" + reStr)
 				for i2, r2 := range rules {
 					if i2 == i1 {

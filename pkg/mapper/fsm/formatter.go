@@ -46,9 +46,9 @@ func NewTemplateFormatter(template string, captureCount int) *TemplateFormatter 
 		if err != nil || idx > captureCount || idx < 1 {
 			// if index larger than captured count or using unsupported named capture group,
 			// replace with empty string
-			valueFormatter = strings.Replace(valueFormatter, match[0], "", -1)
+			valueFormatter = strings.ReplaceAll(valueFormatter, match[0], "")
 		} else {
-			valueFormatter = strings.Replace(valueFormatter, match[0], "%s", -1)
+			valueFormatter = strings.ReplaceAll(valueFormatter, match[0], "%s")
 			// note: the regex reference variable $? starts from 1
 			indexes = append(indexes, idx-1)
 		}
