@@ -1,26 +1,36 @@
+version: "2"
 run:
   issues-exit-code: 1
   tests: true
 linters:
+  enable:
+    - nakedret
+    - whitespace
   disable:
     - errcheck
-  enable:
-    - goimports
-    - gosimple
-    - govet
-    - ineffassign
-    - nakedret
-    - staticcheck
-    - unused
-    - whitespace
-linters-settings:
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment
+  settings:
+    govet:
+      disable:
+        - fieldalignment
+      enable-all: true
+  exclusions:
+    generated: lax
+    rules:
+      - path: (.+)\.go$
+        text: 'shadow: declaration of "err" shadows declaration at line (\d+)'
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 issues:
-  exclude-use-default: false
-  exclude:
-    - 'shadow: declaration of "err" shadows declaration at line (\d+)'
   max-issues-per-linter: 0
   max-same-issues: 0
+formatters:
+  enable:
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
