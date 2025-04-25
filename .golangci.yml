@@ -14,23 +14,13 @@ linters:
         - fieldalignment
       enable-all: true
   exclusions:
-    generated: lax
     rules:
       - path: (.+)\.go$
         text: 'shadow: declaration of "err" shadows declaration at line (\d+)'
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
+    warn-unused: true
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
 formatters:
   enable:
     - goimports
-  exclusions:
-    generated: lax
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
