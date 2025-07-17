@@ -1,0 +1,81 @@
+# This is a modern starter configuration for the statsd_exporter. It uses native
+# and classic histograms by default, as well as the fast glob matching without ordering.
+defaults:
+  observer_type: histogram
+  histogram_options:
+    # Expose native histograms.
+    # A bucket spread factor of 1.1 allows for pretty good precision in
+    # measuring latencies, as long as they are not spread too widely.
+    native_histogram_bucket_factor: 1.1
+    # If latency is spread too widely, the resolution is automatically reduced,
+    # keeping within the maximum bucket count. 160 is the default maximum bucket
+    # count in OpenTelemetry, and is a good default for most use cases.
+    native_histogram_max_buckets: 160
+    # Also expose classic histograms, with a spread of latency buckets from 5ms to 2.5s.
+    buckets: [.005, .01, .025, .05, .1, .25, .5, 1, 2.5 ]
+  # Metric can be optionally exposed as a summary. Set reasonable defaults for
+  # that case.
+  summary_options:
+    quantiles:
+      - quantile: 0.99
+        error: 0.001
+      - quantile: 0.95
+        error: 0.01
+      - quantile: 0.9
+        error: 0.05
+      - quantile: 0.5
+        error: 0.005
+    max_age: 5m
+    age_buckets: 2
+    buf_cap: 1000
+  # Match using glob patterns by default, it is much faster than regex.
+  match_type: glob
+  # Sepecific matches take precedence over *, ignoring the order of the mapping rules.
+  # Regex matches are always evaluated after glob matches, and do honor the
+  # order of mapping rules. Avoid using regex matches where possible.
+  glob_disable_ordering: true
+  # Do not expire metrics by default. When deployed as a sidecar, and restarted
+  # together with application deployments, this matches the behavior of native
+  # in-application instrumentation. Set a reasonable TTL if the exporter has its
+  # own lifecycle.
+  ttl: 0
+mappings:
+# Example 1: This will be a histogram using the bucket configuration set in `defaults`.
+- match: "test.timing.*.*.*"
+  name: "my_timer"
+  help: "Latency of the application"
+  labels:
+    provider: "$2"
+    outcome: "$3"
+    job: "${1}_server"
+# Example 2: Use a much tighter bucket spread. Use this to track latencies in a
+# relatively narrow range. For classic histograms, we need to set the buckets
+# around this band manually; native histograms are sparse and adapt automatically.
+- match: "consistent_app.timing.*.*.*"
+  name: "my_consistent_timer"
+  help: "Latency of an application with a consistent latency pattern"
+  histogram_options:
+    native_histogram_bucket_factor: 1.005
+    # For the sake of this example, set the buckets for a latency distribution
+    # tightly clustered around 15ms.
+    buckets: [0.01, 0.011, 0.012, 0.013, 0.014, 0.015, 0.016, 0.017, 0.018, 0.019, 0.02]
+  labels:
+    provider: "$2"
+    outcome: "$3"
+    job: "${1}_server"
+# Example 3: This will be a summary using the summary_options set in `defaults`
+- match: "other.distribution.*.*.*"
+  observer_type: summary
+  name: "other_distribution"
+  labels:
+    provider: "$2"
+    outcome: "$3"
+    job: "${1}_server_other"
+# Optional: drop all unmapped metrics. Keep this as the last mapping rule. Any
+# metric not matched otherwise will be dropped because "." matches all metrics.
+# Without this rule, all metrics will be exposed, with the metric name
+# automatically generated from the statsd metric name.
+# - match: "."
+#   match_type: regex
+#   action: drop
+#   name: "dropped"

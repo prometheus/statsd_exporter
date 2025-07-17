@@ -418,46 +418,7 @@ Setting `buckets` or `quantiles` in the defaults is deprecated in favor of `hist
 
 If `summary_options` is present in a mapping config, it will only override the fields set in the mapping. Unset fields in the mapping will take the values from the defaults. 
 
-```yaml
-defaults:
-  observer_type: histogram
-  histogram_options:
-    buckets: [.005, .01, .025, .05, .1, .25, .5, 1, 2.5 ]
-    native_histogram_bucket_factor: 1.1
-    native_histogram_max_buckets: 256
-  summary_options:
-    quantiles:
-      - quantile: 0.99
-        error: 0.001
-      - quantile: 0.95
-        error: 0.01
-      - quantile: 0.9
-        error: 0.05
-      - quantile: 0.5
-        error: 0.005
-    max_age: 5m
-    age_buckets: 2
-    buf_cap: 1000
-  match_type: glob
-  glob_disable_ordering: false
-  ttl: 0 # metrics do not expire
-mappings:
-# This will be a histogram using the buckets set in `defaults`.
-- match: "test.timing.*.*.*"
-  name: "my_timer"
-  labels:
-    provider: "$2"
-    outcome: "$3"
-    job: "${1}_server"
-# This will be a summary using the summary_options set in `defaults`
-- match: "other.distribution.*.*.*"
-  observer_type: summary
-  name: "other_distribution"
-  labels:
-    provider: "$2"
-    outcome: "$3"
-    job: "${1}_server_other"
-```
+See [`config.exmple.yml`](config.example.yml) for an annotated example configuration.
 
 ### `drop` action
 
