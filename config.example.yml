@@ -64,6 +64,8 @@ mappings:
     outcome: "$3"
     job: "${1}_server"
 # Example 3: This will be a summary using the summary_options set in `defaults`
+#
+# Note: Summary metrics are not recommended because they can not be aggregated over multiple instances.
 - match: "other.distribution.*.*.*"
   observer_type: summary
   name: "other_distribution"
