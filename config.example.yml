@@ -1,6 +1,7 @@
 # This is a modern starter configuration for the statsd_exporter. It uses native
 # and classic histograms by default, as well as the fast glob matching without ordering.
 defaults:
+  # Convert timers into histograms, which can be aggregated across instances. See below for an example of using a summary with pre-computed quantiles instead.
   observer_type: histogram
   histogram_options:
     # Expose native histograms.
