@@ -15,7 +15,7 @@ defaults:
     # Also expose classic histograms, with a spread of latency buckets from 5ms to 2.5s.
     buckets: [.005, .01, .025, .05, .1, .25, .5, 1, 2.5 ]
   # Metric can be optionally exposed as a summary. Set reasonable defaults for
-  # that case.
+  # that case. Only used with `observer_type: summary`.
   summary_options:
     quantiles:
       - quantile: 0.99
