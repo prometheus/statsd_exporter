@@ -65,9 +65,11 @@ func benchmarkLinesToEvents(times int, b *testing.B, input []string) {
 func BenchmarkLineToEventsMixed1(b *testing.B) {
 	benchmarkLinesToEvents(1, b, mixedLines)
 }
+
 func BenchmarkLineToEventsMixed5(b *testing.B) {
 	benchmarkLinesToEvents(5, b, mixedLines)
 }
+
 func BenchmarkLineToEventsMixed50(b *testing.B) {
 	benchmarkLinesToEvents(50, b, mixedLines)
 }

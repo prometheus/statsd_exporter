@@ -28,7 +28,7 @@ import (
 )
 
 type Parser interface {
-	LineToEvents(line string, sampleErrors prometheus.CounterVec, samplesReceived prometheus.Counter, tagErrors prometheus.Counter, tagsReceived prometheus.Counter, logger *slog.Logger) event.Events
+	LineToEvents(line string, sampleErrors prometheus.CounterVec, samplesReceived, tagErrors, tagsReceived prometheus.Counter, logger *slog.Logger) event.Events
 }
 
 type StatsDUDPListener struct {

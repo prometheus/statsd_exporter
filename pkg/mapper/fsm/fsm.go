@@ -66,7 +66,7 @@ func NewFSM(metricTypes []string, maxPossibleTransitions int, orderingDisabled b
 // AddState adds a mapping rule into the existing FSM.
 // The maxPossibleTransitions parameter sets the expected count of transitions left.
 // The result parameter sets the generic type to be returned when fsm found a match in GetMapping.
-func (f *FSM) AddState(match string, matchMetricType string, maxPossibleTransitions int, result interface{}) int {
+func (f *FSM) AddState(match, matchMetricType string, maxPossibleTransitions int, result interface{}) int {
 	// first split by "."
 	matchFields := strings.Split(match, ".")
 	// fill into our FSM
@@ -125,7 +125,7 @@ func (f *FSM) AddState(match string, matchMetricType string, maxPossibleTransiti
 // GetMapping using the fsm to find matching rules according to given statsdMetric and statsdMetricType.
 // If it finds a match, the final state and the captured strings are returned;
 // if there's no match found, nil and a empty list will be returned.
-func (f *FSM) GetMapping(statsdMetric string, statsdMetricType string) (*mappingState, []string) {
+func (f *FSM) GetMapping(statsdMetric, statsdMetricType string) (*mappingState, []string) {
 	matchFields := strings.Split(statsdMetric, ".")
 	currentState := f.root.transitions[statsdMetricType]
 
@@ -168,7 +168,8 @@ func (f *FSM) GetMapping(statsdMetric string, statsdMetricType string) (*mapping
 						if !present || fieldsLeft > altState.maxRemainingLength || fieldsLeft < altState.minRemainingLength {
 						} else {
 							// push to backtracking stack
-							newCursor := fsmBacktrackStackCursor{prev: backtrackCursor, state: altState,
+							newCursor := fsmBacktrackStackCursor{
+								prev: backtrackCursor, state: altState,
 								fieldIndex:   i,
 								captureIndex: captureIdx, currentCapture: field,
 							}

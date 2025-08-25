@@ -23,4 +23,11 @@ issues:
   max-same-issues: 0
 formatters:
   enable:
+    - gofumpt
     - goimports
+  settings:
+    gofumpt:
+      extra-rules: true
+    goimports:
+      local-prefixes:
+        - github.com/prometheus/statsd_exporter

@@ -22,8 +22,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/promslog"
-	"github.com/prometheus/statsd_exporter/pkg/clock"
 	"github.com/stvp/go-udp-testing"
+
+	"github.com/prometheus/statsd_exporter/pkg/clock"
 )
 
 func TestRelay_RelayLine(t *testing.T) {
@@ -60,7 +61,6 @@ func TestRelay_RelayLine(t *testing.T) {
 				"localhost:1160",
 				200,
 			)
-
 			if err != nil {
 				t.Errorf("Did not expect error while creating relay.")
 			}

@@ -216,7 +216,7 @@ mappings:
 				},
 			},
 		},
-		//Config with backtracking, the non-matched rule has star(s)
+		// Config with backtracking, the non-matched rule has star(s)
 		// A metric like full.name.anothertest will first match full.name.* and then tries
 		// to match *.dummy.* and then failed.
 		// This test case makes sure the captures in the non-matched later rule

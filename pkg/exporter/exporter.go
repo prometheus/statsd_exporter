@@ -196,7 +196,7 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 	}
 }
 
-func NewExporter(reg prometheus.Registerer, mapper *mapper.MetricMapper, logger *slog.Logger, eventsActions *prometheus.CounterVec, eventsUnmapped prometheus.Counter, errorEventStats *prometheus.CounterVec, eventStats *prometheus.CounterVec, conflictingEventStats *prometheus.CounterVec, metricsCount *prometheus.GaugeVec) *Exporter {
+func NewExporter(reg prometheus.Registerer, mapper *mapper.MetricMapper, logger *slog.Logger, eventsActions *prometheus.CounterVec, eventsUnmapped prometheus.Counter, errorEventStats, eventStats, conflictingEventStats *prometheus.CounterVec, metricsCount *prometheus.GaugeVec) *Exporter {
 	return &Exporter{
 		Mapper:                mapper,
 		Registry:              registry.NewRegistry(reg, mapper),
