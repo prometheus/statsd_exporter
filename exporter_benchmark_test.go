@@ -91,9 +91,11 @@ func benchmarkUDPListener(times int, b *testing.B) {
 func BenchmarkUDPListener1(b *testing.B) {
 	benchmarkUDPListener(1, b)
 }
+
 func BenchmarkUDPListener5(b *testing.B) {
 	benchmarkUDPListener(5, b)
 }
+
 func BenchmarkUDPListener50(b *testing.B) {
 	benchmarkUDPListener(50, b)
 }

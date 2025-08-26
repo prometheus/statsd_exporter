@@ -201,7 +201,7 @@ func (p *Parser) parseNameAndTags(name string, labels map[string]string, tagErro
 	return name
 }
 
-func (p *Parser) LineToEvents(line string, sampleErrors prometheus.CounterVec, samplesReceived prometheus.Counter, tagErrors prometheus.Counter, tagsReceived prometheus.Counter, logger *slog.Logger) event.Events {
+func (p *Parser) LineToEvents(line string, sampleErrors prometheus.CounterVec, samplesReceived, tagErrors, tagsReceived prometheus.Counter, logger *slog.Logger) event.Events {
 	events := event.Events{}
 	if line == "" {
 		return events
@@ -276,7 +276,7 @@ samples:
 		}
 		valueStr, statType := components[0], components[1]
 
-		var relative = false
+		relative := false
 		if strings.Index(valueStr, "+") == 0 || strings.Index(valueStr, "-") == 0 {
 			relative = true
 		}

@@ -41,7 +41,8 @@ func TestHandlePacket(t *testing.T) {
 	}{
 		{
 			name: "empty",
-		}, {
+		},
+		{
 			name: "simple counter",
 			in:   "foo:2|c",
 			out: event.Events{
@@ -51,7 +52,8 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "simple gauge",
 			in:   "foo:3|g",
 			out: event.Events{
@@ -61,7 +63,8 @@ func TestHandlePacket(t *testing.T) {
 					GLabels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "gauge with sampling",
 			in:   "foo:3|g|@0.2",
 			out: event.Events{
@@ -71,7 +74,8 @@ func TestHandlePacket(t *testing.T) {
 					GLabels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "gauge decrement",
 			in:   "foo:-10|g",
 			out: event.Events{
@@ -82,7 +86,8 @@ func TestHandlePacket(t *testing.T) {
 					GLabels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "gauge increment",
 			in:   "foo:+10|g",
 			out: event.Events{
@@ -93,7 +98,8 @@ func TestHandlePacket(t *testing.T) {
 					GLabels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "gauge set negative",
 			in:   "foo:0|g\nfoo:-1|g",
 			out: event.Events{
@@ -110,7 +116,8 @@ func TestHandlePacket(t *testing.T) {
 					GLabels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			// Test the sequence given here https://github.com/statsd/statsd/blob/master/docs/metric_types.md#gauges
 			name: "gauge up and down",
 			in:   "gaugor:333|g\ngaugor:-10|g\ngaugor:+4|g",
@@ -134,7 +141,8 @@ func TestHandlePacket(t *testing.T) {
 					GLabels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "simple timer",
 			in:   "foo:200|ms",
 			out: event.Events{
@@ -144,7 +152,8 @@ func TestHandlePacket(t *testing.T) {
 					OLabels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "simple histogram",
 			in:   "foo:200|h",
 			out: event.Events{
@@ -154,7 +163,8 @@ func TestHandlePacket(t *testing.T) {
 					OLabels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "simple distribution",
 			in:   "foo:200|d",
 			out: event.Events{
@@ -164,7 +174,8 @@ func TestHandlePacket(t *testing.T) {
 					OLabels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "distribution with sampling",
 			in:   "foo:0.01|d|@0.2|#tag1:bar,#tag2:baz",
 			out: event.Events{
@@ -194,7 +205,8 @@ func TestHandlePacket(t *testing.T) {
 					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "librato tag extension",
 			in:   "foo#tag1=bar,tag2=baz:100|c",
 			out: event.Events{
@@ -204,7 +216,8 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "librato tag extension with tag keys unsupported by prometheus",
 			in:   "foo#09digits=0,tag.with.dots=1:100|c",
 			out: event.Events{
@@ -214,7 +227,8 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{"_09digits": "0", "tag_with_dots": "1"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "influxdb tag extension",
 			in:   "foo,tag1=bar,tag2=baz:100|c",
 			out: event.Events{
@@ -224,7 +238,8 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "SignalFx tag extension",
 			in:   "foo.[tag1=bar,tag2=baz]test:100|c",
 			out: event.Events{
@@ -234,7 +249,8 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "SignalFx tag extension, tags at end of name",
 			in:   "foo.test[tag1=bar,tag2=baz]:100|c",
 			out: event.Events{
@@ -244,7 +260,8 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "SignalFx tag extension, tags at beginning of name",
 			in:   "[tag1=bar,tag2=baz]foo.test:100|c",
 			out: event.Events{
@@ -254,7 +271,8 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "SignalFx tag extension, no tags",
 			in:   "foo.[]test:100|c",
 			out: event.Events{
@@ -264,7 +282,8 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "SignalFx tag extension, non-kv tags",
 			in:   "foo.[tag1,tag2]test:100|c",
 			out: event.Events{
@@ -274,7 +293,8 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "SignalFx tag extension, missing closing bracket",
 			in:   "[tag1=bar,tag2=bazfoo.test:100|c",
 			out: event.Events{
@@ -284,7 +304,8 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "SignalFx tag extension, missing opening bracket",
 			in:   "tag1=bar,tag2=baz]foo.test:100|c",
 			out: event.Events{
@@ -294,7 +315,8 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "influxdb tag extension with tag keys unsupported by prometheus",
 			in:   "foo,09digits=0,tag.with.dots=1:100|c",
 			out: event.Events{
@@ -304,7 +326,8 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{"_09digits": "0", "tag_with_dots": "1"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "datadog tag extension",
 			in:   "foo:100|c|#tag1:bar,tag2:baz",
 			out: event.Events{
@@ -314,7 +337,8 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "datadog tag extension with # in all keys (as sent by datadog php client)",
 			in:   "foo:100|c|#tag1:bar,#tag2:baz",
 			out: event.Events{
@@ -324,7 +348,8 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "datadog tag extension with tag keys unsupported by prometheus",
 			in:   "foo:100|c|#09digits:0,tag.with.dots:1",
 			out: event.Events{
@@ -334,7 +359,8 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{"_09digits": "0", "tag_with_dots": "1"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "datadog tag extension with valueless tags: ignored",
 			in:   "foo:100|c|#tag_without_a_value",
 			out: event.Events{
@@ -344,7 +370,8 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "datadog tag extension with valueless tags (edge case)",
 			in:   "foo:100|c|#tag_without_a_value,tag:value",
 			out: event.Events{
@@ -354,7 +381,8 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{"tag": "value"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "datadog tag extension with empty tags (edge case)",
 			in:   "foo:100|c|#tag:value,,",
 			out: event.Events{
@@ -364,7 +392,8 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{"tag": "value"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "datadog tag extension with sampling",
 			in:   "foo:100|c|@0.1|#tag1:bar,#tag2:baz",
 			out: event.Events{
@@ -374,23 +403,28 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "librato/dogstatsd mixed tag styles without sampling",
 			in:   "foo#tag1=foo,tag3=bing:100|c|#tag1:bar,#tag2:baz",
 			out:  event.Events{},
-		}, {
+		},
+		{
 			name: "signalfx/dogstatsd mixed tag styles without sampling",
 			in:   "foo[tag1=foo,tag3=bing]:100|c|#tag1:bar,#tag2:baz",
 			out:  event.Events{},
-		}, {
+		},
+		{
 			name: "influxdb/dogstatsd mixed tag styles without sampling",
 			in:   "foo,tag1=foo,tag3=bing:100|c|#tag1:bar,#tag2:baz",
 			out:  event.Events{},
-		}, {
+		},
+		{
 			name: "mixed tag styles with sampling",
 			in:   "foo#tag1=foo,tag3=bing:100|c|@0.1|#tag1:bar,#tag2:baz",
 			out:  event.Events{},
-		}, {
+		},
+		{
 			name: "histogram with sampling",
 			in:   "foo:0.01|h|@0.2|#tag1:bar,#tag2:baz",
 			out: event.Events{
@@ -420,7 +454,8 @@ func TestHandlePacket(t *testing.T) {
 					OLabels:     map[string]string{"tag1": "bar", "tag2": "baz"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "datadog tag extension with multiple colons",
 			in:   "foo:100|c|@0.1|#tag1:foo:bar",
 			out: event.Events{
@@ -430,13 +465,16 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{"tag1": "foo:bar"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "datadog tag extension with invalid utf8 tag values",
 			in:   "foo:100|c|@0.1|#tag:\xc3\x28invalid",
-		}, {
+		},
+		{
 			name: "datadog tag extension with both valid and invalid utf8 tag values",
 			in:   "foo:100|c|@0.1|#tag1:valid,tag2:\xc3\x28invalid",
-		}, {
+		},
+		{
 			name: "multiple metrics with invalid datadog utf8 tag values",
 			in:   "foo:200|c|#tag:value\nfoo:300|c|#tag:\xc3\x28invalid",
 			out: event.Events{
@@ -446,7 +484,8 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{"tag": "value"},
 				},
 			},
-		}, {
+		},
+		{
 			name: "combined multiline metrics",
 			in:   "foo:200|ms:300|ms:5|c|@0.1:6|g\nbar:1|c:5|ms",
 			out: event.Events{
@@ -481,7 +520,8 @@ func TestHandlePacket(t *testing.T) {
 					OLabels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "timings with sampling factor",
 			in:   "foo.timing:0.5|ms|@0.1",
 			out: event.Events{
@@ -496,16 +536,20 @@ func TestHandlePacket(t *testing.T) {
 				&event.ObserverEvent{OMetricName: "foo.timing", OValue: 0.0005, OLabels: map[string]string{}},
 				&event.ObserverEvent{OMetricName: "foo.timing", OValue: 0.0005, OLabels: map[string]string{}},
 			},
-		}, {
+		},
+		{
 			name: "bad line",
 			in:   "foo",
-		}, {
+		},
+		{
 			name: "bad component",
 			in:   "foo:1",
-		}, {
+		},
+		{
 			name: "bad value",
 			in:   "foo:1o|c",
-		}, {
+		},
+		{
 			name: "illegal sampling factor",
 			in:   "foo:1|c|@bar",
 			out: event.Events{
@@ -515,7 +559,8 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "zero sampling factor",
 			in:   "foo:2|c|@0",
 			out: event.Events{
@@ -525,7 +570,8 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "illegal stat type",
 			in:   "foo:2|t",
 		},
@@ -551,7 +597,8 @@ func TestHandlePacket(t *testing.T) {
 					CLabels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "ms timer with conversion to seconds",
 			in:   "foo:200|ms",
 			out: event.Events{
@@ -561,7 +608,8 @@ func TestHandlePacket(t *testing.T) {
 					OLabels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "histogram with no unit conversion",
 			in:   "foo:200|h",
 			out: event.Events{
@@ -571,7 +619,8 @@ func TestHandlePacket(t *testing.T) {
 					OLabels:     map[string]string{},
 				},
 			},
-		}, {
+		},
+		{
 			name: "distribution with no unit conversion",
 			in:   "foo:200|d",
 			out: event.Events{

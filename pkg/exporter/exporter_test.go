@@ -857,6 +857,7 @@ func TestHistogramUnits(t *testing.T) {
 		t.Fatalf("Received unexpected value for histogram observation %f != .300", *value)
 	}
 }
+
 func TestCounterIncrement(t *testing.T) {
 	// Start exporter with a synchronous channel
 	events := make(chan event.Events)
