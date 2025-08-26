@@ -5,6 +5,7 @@ run:
 linters:
   enable:
     - nakedret
+    - staticcheck
     - whitespace
   disable:
     - errcheck
@@ -13,6 +14,12 @@ linters:
       disable:
         - fieldalignment
       enable-all: true
+    staticcheck:
+      checks:
+        - all
+        - -ST1000
+        - -ST1003
+        - -ST1020
   exclusions:
     rules:
       - path: (.+)\.go$
