@@ -269,7 +269,7 @@ samples:
 	for _, sample := range samples {
 		samplesReceived.Inc()
 		components := strings.Split(sample, "|")
-		if len(components) < 2 || len(components) > 4 {
+		if len(components) < 2 || len(components) > 5 {
 			sampleErrors.WithLabelValues("malformed_component").Inc()
 			logger.Debug("bad component", "line", line)
 			continue

@@ -897,8 +897,35 @@ func TestLineToEvents(t *testing.T) {
 				},
 			},
 		},
-		// Note: DogStatsD container ID with sampling is not supported due to the 4-component limit.
-		// Format: metric:value|type|@sampling|#tags|c:container_id would require 5 components.
+		"dogstatsd container ID with sampling": {
+			in: "foo:100|c|@0.1|#service:abc,client:go|c:3a88c225dbeb98f20bbb40cbd39ef90b094ce74291ae66fbd98b7f06f2a15b86",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      1000,
+					CLabels:     map[string]string{"service": "abc", "client": "go", "container_id": "3a88c225dbeb98f20bbb40cbd39ef90b094ce74291ae66fbd98b7f06f2a15b86"},
+				},
+			},
+		},
+		"dogstatsd container ID with sampling and histogram": {
+			in: "foo:200|h|@0.5|#env:prod|c:container_hist",
+			out: event.Events{
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      200,
+					OLabels:     map[string]string{"env": "prod", "container_id": "container_hist"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      200,
+					OLabels:     map[string]string{"env": "prod", "container_id": "container_hist"},
+				},
+			},
+		},
+		"malformed line with too many components": {
+			in:  "foo:100|c|@0.1|#tag1:value|c:container|extra:component",
+			out: event.Events{},
+		},
 	}
 
 	parser := NewParser()
