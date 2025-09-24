@@ -330,7 +330,7 @@ samples:
 						continue samples
 					}
 				default:
-					logger.Debug("Invalid sampling factor or tag section", "component", component, "line", line)
+					logger.Debug("Invalid sampling factor, tag section, or container ID section", "component", components[2], "line", line)
 					sampleErrors.WithLabelValues("invalid_sample_factor").Inc()
 					continue samples
 				}
