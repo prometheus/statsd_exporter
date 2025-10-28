@@ -911,5 +911,5 @@ func labelPairsAsLabels(pairs []*dto.LabelPair) (labels prometheus.Labels) {
 		}
 		labels[*pair.Name] = value
 	}
-	return
+	return labels
 }

@@ -23,7 +23,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/promslog"
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v2"
 
 	"github.com/prometheus/statsd_exporter/pkg/mapper/fsm"
 )
