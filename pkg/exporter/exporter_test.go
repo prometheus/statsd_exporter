@@ -1263,7 +1263,7 @@ func labelPairsAsLabels(pairs []*dto.LabelPair) (labels prometheus.Labels) {
 		}
 		labels[*pair.Name] = value
 	}
-	return
+	return labels
 }
 
 func getTelemetryCounterValue(counter prometheus.Counter) float64 {
