@@ -829,6 +829,103 @@ func TestLineToEvents(t *testing.T) {
 		"invalid event split over lines part 2": {
 			in: "|h|#consumer:Kafka::SharedConfigurationConsumer,topic:shared_configuration_update,partition:1,consumer_group:tc_rc_us",
 		},
+		"dogstatsd container ID extension": {
+			in: "foo:100|c|#tag1:value|c:container123",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "value", "container_id": "container123"},
+				},
+			},
+		},
+		"dogstatsd container ID with tags": {
+			in: "foo:100|c|#tag1:bar,tag2:baz|c:container456",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "bar", "tag2": "baz", "container_id": "container456"},
+				},
+			},
+		},
+		"dogstatsd container ID with gauge": {
+			in: "foo:50|g|#tag1:value|c:gauge_container",
+			out: event.Events{
+				&event.GaugeEvent{
+					GMetricName: "foo",
+					GValue:      50,
+					GLabels:     map[string]string{"tag1": "value", "container_id": "gauge_container"},
+				},
+			},
+		},
+		"dogstatsd container ID with timer": {
+			in: "foo:1000|ms|#tag1:value|c:timer_container",
+			out: event.Events{
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      1,
+					OLabels:     map[string]string{"tag1": "value", "container_id": "timer_container"},
+				},
+			},
+		},
+		"dogstatsd container ID with histogram": {
+			in: "foo:500|h|#tag1:value|c:hist_container",
+			out: event.Events{
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      500,
+					OLabels:     map[string]string{"tag1": "value", "container_id": "hist_container"},
+				},
+			},
+		},
+		"dogstatsd container ID malformed - no colon": {
+			in:  "foo:100|c|#tag1:value|c",
+			out: event.Events{},
+		},
+		"dogstatsd container ID malformed - no value after colon": {
+			in:  "foo:100|c|#tag1:value|c:",
+			out: event.Events{},
+		},
+		"dogstatsd container ID with complex value": {
+			in: "foo:100|c|#tag1:value|c:sha256:abcd1234efgh5678",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag1": "value", "container_id": "sha256:abcd1234efgh5678"},
+				},
+			},
+		},
+		"dogstatsd container ID with sampling": {
+			in: "foo:100|c|@0.1|#service:abc,client:go|c:3a88c225dbeb98f20bbb40cbd39ef90b094ce74291ae66fbd98b7f06f2a15b86",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      1000,
+					CLabels:     map[string]string{"service": "abc", "client": "go", "container_id": "3a88c225dbeb98f20bbb40cbd39ef90b094ce74291ae66fbd98b7f06f2a15b86"},
+				},
+			},
+		},
+		"dogstatsd container ID with sampling and histogram": {
+			in: "foo:200|h|@0.5|#env:prod|c:container_hist",
+			out: event.Events{
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      200,
+					OLabels:     map[string]string{"env": "prod", "container_id": "container_hist"},
+				},
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      200,
+					OLabels:     map[string]string{"env": "prod", "container_id": "container_hist"},
+				},
+			},
+		},
+		"malformed line with too many components": {
+			in:  "foo:100|c|@0.1|#tag1:value|c:container|extra:component",
+			out: event.Events{},
+		},
 	}
 
 	parser := NewParser()

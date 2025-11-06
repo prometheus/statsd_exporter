@@ -269,7 +269,7 @@ samples:
 	for _, sample := range samples {
 		samplesReceived.Inc()
 		components := strings.Split(sample, "|")
-		if len(components) < 2 || len(components) > 4 {
+		if len(components) < 2 || len(components) > 5 {
 			sampleErrors.WithLabelValues("malformed_component").Inc()
 			logger.Debug("bad component", "line", line)
 			continue
@@ -320,10 +320,19 @@ samples:
 					}
 				case '#':
 					p.ParseDogStatsDTags(component[1:], labels, tagErrors, logger)
+				case 'c':
+					// Handle DogStatsD v1.2 container ID suffix (e.g., |c:<container_id>)
+					if strings.HasPrefix(component, "c:") && len(component) > 2 {
+						labels["container_id"] = component[2:]
+					} else {
+						logger.Debug("Malformed container ID section", "component", component, "line", line)
+						sampleErrors.WithLabelValues("malformed_container_id").Inc()
+						continue samples
+					}
 				default:
-					logger.Debug("Invalid sampling factor or tag section", "component", components[2], "line", line)
+					logger.Debug("Invalid sampling factor, tag section, or container ID section", "component", components[2], "line", line)
 					sampleErrors.WithLabelValues("invalid_sample_factor").Inc()
-					continue
+					continue samples
 				}
 			}
 		}
