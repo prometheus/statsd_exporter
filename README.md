@@ -1,6 +1,6 @@
-# statsd exporter [![Build Status](https://travis-ci.org/prometheus/statsd_exporter.svg)][travis]
+# StatsD exporter
 
-[![CircleCI](https://circleci.com/gh/prometheus/statsd_exporter/tree/master.svg?style=shield)][circleci]
+[![Build Status](https://github.com/prometheus/statsd_exporter/actions/workflows/ci.yml/badge.svg)](https://github.com/prometheus/statsd_exporter/actions/workflows/ci.yml)
 [![Docker Repository on Quay](https://quay.io/repository/prometheus/statsd-exporter/status)][quay]
 [![Docker Pulls](https://img.shields.io/docker/pulls/prom/statsd-exporter.svg)][hub]
 
