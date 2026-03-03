@@ -1,3 +1,13 @@
+## 0.29.0 / 2025-03-03
+
+* [CHANGE] Update dependencies and Go to 1.25
+* [FEATURE][library] Add MultiValueEvent interface and MultiObserverEvent implementation (first part of a bigger change; see [#602](https://github.com/prometheus/statsd_exporter/pull/602) for details)
+* [ENHANCEMENT] Add metric name label to `statsd_exporter_events_conflict_total` for easier debugging ([#605](https://github.com/prometheus/statsd_exporter/pull/605))
+* [ENHANCEMENT] Extract starter configuration to `config.example.yml` with modern defaults (glob matching, native histograms) ([#642](https://github.com/prometheus/statsd_exporter/pull/642))
+* [FEATURE] Support DogStatsD v1.2 container ID and sampling extensions ([#649](https://github.com/prometheus/statsd_exporter/pull/649))
+
+Thank you [@marc-harrison](https://github.com/marc-harrison) for the contribution!
+
 ## 0.28.0 / 2024-10-25
 
 * [CHANGE] Update exporter-toolkit & switch to slog ([#586](https://github.com/prometheus/statsd_exporter/pull/586))
