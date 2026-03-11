@@ -520,6 +520,9 @@ docker run -d -p 9102:9102 -p 9125:9125 -p 9125:9125/udp \
         prom/statsd-exporter --statsd.mapping-config=/tmp/statsd_mapping.yml
 ```
 
+The container image healthcheck follows runtime values from `--web.telemetry-path` and 
+`--web.listen-address` (defaulting to `/metrics` and port `9102` when these flags are not provided).
+
 ## Library packages
 
 Parts of the implementation of this exporter are available as separate packages.
