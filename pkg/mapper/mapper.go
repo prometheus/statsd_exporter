@@ -172,37 +172,12 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 			currentMapping.ObserverType = n.Defaults.ObserverType
 		}
 
-		if currentMapping.LegacyQuantiles != nil &&
-			(currentMapping.SummaryOptions == nil || currentMapping.SummaryOptions.Quantiles != nil) {
-			m.Logger.Warn("using the top level quantiles is deprecated.  Please use quantiles in the summary_options hierarchy")
-		}
-
-		if currentMapping.LegacyBuckets != nil &&
-			(currentMapping.HistogramOptions == nil || currentMapping.HistogramOptions.Buckets != nil) {
-			m.Logger.Warn("using the top level buckets is deprecated.  Please use buckets in the histogram_options hierarchy")
-		}
-
-		if currentMapping.SummaryOptions != nil &&
-			currentMapping.LegacyQuantiles != nil &&
-			currentMapping.SummaryOptions.Quantiles != nil {
-			return fmt.Errorf("cannot use quantiles in both the top level and summary options at the same time in %s", currentMapping.Match)
-		}
-
-		if currentMapping.HistogramOptions != nil &&
-			currentMapping.LegacyBuckets != nil &&
-			currentMapping.HistogramOptions.Buckets != nil {
-			return fmt.Errorf("cannot use buckets in both the top level and histogram options at the same time in %s", currentMapping.Match)
-		}
-
 		if currentMapping.ObserverType == ObserverTypeHistogram {
 			if currentMapping.SummaryOptions != nil {
 				return fmt.Errorf("cannot use histogram observer and summary options at the same time")
 			}
 			if currentMapping.HistogramOptions == nil {
 				currentMapping.HistogramOptions = &HistogramOptions{}
-			}
-			if len(currentMapping.LegacyBuckets) != 0 {
-				currentMapping.HistogramOptions.Buckets = currentMapping.LegacyBuckets
 			}
 			if len(currentMapping.HistogramOptions.Buckets) == 0 {
 				currentMapping.HistogramOptions.Buckets = n.Defaults.HistogramOptions.Buckets
@@ -215,9 +190,6 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 			}
 			if currentMapping.SummaryOptions == nil {
 				currentMapping.SummaryOptions = &SummaryOptions{}
-			}
-			if len(currentMapping.LegacyQuantiles) != 0 {
-				currentMapping.SummaryOptions.Quantiles = currentMapping.LegacyQuantiles
 			}
 			if len(currentMapping.SummaryOptions.Quantiles) == 0 {
 				currentMapping.SummaryOptions.Quantiles = n.Defaults.SummaryOptions.Quantiles

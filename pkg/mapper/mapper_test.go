@@ -560,38 +560,12 @@ mappings:
   observer_type: summary
   name: "foo"
   labels: {}
-  quantiles:
-    - quantile: 0.42
-      error: 0.04
-    - quantile: 0.7
-      error: 0.002
-  `,
-			mappings: mappings{
-				{
-					statsdMetric: "test.*.*",
-					name:         "foo",
-					labels:       map[string]string{},
-					quantiles: []MetricObjective{
-						{Quantile: 0.42, Error: 0.04},
-						{Quantile: 0.7, Error: 0.002},
-					},
-				},
-			},
-		},
-		{
-			testName: "Config with good observer type and unused timer type",
-			config: `---
-mappings:
-- match: test.*.*
-  observer_type: summary
-  timer_type: histogram
-  name: "foo"
-  labels: {}
-  quantiles:
-    - quantile: 0.42
-      error: 0.04
-    - quantile: 0.7
-      error: 0.002
+  summary_options:
+    quantiles:
+      - quantile: 0.42
+        error: 0.04
+      - quantile: 0.7
+        error: 0.002
   `,
 			mappings: mappings{
 				{
@@ -628,44 +602,11 @@ mappings:
 			},
 		},
 		{
-			testName: "Config with good deprecated timer type",
-			config: `---
-mappings:
-- match: test1.*.*
-  timer_type: summary
-  name: "foo"
-  labels: {}
-  `,
-			mappings: mappings{
-				{
-					statsdMetric: "test1.*.*",
-					name:         "foo",
-					labels:       map[string]string{},
-					quantiles: []MetricObjective{
-						{Quantile: 0.5, Error: 0.05},
-						{Quantile: 0.9, Error: 0.01},
-						{Quantile: 0.99, Error: 0.001},
-					},
-				},
-			},
-		},
-		{
 			testName: "Config with bad observer type",
 			config: `---
 mappings:
 - match: test.*.*
   observer_type: wrong
-  name: "foo"
-  labels: {}
-    `,
-			configBad: true,
-		},
-		{
-			testName: "Config with bad deprecated timer type",
-			config: `---
-mappings:
-- match: test.*.*
-  timer_type: wrong
   name: "foo"
   labels: {}
     `,
@@ -788,45 +729,6 @@ mappings:
 					maxAge:       5 * time.Minute,
 					ageBuckets:   2,
 					bufCap:       1000,
-				},
-			},
-		},
-		{
-			testName: "Config with default summary options overrides quantiles",
-			config: `---
-defaults:
-  quantiles:
-    - quantile: 0.9
-      error: 0.1
-    - quantile: 0.99
-      error: 0.01
-  summary_options:
-    quantiles:
-      - quantile: 0.42
-        error: 0.04
-      - quantile: 0.7
-        error: 0.002
-    max_age: 5m
-    age_buckets: 2
-    buf_cap: 1000
-mappings:
-- match: test.*.*
-  observer_type: summary
-  name: "foo"
-  labels: {}
-`,
-			mappings: mappings{
-				{
-					statsdMetric: "test.*.*",
-					name:         "foo",
-					labels:       map[string]string{},
-					quantiles: []MetricObjective{
-						{Quantile: 0.42, Error: 0.04},
-						{Quantile: 0.7, Error: 0.002},
-					},
-					maxAge:     5 * time.Minute,
-					ageBuckets: 2,
-					bufCap:     1000,
 				},
 			},
 		},
@@ -1103,28 +1005,6 @@ mappings:
 			},
 		},
 		{
-			testName: "Config with default histogram options overrides buckets",
-			config: `---
-defaults:
-  buckets: [0.2, 2, 20, 200, 2000]
-  histogram_options:
-    buckets: [0.1, 1, 10, 100, 1000]
-mappings:
-- match: test.*.*
-  observer_type: histogram
-  name: "foo"
-  labels: {}
-`,
-			mappings: mappings{
-				{
-					statsdMetric: "test.*.*",
-					name:         "foo",
-					labels:       map[string]string{},
-					buckets:      []float64{0.1, 1, 10, 100, 1000},
-				},
-			},
-		},
-		{
 			testName: "Config that overrides default histogram configuration",
 			config: `---
 defaults:
@@ -1214,16 +1094,6 @@ mappings:
 mappings:
 - match: test.*.*
   match_metric_type: observer
-  name: "foo"
-  labels: {}
-    `,
-		},
-		{
-			testName: "Config with good metric type timer",
-			config: `---
-mappings:
-- match: test.*.*
-  match_metric_type: timer
   name: "foo"
   labels: {}
     `,
