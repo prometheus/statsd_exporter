@@ -414,8 +414,6 @@ These will be used by all mappings that do not define them.
 An option that can only be configured in `defaults` is `glob_disable_ordering`, which is `false` if omitted.
 By setting this to `true`, `glob` match type will not honor the occurance of rules in the mapping rules file and always treat `*` as lower priority than a concrete string.
 
-Setting `buckets` or `quantiles` in the defaults is deprecated in favor of `histogram_options` and `summary_options`, which will override the deprecated values.
-
 If `summary_options` is present in a mapping config, it will only override the fields set in the mapping. Unset fields in the mapping will take the values from the defaults. 
 
 See [`config.exmple.yml`](config.example.yml) for an annotated example configuration.

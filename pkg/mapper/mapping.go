@@ -32,9 +32,6 @@ type MetricMapping struct {
 	labelKeys        []string
 	labelFormatters  []*fsm.TemplateFormatter
 	ObserverType     ObserverType      `yaml:"observer_type"`
-	TimerType        ObserverType      `yaml:"timer_type,omitempty"` // DEPRECATED - field only present to preserve backwards compatibility in configs. Always empty
-	LegacyBuckets    []float64         `yaml:"buckets"`
-	LegacyQuantiles  []MetricObjective `yaml:"quantiles"`
 	MatchType        MatchType         `yaml:"match_type"`
 	HelpText         string            `yaml:"help"`
 	Action           ActionType        `yaml:"action"`
@@ -43,40 +40,6 @@ type MetricMapping struct {
 	SummaryOptions   *SummaryOptions   `yaml:"summary_options"`
 	HistogramOptions *HistogramOptions `yaml:"histogram_options"`
 	Scale            MaybeFloat64      `yaml:"scale"`
-}
-
-// UnmarshalYAML is a custom unmarshal function to allow use of deprecated config keys
-// observer_type will override timer_type
-func (m *MetricMapping) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	type MetricMappingAlias MetricMapping
-	var tmp MetricMappingAlias
-	if err := unmarshal(&tmp); err != nil {
-		return err
-	}
-
-	// Copy defaults
-	m.Match = tmp.Match
-	m.Name = tmp.Name
-	m.Labels = tmp.Labels
-	m.HonorLabels = tmp.HonorLabels
-	m.ObserverType = tmp.ObserverType
-	m.LegacyBuckets = tmp.LegacyBuckets
-	m.LegacyQuantiles = tmp.LegacyQuantiles
-	m.MatchType = tmp.MatchType
-	m.HelpText = tmp.HelpText
-	m.Action = tmp.Action
-	m.MatchMetricType = tmp.MatchMetricType
-	m.Ttl = tmp.Ttl
-	m.SummaryOptions = tmp.SummaryOptions
-	m.HistogramOptions = tmp.HistogramOptions
-	m.Scale = tmp.Scale
-
-	// Use deprecated TimerType if necessary
-	if tmp.ObserverType == "" {
-		m.ObserverType = tmp.TimerType
-	}
-
-	return nil
 }
 
 type MaybeFloat64 struct {
