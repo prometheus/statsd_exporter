@@ -14,6 +14,7 @@
 package mapper
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -1758,5 +1759,30 @@ mappings:
 				}
 			}
 		}
+	}
+}
+
+// TestStrictConfigUnknownField covers the fix for
+// https://github.com/prometheus/statsd_exporter/issues/546: mapping
+// configs with keys the struct tags don't know about must fail to load
+// rather than silently drop the value.
+func TestStrictConfigUnknownField(t *testing.T) {
+	// `nmae` (misspelled `name`) is a field that MetricMapping doesn't
+	// expose; with permissive YAML it would be dropped, leaving the
+	// mapping without a metric name and producing a confusing runtime
+	// error much later (or none at all).
+	const badConfig = `---
+mappings:
+- match: aa.bb.*.*
+  nmae: "aa_bb_${1}_total"
+`
+
+	mapper := MetricMapper{}
+	err := mapper.InitFromYAMLString(badConfig)
+	if err == nil {
+		t.Fatal("expected InitFromYAMLString to reject unknown field `nmae`, got nil")
+	}
+	if !strings.Contains(err.Error(), "not found") && !strings.Contains(err.Error(), "field nmae") {
+		t.Fatalf("expected error to mention the unknown field, got: %v", err)
 	}
 }
