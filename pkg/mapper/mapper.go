@@ -83,7 +83,10 @@ var defaultQuantiles = []MetricObjective{
 func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 	var n MetricMapper
 
-	if err := yaml.Unmarshal([]byte(fileContents), &n); err != nil {
+	// Use strict decoding so unknown or misspelled keys in a mapping
+	// config surface as an error instead of being silently dropped
+	// (see https://github.com/prometheus/statsd_exporter/issues/546).
+	if err := yaml.UnmarshalStrict([]byte(fileContents), &n); err != nil {
 		return err
 	}
 
