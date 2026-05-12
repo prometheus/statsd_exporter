@@ -16,6 +16,7 @@ package mapper
 import (
 	"regexp"
 	"time"
+	"errors"
 
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -76,7 +77,37 @@ func (m *MetricMapping) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		m.ObserverType = tmp.TimerType
 	}
 
+	// Implement strict YAML parsing
+	var raw map[string]interface{}
+	if err := unmarshal(&raw); err != nil {
+		return err
+	}
+
+	// List of valid fields in MetricMapping struct
+	validFields := []string{
+		"match", "name", "labels", "honor_labels", "observer_type", "legacy_buckets",
+		"legacy_quantiles", "match_type", "help", "action", "match_metric_type", "ttl",
+		"summary_options", "histogram_options", "scale",
+	}
+
+	// Check for unexpected fields
+	for field := range raw {
+		if !contains(validFields, field) {
+			return errors.New("unknown field: " + field)
+		}
+	}
+
 	return nil
+}
+
+// Helper function to check if a field is in the list of valid fields
+func contains(slice []string, item string) bool {
+	for _, a := range slice {
+		if a == item {
+			return true
+		}
+	}
+	return false
 }
 
 type MaybeFloat64 struct {
