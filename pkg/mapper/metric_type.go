@@ -21,7 +21,6 @@ const (
 	MetricTypeCounter  MetricType = "counter"
 	MetricTypeGauge    MetricType = "gauge"
 	MetricTypeObserver MetricType = "observer"
-	MetricTypeTimer    MetricType = "timer" // DEPRECATED
 )
 
 func (m *MetricType) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -36,8 +35,6 @@ func (m *MetricType) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	case MetricTypeGauge:
 		*m = MetricTypeGauge
 	case MetricTypeObserver:
-		*m = MetricTypeObserver
-	case MetricTypeTimer:
 		*m = MetricTypeObserver
 	default:
 		return fmt.Errorf("invalid metric type '%s'", v)
