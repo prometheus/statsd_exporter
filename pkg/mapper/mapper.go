@@ -83,7 +83,7 @@ var defaultQuantiles = []MetricObjective{
 func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 	var n MetricMapper
 
-	if err := yaml.Unmarshal([]byte(fileContents), &n); err != nil {
+	if err := yaml.UnmarshalStrict([]byte(fileContents), &n); err != nil {
 		return err
 	}
 

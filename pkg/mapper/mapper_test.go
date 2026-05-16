@@ -503,6 +503,40 @@ mappings:
 			configBad: true,
 		},
 		{
+			testName: "Config with unknown top-level field",
+			config: `---
+notafield: true
+mappings:
+- match: test.*.*
+  name: "foo"
+  labels: {}
+  `,
+			configBad: true,
+		},
+		{
+			testName: "Config with unknown defaults field",
+			config: `---
+defaults:
+  notafield: true
+mappings:
+- match: test.*.*
+  name: "foo"
+  labels: {}
+  `,
+			configBad: true,
+		},
+		{
+			testName: "Config with unknown mapping field",
+			config: `---
+mappings:
+- match: test.*.*
+  name: "foo"
+  labels: {}
+  notafield: true
+  `,
+			configBad: true,
+		},
+		{
 			testName: "Config with no mappings",
 			config:   ``,
 			mappings: mappings{},
