@@ -1,2 +1,2 @@
-* Matthias Rampke <matthias@prometheus.io>
-* Pedro Tanaka [@pedro-stanaka](https://github.com/pedro-stanaka)
+* Matthias Rampke <matthias@prometheus.io> @matthiasr
+* Pedro Tanaka <me@pedrotanaka.com.br> @pedro-stanaka
