@@ -1,4 +1,11 @@
-## 0.29.0 / 2025-03-03
+## 0.30.0 / 2026-05-28
+* [CHANGE] Remove the Dockerfile `HEALTHCHECK` from published container images ([#671](https://github.com/prometheus/statsd_exporter/pull/671))
+* [ENHANCEMENT] Add a distroless container image variant ([#703](https://github.com/prometheus/statsd_exporter/pull/703))
+* [ENHANCEMENT] Use the common Prometheus Docker architecture set for container image publishing ([#682](https://github.com/prometheus/statsd_exporter/pull/682))
+* [SECURITY] Update dependencies, including `github.com/prometheus/exporter-toolkit`, `go.yaml.in/yaml/v2`, `golang.org/x/crypto`, and `golang.org/x/net` ([#675](https://github.com/prometheus/statsd_exporter/pull/675),
+  [#689](https://github.com/prometheus/statsd_exporter/pull/689))
+
+## 0.29.0 / 2026-03-03
 
 * [CHANGE] Update dependencies and Go to 1.25
 * [FEATURE][library] Add MultiValueEvent interface and MultiObserverEvent implementation (first part of a bigger change; see [#602](https://github.com/prometheus/statsd_exporter/pull/602) for details)
