@@ -83,6 +83,10 @@ var defaultQuantiles = []MetricObjective{
 func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 	var n MetricMapper
 
+	if m.Logger == nil {
+		m.Logger = promslog.NewNopLogger()
+	}
+
 	if err := yaml.Unmarshal([]byte(fileContents), &n); err != nil {
 		return err
 	}
@@ -240,10 +244,6 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-
-	if m.Logger == nil {
-		m.Logger = promslog.NewNopLogger()
-	}
 
 	m.Defaults = n.Defaults
 	m.Mappings = n.Mappings
