@@ -269,7 +269,7 @@ samples:
 	for _, sample := range samples {
 		samplesReceived.Inc()
 		components := strings.Split(sample, "|")
-		if len(components) < 2 || len(components) > 5 {
+		if len(components) < 2 || len(components) > 8 {
 			sampleErrors.WithLabelValues("malformed_component").Inc()
 			logger.Debug("bad component", "line", line)
 			continue
@@ -327,6 +327,20 @@ samples:
 					} else {
 						logger.Debug("Malformed container ID section", "component", component, "line", line)
 						sampleErrors.WithLabelValues("malformed_container_id").Inc()
+						continue samples
+					}
+				case 'T':
+					// Handle DogStatsD v1.3 metric timestamp (e.g., |T1656581400).
+					// The timestamp is a Unix UTC epoch; statsd_exporter does not forward
+					// source timestamps to Prometheus, so we validate the field and ignore it.
+					if len(component) < 2 {
+						logger.Debug("Malformed timestamp section", "component", component, "line", line)
+						sampleErrors.WithLabelValues("malformed_timestamp").Inc()
+						continue samples
+					}
+					if _, err := strconv.ParseInt(component[1:], 10, 64); err != nil {
+						logger.Debug("Invalid timestamp value", "component", component[1:], "line", line)
+						sampleErrors.WithLabelValues("malformed_timestamp").Inc()
 						continue samples
 					}
 				default:

@@ -926,6 +926,46 @@ func TestLineToEvents(t *testing.T) {
 			in:  "foo:100|c|@0.1|#tag1:value|c:container|extra:component",
 			out: event.Events{},
 		},
+		// DogStatsD v1.3 timestamp field (|T<unix_timestamp>)
+		"dogstatsd v1.3 timestamp counter": {
+			in: "page.views:15|c|#env:dev|T1656581400",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "page.views",
+					CValue:      15,
+					CLabels:     map[string]string{"env": "dev"},
+				},
+			},
+		},
+		"dogstatsd v1.3 timestamp gauge": {
+			in: "temperature:98.6|g|#location:kitchen|T1656581400",
+			out: event.Events{
+				&event.GaugeEvent{
+					GMetricName: "temperature",
+					GValue:      98.6,
+					GRelative:   false,
+					GLabels:     map[string]string{"location": "kitchen"},
+				},
+			},
+		},
+		"dogstatsd v1.3 timestamp with sampling and container": {
+			in: "requests:100|c|@0.1|#service:web|c:abc123|T1656581400",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "requests",
+					CValue:      1000,
+					CLabels:     map[string]string{"service": "web", "container_id": "abc123"},
+				},
+			},
+		},
+		"dogstatsd v1.3 timestamp malformed - no value": {
+			in:  "foo:100|c|#tag:val|T",
+			out: event.Events{},
+		},
+		"dogstatsd v1.3 timestamp malformed - non-numeric": {
+			in:  "foo:100|c|#tag:val|Tnot-a-ts",
+			out: event.Events{},
+		},
 	}
 
 	parser := NewParser()
