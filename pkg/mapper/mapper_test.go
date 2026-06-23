@@ -493,6 +493,25 @@ mappings:
 			configBad: true,
 		},
 		{
+			testName: "Config with unknown top-level field",
+			config: `---
+mappingz:
+- match: test.*.*
+  name: "foo"
+  `,
+			configBad: true,
+		},
+		{
+			testName: "Config with unknown mapping field",
+			config: `---
+mappings:
+- match: test.*.*
+  name: "foo"
+  labelz: {}
+  `,
+			configBad: true,
+		},
+		{
 			testName: "Config with no metric name",
 			config: `---
 mappings:
