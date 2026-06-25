@@ -32,11 +32,11 @@ const (
 )
 
 type Registry interface {
-	GetCounter(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Counter, error)
-	GetGauge(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Gauge, error)
-	GetHistogram(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Observer, error)
-	GetSummary(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Observer, error)
-	RemoveStaleMetrics()
+	GetCounter(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount, metricsCurrent *prometheus.GaugeVec) (prometheus.Counter, error)
+	GetGauge(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount, metricsCurrent *prometheus.GaugeVec) (prometheus.Gauge, error)
+	GetHistogram(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount, metricsCurrent *prometheus.GaugeVec) (prometheus.Observer, error)
+	GetSummary(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount, metricsCurrent *prometheus.GaugeVec) (prometheus.Observer, error)
+	RemoveStaleMetrics(metricsCurrent *prometheus.GaugeVec)
 }
 
 type Exporter struct {
@@ -49,6 +49,7 @@ type Exporter struct {
 	EventStats            *prometheus.CounterVec
 	ConflictingEventStats *prometheus.CounterVec
 	MetricsCount          *prometheus.GaugeVec
+	MetricsCurrent        *prometheus.GaugeVec
 }
 
 // Listen handles all events sent to the given channel sequentially. It
@@ -59,7 +60,7 @@ func (b *Exporter) Listen(e <-chan event.Events) {
 	for {
 		select {
 		case <-removeStaleMetricsTicker.C:
-			b.Registry.RemoveStaleMetrics()
+			b.Registry.RemoveStaleMetrics(b.MetricsCurrent)
 		case events, ok := <-e:
 			if !ok {
 				b.Logger.Debug("Channel is closed. Break out of Exporter.Listener.")
@@ -131,7 +132,7 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 			return
 		}
 
-		counter, err := b.Registry.GetCounter(metricName, prometheusLabels, help, mapping, b.MetricsCount)
+		counter, err := b.Registry.GetCounter(metricName, prometheusLabels, help, mapping, b.MetricsCount, b.MetricsCurrent)
 		if err == nil {
 			counter.Add(eventValue)
 			b.EventStats.WithLabelValues("counter").Inc()
@@ -141,7 +142,7 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 		}
 
 	case *event.GaugeEvent:
-		gauge, err := b.Registry.GetGauge(metricName, prometheusLabels, help, mapping, b.MetricsCount)
+		gauge, err := b.Registry.GetGauge(metricName, prometheusLabels, help, mapping, b.MetricsCount, b.MetricsCurrent)
 
 		if err == nil {
 			if ev.GRelative {
@@ -166,7 +167,7 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 
 		switch t {
 		case mapper.ObserverTypeHistogram:
-			histogram, err := b.Registry.GetHistogram(metricName, prometheusLabels, help, mapping, b.MetricsCount)
+			histogram, err := b.Registry.GetHistogram(metricName, prometheusLabels, help, mapping, b.MetricsCount, b.MetricsCurrent)
 			if err == nil {
 				histogram.Observe(eventValue)
 				b.EventStats.WithLabelValues("observer").Inc()
@@ -176,7 +177,7 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 			}
 
 		case mapper.ObserverTypeDefault, mapper.ObserverTypeSummary:
-			summary, err := b.Registry.GetSummary(metricName, prometheusLabels, help, mapping, b.MetricsCount)
+			summary, err := b.Registry.GetSummary(metricName, prometheusLabels, help, mapping, b.MetricsCount, b.MetricsCurrent)
 			if err == nil {
 				summary.Observe(eventValue)
 				b.EventStats.WithLabelValues("observer").Inc()
@@ -196,7 +197,7 @@ func (b *Exporter) handleEvent(thisEvent event.Event) {
 	}
 }
 
-func NewExporter(reg prometheus.Registerer, mapper *mapper.MetricMapper, logger *slog.Logger, eventsActions *prometheus.CounterVec, eventsUnmapped prometheus.Counter, errorEventStats, eventStats, conflictingEventStats *prometheus.CounterVec, metricsCount *prometheus.GaugeVec) *Exporter {
+func NewExporter(reg prometheus.Registerer, mapper *mapper.MetricMapper, logger *slog.Logger, eventsActions *prometheus.CounterVec, eventsUnmapped prometheus.Counter, errorEventStats, eventStats, conflictingEventStats *prometheus.CounterVec, metricsCount, metricsCurrent *prometheus.GaugeVec) *Exporter {
 	return &Exporter{
 		Mapper:                mapper,
 		Registry:              registry.NewRegistry(reg, mapper),
@@ -207,5 +208,6 @@ func NewExporter(reg prometheus.Registerer, mapper *mapper.MetricMapper, logger 
 		EventStats:            eventStats,
 		ConflictingEventStats: conflictingEventStats,
 		MetricsCount:          metricsCount,
+		MetricsCurrent:        metricsCurrent,
 	}
 }

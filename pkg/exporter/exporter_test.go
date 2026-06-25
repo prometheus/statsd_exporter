@@ -140,6 +140,13 @@ var (
 		},
 		[]string{"type"},
 	)
+	metricsCurrent = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "statsd_exporter_metrics_current",
+			Help: "The current number of metric vectors with active time series.",
+		},
+		[]string{"type"},
+	)
 )
 
 // TestNegativeCounter validates when we send a negative
@@ -173,7 +180,7 @@ func TestNegativeCounter(t *testing.T) {
 
 	testMapper := mapper.MetricMapper{}
 
-	ex := NewExporter(prometheus.DefaultRegisterer, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	ex := NewExporter(prometheus.DefaultRegisterer, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount, metricsCurrent)
 	ex.Listen(events)
 
 	updated := getTelemetryCounterValue(errorCounter)
@@ -254,7 +261,7 @@ mappings:
 		t.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	ex := NewExporter(prometheus.DefaultRegisterer, testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	ex := NewExporter(prometheus.DefaultRegisterer, testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount, metricsCurrent)
 	ex.Listen(events)
 
 	metrics, err := prometheus.DefaultGatherer.Gather()
@@ -317,7 +324,7 @@ mappings:
 		t.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	ex := NewExporter(prometheus.DefaultRegisterer, testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	ex := NewExporter(prometheus.DefaultRegisterer, testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount, metricsCurrent)
 	ex.Listen(events)
 
 	metrics, err := prometheus.DefaultGatherer.Gather()
@@ -367,7 +374,7 @@ mappings:
 		t.Fatalf("Config load error: %s %s", config, err)
 	}
 
-	ex := NewExporter(prometheus.DefaultRegisterer, testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	ex := NewExporter(prometheus.DefaultRegisterer, testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount, metricsCurrent)
 	ex.Listen(events)
 
 	metrics, err := prometheus.DefaultGatherer.Gather()
@@ -648,7 +655,7 @@ mappings:
 				close(events)
 			}()
 			reg := prometheus.NewRegistry()
-			ex := NewExporter(reg, testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+			ex := NewExporter(reg, testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount, metricsCurrent)
 			ex.Listen(events)
 
 			metrics, err := reg.Gather()
@@ -703,7 +710,7 @@ mappings:
 	errorCounter := errorEventStats.WithLabelValues("empty_metric_name")
 	prev := getTelemetryCounterValue(errorCounter)
 
-	ex := NewExporter(prometheus.DefaultRegisterer, testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	ex := NewExporter(prometheus.DefaultRegisterer, testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount, metricsCurrent)
 	ex.Listen(events)
 
 	updated := getTelemetryCounterValue(errorCounter)
@@ -770,7 +777,7 @@ func TestInvalidUtf8InDatadogTagValue(t *testing.T) {
 
 	testMapper := mapper.MetricMapper{}
 
-	ex := NewExporter(prometheus.DefaultRegisterer, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	ex := NewExporter(prometheus.DefaultRegisterer, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount, metricsCurrent)
 	ex.Listen(events)
 }
 
@@ -783,7 +790,7 @@ func TestSummaryWithQuantilesEmptyMapping(t *testing.T) {
 	go func() {
 		testMapper := mapper.MetricMapper{}
 
-		ex := NewExporter(prometheus.DefaultRegisterer, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+		ex := NewExporter(prometheus.DefaultRegisterer, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount, metricsCurrent)
 		ex.Listen(events)
 	}()
 
@@ -826,7 +833,7 @@ func TestHistogramUnits(t *testing.T) {
 	events := make(chan event.Events)
 	go func() {
 		testMapper := mapper.MetricMapper{}
-		ex := NewExporter(prometheus.DefaultRegisterer, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+		ex := NewExporter(prometheus.DefaultRegisterer, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount, metricsCurrent)
 		ex.Mapper.Defaults.ObserverType = mapper.ObserverTypeHistogram
 		ex.Listen(events)
 	}()
@@ -863,7 +870,7 @@ func TestCounterIncrement(t *testing.T) {
 	events := make(chan event.Events)
 	go func() {
 		testMapper := mapper.MetricMapper{}
-		ex := NewExporter(prometheus.DefaultRegisterer, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+		ex := NewExporter(prometheus.DefaultRegisterer, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount, metricsCurrent)
 		ex.Listen(events)
 	}()
 
@@ -910,7 +917,7 @@ func TestGaugeIncrementDecrement(t *testing.T) {
 	events := make(chan event.Events)
 	go func() {
 		testMapper := mapper.MetricMapper{}
-		ex := NewExporter(prometheus.DefaultRegisterer, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+		ex := NewExporter(prometheus.DefaultRegisterer, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount, metricsCurrent)
 		ex.Listen(events)
 	}()
 
@@ -972,7 +979,7 @@ func TestScaledMapping(t *testing.T) {
 
 	// Start exporter with a synchronous channel
 	go func() {
-		ex := NewExporter(prometheus.DefaultRegisterer, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+		ex := NewExporter(prometheus.DefaultRegisterer, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount, metricsCurrent)
 		ex.Listen(events)
 	}()
 
@@ -1081,7 +1088,7 @@ mappings:
 	events := make(chan event.Events)
 	defer close(events)
 	go func() {
-		ex := NewExporter(prometheus.DefaultRegisterer, testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+		ex := NewExporter(prometheus.DefaultRegisterer, testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount, metricsCurrent)
 		ex.Listen(events)
 	}()
 
@@ -1165,6 +1172,62 @@ mappings:
 	}
 	if foobarValue != nil {
 		t.Fatalf("Gauge `foobar` should not be gathered after expiration")
+	}
+}
+
+func TestMetricsCurrentTracksActiveMetricVectors(t *testing.T) {
+	clock.ClockInstance = &clock.Clock{}
+	defer func() {
+		clock.ClockInstance = nil
+	}()
+
+	reg := prometheus.NewRegistry()
+	testMapper := &mapper.MetricMapper{}
+	r := registry.NewRegistry(reg, testMapper)
+	metricsCount := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "statsd_exporter_metrics_total",
+			Help: "The total number of metrics.",
+		},
+		[]string{"type"},
+	)
+	metricsCurrent := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "statsd_exporter_metrics_current",
+			Help: "The current number of metric vectors with active time series.",
+		},
+		[]string{"type"},
+	)
+	mapping := &mapper.MetricMapping{Ttl: time.Second}
+
+	clock.ClockInstance.Instant = time.Unix(0, 0)
+	_, err := r.GetGauge("current_gauge", prometheus.Labels{"label": "first"}, defaultHelp, mapping, metricsCount, metricsCurrent)
+	if err != nil {
+		t.Fatalf("GetGauge failed: %v", err)
+	}
+
+	clock.ClockInstance.Instant = time.Unix(0, int64(500*time.Millisecond))
+	_, err = r.GetGauge("current_gauge", prometheus.Labels{"label": "second"}, defaultHelp, mapping, metricsCount, metricsCurrent)
+	if err != nil {
+		t.Fatalf("GetGauge failed: %v", err)
+	}
+
+	if current := getTelemetryGaugeValue(metricsCurrent.WithLabelValues("gauge")); current != 1 {
+		t.Fatalf("expected one active gauge vector, got %v", current)
+	}
+
+	clock.ClockInstance.Instant = time.Unix(1, int64(100*time.Millisecond))
+	r.RemoveStaleMetrics(metricsCurrent)
+
+	if current := getTelemetryGaugeValue(metricsCurrent.WithLabelValues("gauge")); current != 1 {
+		t.Fatalf("expected gauge vector to remain active while one series is still present, got %v", current)
+	}
+
+	clock.ClockInstance.Instant = time.Unix(1, int64(600*time.Millisecond))
+	r.RemoveStaleMetrics(metricsCurrent)
+
+	if current := getTelemetryGaugeValue(metricsCurrent.WithLabelValues("gauge")); current != 0 {
+		t.Fatalf("expected gauge vector to be inactive after all series expire, got %v", current)
 	}
 }
 
@@ -1273,6 +1336,15 @@ func getTelemetryCounterValue(counter prometheus.Counter) float64 {
 		return 0.0
 	}
 	return metric.Counter.GetValue()
+}
+
+func getTelemetryGaugeValue(gauge prometheus.Gauge) float64 {
+	var metric dto.Metric
+	err := gauge.Write(&metric)
+	if err != nil {
+		return 0.0
+	}
+	return metric.Gauge.GetValue()
 }
 
 func BenchmarkParseDogStatsDTags(b *testing.B) {

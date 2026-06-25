@@ -171,6 +171,13 @@ var (
 		},
 		[]string{"type"},
 	)
+	metricsCurrent = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "statsd_exporter_metrics_current",
+			Help: "The current number of metric vectors with active time series.",
+		},
+		[]string{"type"},
+	)
 )
 
 func serveHTTP(mux http.Handler, listenAddress string, logger *slog.Logger) {
@@ -326,7 +333,7 @@ func main() {
 		}
 	}
 
-	exporter := exporter.NewExporter(prometheus.DefaultRegisterer, thisMapper, logger, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	exporter := exporter.NewExporter(prometheus.DefaultRegisterer, thisMapper, logger, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount, metricsCurrent)
 
 	if *checkConfig {
 		logger.Info("Configuration check successful, exiting")
