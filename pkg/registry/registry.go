@@ -387,12 +387,31 @@ func (r *Registry) RemoveStaleMetrics() {
 				continue
 			}
 			if rm.LastRegisteredAt.Add(rm.TTL).Before(now) {
-				metric.Vectors[rm.VecKey].Holder.Delete(rm.Labels)
-				metric.Vectors[rm.VecKey].RefCount--
-				delete(metric.Metrics, hash)
+				r.removeMetric(metric, hash, rm)
 			}
 		}
 	}
+}
+
+// ClearMetrics deletes all registered time series from the registry.
+func (r *Registry) ClearMetrics() int {
+	removed := 0
+	for _, metric := range r.Metrics {
+		for hash, rm := range metric.Metrics {
+			r.removeMetric(metric, hash, rm)
+			removed++
+		}
+	}
+	return removed
+}
+
+func (r *Registry) removeMetric(metric metrics.Metric, hash metrics.ValueHash, rm *metrics.RegisteredMetric) {
+	vector := metric.Vectors[rm.VecKey]
+	vector.Holder.Delete(rm.Labels)
+	if vector.RefCount > 0 {
+		vector.RefCount--
+	}
+	delete(metric.Metrics, hash)
 }
 
 // Calculates a hash of both the label names and values.

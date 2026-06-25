@@ -1168,6 +1168,74 @@ mappings:
 	}
 }
 
+func TestClearMetrics(t *testing.T) {
+	clockInstance := clock.ClockInstance
+	clock.ClockInstance = nil
+	defer func() {
+		clock.ClockInstance = clockInstance
+	}()
+
+	reg := prometheus.NewRegistry()
+	testMapper := mapper.MetricMapper{}
+	ex := NewExporter(reg, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	events := make(chan event.Events)
+	done := make(chan struct{})
+	go func() {
+		ex.Listen(events)
+		close(done)
+	}()
+	defer func() {
+		close(events)
+		<-done
+	}()
+
+	events <- event.Events{
+		&event.GaugeEvent{
+			GMetricName: "clearable_gauge",
+			GValue:      200,
+		},
+	}
+	events <- event.Events{}
+
+	metrics, err := reg.Gather()
+	if err != nil {
+		t.Fatal("Gather should not fail")
+	}
+	gaugeValue := getFloat64(metrics, "clearable_gauge", prometheus.Labels{})
+	if gaugeValue == nil || *gaugeValue != 200 {
+		t.Fatalf("Gauge `clearable_gauge` should be gathered with value 200, got %v", gaugeValue)
+	}
+
+	if cleared := ex.ClearMetrics(); cleared != 1 {
+		t.Fatalf("Expected to clear 1 metric series, cleared %d", cleared)
+	}
+
+	metrics, err = reg.Gather()
+	if err != nil {
+		t.Fatal("Gather should not fail")
+	}
+	if gaugeValue = getFloat64(metrics, "clearable_gauge", prometheus.Labels{}); gaugeValue != nil {
+		t.Fatalf("Gauge `clearable_gauge` should be cleared, got %v", *gaugeValue)
+	}
+
+	events <- event.Events{
+		&event.GaugeEvent{
+			GMetricName: "clearable_gauge",
+			GValue:      42,
+		},
+	}
+	events <- event.Events{}
+
+	metrics, err = reg.Gather()
+	if err != nil {
+		t.Fatal("Gather should not fail")
+	}
+	gaugeValue = getFloat64(metrics, "clearable_gauge", prometheus.Labels{})
+	if gaugeValue == nil || *gaugeValue != 42 {
+		t.Fatalf("Gauge `clearable_gauge` should be gathered again with value 42, got %v", gaugeValue)
+	}
+}
+
 func TestHashLabelNames(t *testing.T) {
 	r := registry.NewRegistry(prometheus.DefaultRegisterer, nil)
 	// Validate value hash changes and name has doesn't when just the value changes.
