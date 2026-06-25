@@ -79,23 +79,23 @@ func (r *Registry) MetricConflicts(metricName string, metricType metrics.MetricT
 	return true
 }
 
-func (r *Registry) StoreCounter(metricName string, hash metrics.LabelHash, labels prometheus.Labels, vec *prometheus.CounterVec, c prometheus.Counter, ttl time.Duration) {
-	r.Store(metricName, hash, labels, vec, c, metrics.CounterMetricType, ttl)
+func (r *Registry) StoreCounter(metricName string, hash metrics.LabelHash, labels prometheus.Labels, vec *prometheus.CounterVec, c prometheus.Counter, ttl time.Duration) bool {
+	return r.Store(metricName, hash, labels, vec, c, metrics.CounterMetricType, ttl)
 }
 
-func (r *Registry) StoreGauge(metricName string, hash metrics.LabelHash, labels prometheus.Labels, vec *prometheus.GaugeVec, g prometheus.Gauge, ttl time.Duration) {
-	r.Store(metricName, hash, labels, vec, g, metrics.GaugeMetricType, ttl)
+func (r *Registry) StoreGauge(metricName string, hash metrics.LabelHash, labels prometheus.Labels, vec *prometheus.GaugeVec, g prometheus.Gauge, ttl time.Duration) bool {
+	return r.Store(metricName, hash, labels, vec, g, metrics.GaugeMetricType, ttl)
 }
 
-func (r *Registry) StoreHistogram(metricName string, hash metrics.LabelHash, labels prometheus.Labels, vec *prometheus.HistogramVec, o prometheus.Observer, ttl time.Duration) {
-	r.Store(metricName, hash, labels, vec, o, metrics.HistogramMetricType, ttl)
+func (r *Registry) StoreHistogram(metricName string, hash metrics.LabelHash, labels prometheus.Labels, vec *prometheus.HistogramVec, o prometheus.Observer, ttl time.Duration) bool {
+	return r.Store(metricName, hash, labels, vec, o, metrics.HistogramMetricType, ttl)
 }
 
-func (r *Registry) StoreSummary(metricName string, hash metrics.LabelHash, labels prometheus.Labels, vec *prometheus.SummaryVec, o prometheus.Observer, ttl time.Duration) {
-	r.Store(metricName, hash, labels, vec, o, metrics.SummaryMetricType, ttl)
+func (r *Registry) StoreSummary(metricName string, hash metrics.LabelHash, labels prometheus.Labels, vec *prometheus.SummaryVec, o prometheus.Observer, ttl time.Duration) bool {
+	return r.Store(metricName, hash, labels, vec, o, metrics.SummaryMetricType, ttl)
 }
 
-func (r *Registry) Store(metricName string, hash metrics.LabelHash, labels prometheus.Labels, vh metrics.VectorHolder, mh metrics.MetricHolder, metricType metrics.MetricType, ttl time.Duration) {
+func (r *Registry) Store(metricName string, hash metrics.LabelHash, labels prometheus.Labels, vh metrics.VectorHolder, mh metrics.MetricHolder, metricType metrics.MetricType, ttl time.Duration) bool {
 	metric, hasMetrics := r.Metrics[metricName]
 	if !hasMetrics {
 		metric.MetricType = metricType
@@ -122,12 +122,14 @@ func (r *Registry) Store(metricName string, hash metrics.LabelHash, labels prome
 			VecKey:           hash.Names,
 		}
 		metric.Metrics[hash.Values] = rm
+		activatedVector := v.RefCount == 0
 		v.RefCount++
-		return
+		return activatedVector
 	}
 	rm.LastRegisteredAt = now
 	// Update ttl from mapping
 	rm.TTL = ttl
+	return false
 }
 
 func (r *Registry) Get(metricName string, hash metrics.LabelHash, metricType metrics.MetricType) (metrics.VectorHolder, metrics.MetricHolder) {
@@ -155,7 +157,7 @@ func (r *Registry) Get(metricName string, hash metrics.LabelHash, metricType met
 	return nil, nil
 }
 
-func (r *Registry) GetCounter(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Counter, error) {
+func (r *Registry) GetCounter(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount, metricsCurrent *prometheus.GaugeVec) (prometheus.Counter, error) {
 	hash, labelNames := r.HashLabels(labels)
 	vh, mh := r.Get(metricName, hash, metrics.CounterMetricType)
 	if mh != nil {
@@ -190,7 +192,9 @@ func (r *Registry) GetCounter(metricName string, labels prometheus.Labels, help 
 	if counter, err = counterVec.GetMetricWith(labels); err != nil {
 		return nil, err
 	}
-	r.StoreCounter(metricName, hash, labels, counterVec, counter, mapping.Ttl)
+	if r.StoreCounter(metricName, hash, labels, counterVec, counter, mapping.Ttl) {
+		recordMetricActivated(metricsCurrent, metrics.CounterMetricType)
+	}
 
 	return counter, nil
 }
@@ -207,7 +211,7 @@ func (r *Registry) checkHistogramNameCollision(metricName string) error {
 	return nil
 }
 
-func (r *Registry) GetGauge(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Gauge, error) {
+func (r *Registry) GetGauge(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount, metricsCurrent *prometheus.GaugeVec) (prometheus.Gauge, error) {
 	hash, labelNames := r.HashLabels(labels)
 	vh, mh := r.Get(metricName, hash, metrics.GaugeMetricType)
 	if mh != nil {
@@ -242,12 +246,14 @@ func (r *Registry) GetGauge(metricName string, labels prometheus.Labels, help st
 	if gauge, err = gaugeVec.GetMetricWith(labels); err != nil {
 		return nil, err
 	}
-	r.StoreGauge(metricName, hash, labels, gaugeVec, gauge, mapping.Ttl)
+	if r.StoreGauge(metricName, hash, labels, gaugeVec, gauge, mapping.Ttl) {
+		recordMetricActivated(metricsCurrent, metrics.GaugeMetricType)
+	}
 
 	return gauge, nil
 }
 
-func (r *Registry) GetHistogram(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Observer, error) {
+func (r *Registry) GetHistogram(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount, metricsCurrent *prometheus.GaugeVec) (prometheus.Observer, error) {
 	hash, labelNames := r.HashLabels(labels)
 	vh, mh := r.Get(metricName, hash, metrics.HistogramMetricType)
 	if mh != nil {
@@ -304,12 +310,14 @@ func (r *Registry) GetHistogram(metricName string, labels prometheus.Labels, hel
 	if observer, err = histogramVec.GetMetricWith(labels); err != nil {
 		return nil, err
 	}
-	r.StoreHistogram(metricName, hash, labels, histogramVec, observer, mapping.Ttl)
+	if r.StoreHistogram(metricName, hash, labels, histogramVec, observer, mapping.Ttl) {
+		recordMetricActivated(metricsCurrent, metrics.HistogramMetricType)
+	}
 
 	return observer, nil
 }
 
-func (r *Registry) GetSummary(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Observer, error) {
+func (r *Registry) GetSummary(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount, metricsCurrent *prometheus.GaugeVec) (prometheus.Observer, error) {
 	hash, labelNames := r.HashLabels(labels)
 	vh, mh := r.Get(metricName, hash, metrics.SummaryMetricType)
 	if mh != nil {
@@ -373,12 +381,14 @@ func (r *Registry) GetSummary(metricName string, labels prometheus.Labels, help 
 	if observer, err = summaryVec.GetMetricWith(labels); err != nil {
 		return nil, err
 	}
-	r.StoreSummary(metricName, hash, labels, summaryVec, observer, mapping.Ttl)
+	if r.StoreSummary(metricName, hash, labels, summaryVec, observer, mapping.Ttl) {
+		recordMetricActivated(metricsCurrent, metrics.SummaryMetricType)
+	}
 
 	return observer, nil
 }
 
-func (r *Registry) RemoveStaleMetrics() {
+func (r *Registry) RemoveStaleMetrics(metricsCurrent *prometheus.GaugeVec) {
 	now := clock.Now()
 	// delete timeseries with expired ttl
 	for _, metric := range r.Metrics {
@@ -387,11 +397,44 @@ func (r *Registry) RemoveStaleMetrics() {
 				continue
 			}
 			if rm.LastRegisteredAt.Add(rm.TTL).Before(now) {
-				metric.Vectors[rm.VecKey].Holder.Delete(rm.Labels)
-				metric.Vectors[rm.VecKey].RefCount--
+				vector := metric.Vectors[rm.VecKey]
+				vector.Holder.Delete(rm.Labels)
+				vector.RefCount--
+				if vector.RefCount == 0 {
+					recordMetricDeactivated(metricsCurrent, metric.MetricType)
+				}
 				delete(metric.Metrics, hash)
 			}
 		}
+	}
+}
+
+func recordMetricActivated(metricsCurrent *prometheus.GaugeVec, metricType metrics.MetricType) {
+	if metricsCurrent == nil {
+		return
+	}
+	metricsCurrent.WithLabelValues(metricTypeLabel(metricType)).Inc()
+}
+
+func recordMetricDeactivated(metricsCurrent *prometheus.GaugeVec, metricType metrics.MetricType) {
+	if metricsCurrent == nil {
+		return
+	}
+	metricsCurrent.WithLabelValues(metricTypeLabel(metricType)).Dec()
+}
+
+func metricTypeLabel(metricType metrics.MetricType) string {
+	switch metricType {
+	case metrics.CounterMetricType:
+		return "counter"
+	case metrics.GaugeMetricType:
+		return "gauge"
+	case metrics.HistogramMetricType:
+		return "histogram"
+	case metrics.SummaryMetricType:
+		return "summary"
+	default:
+		return "unknown"
 	}
 }
 
