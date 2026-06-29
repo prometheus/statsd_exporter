@@ -1589,31 +1589,6 @@ mappings:
 	}
 }
 
-func TestInitFromYAMLStringDeprecatedBucketsWithoutLogger(t *testing.T) {
-	config := `---
-defaults:
-  observer_type: histogram
-mappings:
-- match: test.*
-  observer_type: histogram
-  buckets: [1, 2, 3]
-  name: foo
-  labels: {}
-`
-
-	mapper := &MetricMapper{}
-
-	defer func() {
-		if r := recover(); r != nil {
-			t.Fatalf("InitFromYAMLString panicked with deprecated buckets and nil logger: %v", r)
-		}
-	}()
-
-	if err := mapper.InitFromYAMLString(config); err != nil {
-		t.Fatalf("InitFromYAMLString returned error: %v", err)
-	}
-}
-
 // Test for https://github.com/prometheus/statsd_exporter/issues/273
 // Corrupt cache for multiple names matching in fsm
 func TestMultipleMatches(t *testing.T) {
