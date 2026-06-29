@@ -14,6 +14,8 @@
 package exporter
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -1168,6 +1170,32 @@ mappings:
 	}
 }
 
+type noClearRegistry struct {
+	inner *registry.Registry
+}
+
+var _ Registry = (*noClearRegistry)(nil)
+
+func (r *noClearRegistry) GetCounter(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Counter, error) {
+	return r.inner.GetCounter(metricName, labels, help, mapping, metricsCount)
+}
+
+func (r *noClearRegistry) GetGauge(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Gauge, error) {
+	return r.inner.GetGauge(metricName, labels, help, mapping, metricsCount)
+}
+
+func (r *noClearRegistry) GetHistogram(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Observer, error) {
+	return r.inner.GetHistogram(metricName, labels, help, mapping, metricsCount)
+}
+
+func (r *noClearRegistry) GetSummary(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Observer, error) {
+	return r.inner.GetSummary(metricName, labels, help, mapping, metricsCount)
+}
+
+func (r *noClearRegistry) RemoveStaleMetrics() {
+	r.inner.RemoveStaleMetrics()
+}
+
 func TestClearMetrics(t *testing.T) {
 	clockInstance := clock.ClockInstance
 	clock.ClockInstance = nil
@@ -1206,7 +1234,11 @@ func TestClearMetrics(t *testing.T) {
 		t.Fatalf("Gauge `clearable_gauge` should be gathered with value 200, got %v", gaugeValue)
 	}
 
-	if cleared := ex.ClearMetrics(); cleared != 1 {
+	cleared, err := ex.ClearMetrics(context.Background())
+	if err != nil {
+		t.Fatalf("ClearMetrics should not fail: %v", err)
+	}
+	if cleared != 1 {
 		t.Fatalf("Expected to clear 1 metric series, cleared %d", cleared)
 	}
 
@@ -1233,6 +1265,60 @@ func TestClearMetrics(t *testing.T) {
 	gaugeValue = getFloat64(metrics, "clearable_gauge", prometheus.Labels{})
 	if gaugeValue == nil || *gaugeValue != 42 {
 		t.Fatalf("Gauge `clearable_gauge` should be gathered again with value 42, got %v", gaugeValue)
+	}
+}
+
+func TestClearMetricsBeforeListen(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	testMapper := mapper.MetricMapper{}
+	ex := NewExporter(reg, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+
+	_, err := ex.ClearMetrics(context.Background())
+	if !errors.Is(err, ErrExporterNotRunning) {
+		t.Fatalf("expected ErrExporterNotRunning, got %v", err)
+	}
+}
+
+func TestClearMetricsAfterListenStops(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	testMapper := mapper.MetricMapper{}
+	ex := NewExporter(reg, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	events := make(chan event.Events)
+	done := make(chan struct{})
+	go func() {
+		ex.Listen(events)
+		close(done)
+	}()
+
+	close(events)
+	<-done
+
+	_, err := ex.ClearMetrics(context.Background())
+	if !errors.Is(err, ErrExporterNotRunning) {
+		t.Fatalf("expected ErrExporterNotRunning, got %v", err)
+	}
+}
+
+func TestClearMetricsUnsupportedRegistry(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	testMapper := mapper.MetricMapper{}
+	ex := NewExporter(reg, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	ex.Registry = &noClearRegistry{inner: registry.NewRegistry(reg, &testMapper)}
+	events := make(chan event.Events)
+	done := make(chan struct{})
+	go func() {
+		ex.Listen(events)
+		close(done)
+	}()
+	defer func() {
+		close(events)
+		<-done
+	}()
+	events <- event.Events{}
+
+	_, err := ex.ClearMetrics(context.Background())
+	if !errors.Is(err, ErrClearMetricsUnsupported) {
+		t.Fatalf("expected ErrClearMetricsUnsupported, got %v", err)
 	}
 }
 
