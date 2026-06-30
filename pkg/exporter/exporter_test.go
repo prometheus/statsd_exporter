@@ -247,7 +247,6 @@ func TestInconsistentLabelSets(t *testing.T) {
 	config := `
 mappings:
 - match: histogram.test
-  timer_type: histogram
   name: "histogram_test"
 `
 	testMapper := &mapper.MetricMapper{}
@@ -633,7 +632,6 @@ func TestConflictingMetrics(t *testing.T) {
 	config := `
 mappings:
 - match: histogram.*
-  timer_type: histogram
   name: "histogram_${1}"
 `
 	for _, s := range scenarios {
