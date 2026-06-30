@@ -269,7 +269,7 @@ samples:
 	for _, sample := range samples {
 		samplesReceived.Inc()
 		components := strings.Split(sample, "|")
-		if len(components) < 2 || len(components) > 5 {
+		if len(components) < 2 || len(components) > 6 {
 			sampleErrors.WithLabelValues("malformed_component").Inc()
 			logger.Debug("bad component", "line", line)
 			continue
@@ -329,6 +329,12 @@ samples:
 						sampleErrors.WithLabelValues("malformed_container_id").Inc()
 						continue samples
 					}
+				case 'T':
+					// Drop the DogStatsD v1.3 metric timestamp (e.g., |T1656581400).
+					// statsd_exporter exposes metrics over a pull-based Prometheus
+					// endpoint and does not forward per-sample source timestamps, so
+					// the timestamp carries no usable information. We deliberately do
+					// not parse or validate it to avoid wasting CPU on the hot path.
 				default:
 					logger.Debug("Invalid sampling factor, tag section, or container ID section", "component", components[2], "line", line)
 					sampleErrors.WithLabelValues("invalid_sample_factor").Inc()

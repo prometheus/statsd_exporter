@@ -1,3 +1,7 @@
+## Unreleased
+
+* [FEATURE] Support the optional DogStatsD v1.3 metric timestamp field (`|T<unix_timestamp>`) ([#716](https://github.com/prometheus/statsd_exporter/pull/716))
+
 ## 0.30.0 / 2026-05-28
 * [CHANGE] Remove the Dockerfile `HEALTHCHECK` from published container images ([#671](https://github.com/prometheus/statsd_exporter/pull/671))
 * [ENHANCEMENT] Add a distroless container image variant ([#703](https://github.com/prometheus/statsd_exporter/pull/703))
