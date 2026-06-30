@@ -969,13 +969,27 @@ func TestLineToEvents(t *testing.T) {
 				},
 			},
 		},
-		"dogstatsd v1.3 timestamp malformed - no value": {
-			in:  "foo:100|c|#tag:val|T",
-			out: event.Events{},
+		// The timestamp is dropped without being parsed, so even a non-numeric
+		// or empty timestamp value is ignored and the metric still parses.
+		"dogstatsd v1.3 timestamp non-numeric is dropped": {
+			in: "foo:100|c|#tag:val|Tnot-a-ts",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag": "val"},
+				},
+			},
 		},
-		"dogstatsd v1.3 timestamp malformed - non-numeric": {
-			in:  "foo:100|c|#tag:val|Tnot-a-ts",
-			out: event.Events{},
+		"dogstatsd v1.3 timestamp empty value is dropped": {
+			in: "foo:100|c|#tag:val|T",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"tag": "val"},
+				},
+			},
 		},
 	}
 

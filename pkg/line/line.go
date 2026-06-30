@@ -330,21 +330,11 @@ samples:
 						continue samples
 					}
 				case 'T':
-					// Handle DogStatsD v1.3 metric timestamp (e.g., |T1656581400).
-					// The value is a Unix UTC epoch in seconds prefixed by 'T'.
+					// Drop the DogStatsD v1.3 metric timestamp (e.g., |T1656581400).
 					// statsd_exporter exposes metrics over a pull-based Prometheus
 					// endpoint and does not forward per-sample source timestamps, so
-					// we validate the field for protocol correctness and then drop it.
-					if len(component) < 2 {
-						logger.Debug("Malformed timestamp section", "component", component, "line", line)
-						sampleErrors.WithLabelValues("malformed_timestamp").Inc()
-						continue samples
-					}
-					if _, err := strconv.ParseInt(component[1:], 10, 64); err != nil {
-						logger.Debug("Invalid timestamp value", "component", component[1:], "line", line)
-						sampleErrors.WithLabelValues("malformed_timestamp").Inc()
-						continue samples
-					}
+					// the timestamp carries no usable information. We deliberately do
+					// not parse or validate it to avoid wasting CPU on the hot path.
 				default:
 					logger.Debug("Invalid sampling factor, tag section, or container ID section", "component", components[2], "line", line)
 					sampleErrors.WithLabelValues("invalid_sample_factor").Inc()
