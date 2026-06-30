@@ -1,3 +1,7 @@
+## unreleased
+
+* [FEATURE] Add a lifecycle `/-/clear` endpoint to clear registered StatsD time series without restarting the exporter ([#714](https://github.com/prometheus/statsd_exporter/pull/714))
+
 ## 0.30.0 / 2026-05-28
 * [CHANGE] Remove the Dockerfile `HEALTHCHECK` from published container images ([#671](https://github.com/prometheus/statsd_exporter/pull/671))
 * [ENHANCEMENT] Add a distroless container image variant ([#703](https://github.com/prometheus/statsd_exporter/pull/703))

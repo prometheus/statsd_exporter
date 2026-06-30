@@ -15,6 +15,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -202,6 +203,25 @@ func reloadConfig(fileName string, mapper *mapper.MetricMapper, logger *slog.Log
 	} else {
 		logger.Info("Config reloaded successfully")
 		configLoads.WithLabelValues("success").Inc()
+	}
+}
+
+type metricsClearer interface {
+	ClearMetrics(context.Context) (int, error)
+}
+
+func clearMetricsHandler(clearer metricsClearer, logger *slog.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut || r.Method == http.MethodPost {
+			cleared, err := clearer.ClearMetrics(r.Context())
+			if err != nil {
+				logger.Error("Failed to clear metrics", "error", err)
+				http.Error(w, err.Error(), http.StatusServiceUnavailable)
+				return
+			}
+			logger.Info("Received lifecycle api clear", "metrics", cleared)
+			fmt.Fprintf(w, "Cleared %d metric series", cleared)
+		}
 	}
 }
 
@@ -528,6 +548,7 @@ func main() {
 				quitChan <- struct{}{}
 			}
 		})
+		mux.HandleFunc("/-/clear", clearMetricsHandler(exporter, logger))
 	}
 
 	mux.HandleFunc("/-/healthy", func(w http.ResponseWriter, r *http.Request) {

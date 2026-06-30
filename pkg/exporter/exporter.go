@@ -14,8 +14,11 @@
 package exporter
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -39,6 +42,26 @@ type Registry interface {
 	RemoveStaleMetrics()
 }
 
+var (
+	// ErrClearMetricsUnsupported indicates that the configured registry cannot clear metrics.
+	ErrClearMetricsUnsupported = errors.New("registry does not support clearing metrics")
+	// ErrExporterNotRunning indicates that the exporter event loop is not running.
+	ErrExporterNotRunning = errors.New("exporter listener is not running")
+)
+
+type clearableRegistry interface {
+	ClearMetrics() int
+}
+
+type clearMetricsRequest struct {
+	result chan clearMetricsResult
+}
+
+type clearMetricsResult struct {
+	cleared int
+	err     error
+}
+
 type Exporter struct {
 	Mapper                *mapper.MetricMapper
 	Registry              Registry
@@ -49,21 +72,40 @@ type Exporter struct {
 	EventStats            *prometheus.CounterVec
 	ConflictingEventStats *prometheus.CounterVec
 	MetricsCount          *prometheus.GaugeVec
+	clearMetrics          chan clearMetricsRequest
+	listenStateMtx        sync.RWMutex
+	listening             bool
+	listenDone            chan struct{}
 }
 
 // Listen handles all events sent to the given channel sequentially. It
 // terminates when the channel is closed.
 func (b *Exporter) Listen(e <-chan event.Events) {
 	removeStaleMetricsTicker := clock.NewTicker(time.Second)
+	defer removeStaleMetricsTicker.Stop()
+
+	b.listenStateMtx.Lock()
+	b.listening = true
+	b.listenDone = make(chan struct{})
+	done := b.listenDone
+	b.listenStateMtx.Unlock()
+
+	defer func() {
+		b.listenStateMtx.Lock()
+		b.listening = false
+		close(done)
+		b.listenStateMtx.Unlock()
+	}()
 
 	for {
 		select {
 		case <-removeStaleMetricsTicker.C:
 			b.Registry.RemoveStaleMetrics()
+		case request := <-b.clearMetrics:
+			request.result <- b.clearRegistryMetrics()
 		case events, ok := <-e:
 			if !ok {
 				b.Logger.Debug("Channel is closed. Break out of Exporter.Listener.")
-				removeStaleMetricsTicker.Stop()
 				return
 			}
 			for _, event := range events {
@@ -71,6 +113,51 @@ func (b *Exporter) Listen(e <-chan event.Events) {
 			}
 		}
 	}
+}
+
+// ClearMetrics clears all dynamically registered StatsD time series.
+func (b *Exporter) ClearMetrics(ctx context.Context) (int, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	done, ok := b.listenState()
+	if !ok {
+		return 0, ErrExporterNotRunning
+	}
+
+	request := clearMetricsRequest{
+		result: make(chan clearMetricsResult, 1),
+	}
+
+	select {
+	case b.clearMetrics <- request:
+	case <-done:
+		return 0, ErrExporterNotRunning
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	}
+
+	select {
+	case result := <-request.result:
+		return result.cleared, result.err
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	}
+}
+
+func (b *Exporter) listenState() (<-chan struct{}, bool) {
+	b.listenStateMtx.RLock()
+	defer b.listenStateMtx.RUnlock()
+	return b.listenDone, b.listening
+}
+
+func (b *Exporter) clearRegistryMetrics() clearMetricsResult {
+	clearable, ok := b.Registry.(clearableRegistry)
+	if !ok {
+		return clearMetricsResult{err: ErrClearMetricsUnsupported}
+	}
+	return clearMetricsResult{cleared: clearable.ClearMetrics()}
 }
 
 // handleEvent processes a single Event according to the configured mapping.
@@ -207,5 +294,6 @@ func NewExporter(reg prometheus.Registerer, mapper *mapper.MetricMapper, logger 
 		EventStats:            eventStats,
 		ConflictingEventStats: conflictingEventStats,
 		MetricsCount:          metricsCount,
+		clearMetrics:          make(chan clearMetricsRequest),
 	}
 }
