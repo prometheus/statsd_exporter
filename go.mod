@@ -7,7 +7,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
-	github.com/prometheus/common v0.68.0
+	github.com/prometheus/common v0.69.0
 	github.com/prometheus/exporter-toolkit v0.16.0
 	github.com/stvp/go-udp-testing v0.0.0-20201019212854-469649b16807
 	go.yaml.in/yaml/v2 v2.4.4
