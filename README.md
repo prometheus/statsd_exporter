@@ -189,7 +189,9 @@ follows:
 
 Each mapping in the configuration file must define a `name` for the metric. The
 metric's name can contain `$n`-style references to be replaced by the n-th
-wildcard match in the matching line. That allows for dynamic rewrites, such as:
+wildcard match in the matching line, as well as `$0` to reference the original,
+unmodified statsd metric name (see [Special match groups](#special-match-groups)).
+That allows for dynamic rewrites, such as:
 
 ```yaml
 mappings:
@@ -258,7 +260,7 @@ mappings:
 
 #### Special match groups
 
-When using regex, the match group `0` is the full match and can be used to attach labels to the metric.
+The `$0` reference expands to the original, unmodified statsd metric name and can be used with both `glob` and `regex` matching to attach labels to the metric.
 Example:
 
 ```yaml
@@ -275,7 +277,7 @@ But the metric will also have the label `statsd_metric_name` with the value `my.
 
 Note: If you use the `match` like the example (i.e. `.+`), be aware that it will be a "catch-all" block. So it should come at the very end of the mapping list.
 
-The same is not achievable with glob matching, for more details check [this issue](https://github.com/prometheus/statsd_exporter/issues/444).
+Note: as with other `$n` references, use the `${0}` form (rather than `$0`) when it is immediately followed by other word characters or another `$`-reference, e.g. `${0}_total`, otherwise the reference will not be recognized and will resolve to an empty string.
 
 ### Naming, labels, and help
 

@@ -282,11 +282,11 @@ func (m *MetricMapper) GetMapping(statsdMetric string, statsdMetricType MetricTy
 		if finalState != nil && finalState.Result != nil {
 			v := finalState.Result.(*MetricMapping)
 			result := copyMetricMapping(v)
-			result.Name = result.nameFormatter.Format(captures)
+			result.Name = result.nameFormatter.Format(statsdMetric, captures)
 
 			labels := prometheus.Labels{}
 			for index, formatter := range result.labelFormatters {
-				labels[result.labelKeys[index]] = formatter.Format(captures)
+				labels[result.labelKeys[index]] = formatter.Format(statsdMetric, captures)
 			}
 
 			r := MetricMapperCacheResult{

@@ -483,6 +483,36 @@ mappings:
 			},
 		},
 		{
+			testName: "Config with $0 referencing the original metric name in glob mode",
+			config: `---
+mappings:
+- match: test1.*.*
+  name: "total_requests"
+  labels:
+    original: "$0"
+- match: test2.*.*
+  name: "${1}_$2"
+  labels:
+    original: "$0"
+  `,
+			mappings: mappings{
+				{
+					statsdMetric: "test1.total_requests.count",
+					name:         "total_requests",
+					labels: map[string]string{
+						"original": "test1.total_requests.count",
+					},
+				},
+				{
+					statsdMetric: "test2.total_requests.count",
+					name:         "total_requests_count",
+					labels: map[string]string{
+						"original": "test2.total_requests.count",
+					},
+				},
+			},
+		},
+		{
 			testName: "Config with bad metric name",
 			config: `---
 mappings:
