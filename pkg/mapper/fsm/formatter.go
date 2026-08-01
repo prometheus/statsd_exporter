@@ -30,6 +30,7 @@ type TemplateFormatter struct {
 
 // NewTemplateFormatter instantiates a TemplateFormatter
 // from given template string and the maximum amount of captures.
+// captureCount is the number of captures in the match, not counting $0.
 func NewTemplateFormatter(template string, captureCount int) *TemplateFormatter {
 	matches := templateReplaceCaptureRE.FindAllStringSubmatch(template, -1)
 	if len(matches) == 0 {
@@ -41,14 +42,16 @@ func NewTemplateFormatter(template string, captureCount int) *TemplateFormatter 
 	valueFormatter := template
 	for _, match := range matches {
 		idx, err := strconv.Atoi(match[len(match)-1])
-		if err != nil || idx > captureCount || idx < 1 {
+		if err != nil || idx > captureCount || idx < 0 {
 			// if index larger than captured count or using unsupported named capture group,
 			// replace with empty string
 			valueFormatter = strings.ReplaceAll(valueFormatter, match[0], "")
 		} else {
 			valueFormatter = strings.ReplaceAll(valueFormatter, match[0], "%s")
-			// note: the regex reference variable $? starts from 1
-			indexes = append(indexes, idx-1)
+			// $0 is the whole metric name and the captures follow it, so the
+			// reference variable $? indexes directly into the captures passed
+			// to Format.
+			indexes = append(indexes, idx)
 		}
 	}
 	return &TemplateFormatter{
@@ -58,8 +61,10 @@ func NewTemplateFormatter(template string, captureCount int) *TemplateFormatter 
 	}
 }
 
-// Format accepts a list containing captured strings and returns the formatted
-// string using the template stored in current TemplateFormatter.
+// Format accepts a list containing the whole metric name followed by the
+// captured strings, and returns the formatted string using the template stored
+// in current TemplateFormatter. The metric name is at index 0, so it is
+// referenced as $0, matching the behaviour of the regex match type.
 func (formatter *TemplateFormatter) Format(captures []string) string {
 	if formatter.captureCount == 0 {
 		// no label substitution, keep as it is

@@ -258,7 +258,7 @@ mappings:
 
 #### Special match groups
 
-When using regex, the match group `0` is the full match and can be used to attach labels to the metric.
+The match group `0` is the full match and can be used to attach labels to the metric.
 Example:
 
 ```yaml
@@ -275,7 +275,17 @@ But the metric will also have the label `statsd_metric_name` with the value `my.
 
 Note: If you use the `match` like the example (i.e. `.+`), be aware that it will be a "catch-all" block. So it should come at the very end of the mapping list.
 
-The same is not achievable with glob matching, for more details check [this issue](https://github.com/prometheus/statsd_exporter/issues/444).
+`$0` works the same way in glob mappings, where it can be combined with the
+regular capture references:
+
+```yaml
+mappings:
+- match: "*.*"
+  name: "$0"
+  labels:
+    statsd_metric_name: "$0"
+    first: "$1"
+```
 
 ### Naming, labels, and help
 

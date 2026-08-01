@@ -1399,6 +1399,45 @@ mappings:
 				},
 			},
 		},
+		// Config that uses $0 to reference the whole metric name in glob mode,
+		// the same way the regex match type allows.
+		{
+			testName: "$0 in glob mappings",
+			config: `mappings:
+- match: test.dispatcher.*.*
+  name: "dispatch_$0"
+  labels:
+    original: "$0"
+    processor: "$1"
+    action: "$2"
+    combined: "$0-$1"
+- match: verbatim.*
+  name: "verbatim"
+  labels:
+    original: "$0"
+    out_of_range: "$2"`,
+			mappings: mappings{
+				{
+					statsdMetric: "test.dispatcher.FooProcessor.send",
+					name:         "dispatch_test.dispatcher.FooProcessor.send",
+					labels: map[string]string{
+						"original":  "test.dispatcher.FooProcessor.send",
+						"processor": "FooProcessor",
+						"action":    "send",
+						"combined":  "test.dispatcher.FooProcessor.send-FooProcessor",
+					},
+				},
+				{
+					statsdMetric: "verbatim.thing",
+					name:         "verbatim",
+					labels: map[string]string{
+						"original": "verbatim.thing",
+						// References beyond the number of captures stay empty.
+						"out_of_range": "",
+					},
+				},
+			},
+		},
 	}
 
 	mapper := MetricMapper{}
