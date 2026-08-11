@@ -483,6 +483,134 @@ mappings:
 			},
 		},
 		{
+			testName: "Config with $0 referencing the original metric name in glob mode",
+			config: `---
+mappings:
+- match: test1.*.*
+  name: "total_requests"
+  labels:
+    original: "$0"
+- match: test2.*.*
+  name: "${1}_$2"
+  labels:
+    original: "$0"
+  `,
+			mappings: mappings{
+				{
+					statsdMetric: "test1.total_requests.count",
+					name:         "total_requests",
+					labels: map[string]string{
+						"original": "test1.total_requests.count",
+					},
+				},
+				{
+					statsdMetric: "test2.total_requests.count",
+					name:         "total_requests_count",
+					labels: map[string]string{
+						"original": "test2.total_requests.count",
+					},
+				},
+			},
+		},
+		{
+			testName: "Config with $0 in the metric name in glob mode",
+			config: `---
+mappings:
+- match: test1.*.*
+  name: "$0"
+  labels: {}
+  `,
+			mappings: mappings{
+				{
+					statsdMetric: "test1.total_requests.count",
+					name:         "test1.total_requests.count",
+				},
+			},
+		},
+		{
+			testName: "Config with $0 combined with $1 in glob mode",
+			config: `---
+mappings:
+- match: test1.*.*
+  name: "name"
+  labels:
+    combined: "${0}_$1"
+  `,
+			mappings: mappings{
+				{
+					statsdMetric: "test1.total_requests.count",
+					name:         "name",
+					labels: map[string]string{
+						"combined": "test1.total_requests.count_total_requests",
+					},
+				},
+			},
+		},
+		{
+			testName: "Config with $0 and an out-of-range $N reference in glob mode",
+			config: `---
+mappings:
+- match: test1.*.*
+  name: "name"
+  labels:
+    original: "$0"
+    outofrange: "$5"
+  `,
+			mappings: mappings{
+				{
+					statsdMetric: "test1.total_requests.count",
+					name:         "name",
+					labels: map[string]string{
+						"original":   "test1.total_requests.count",
+						"outofrange": "",
+					},
+				},
+			},
+		},
+		{
+			testName: "Config with $0 and a literal, no-wildcard glob",
+			config: `---
+mappings:
+- match: test1.total_requests.count
+  name: "name"
+  labels:
+    original: "$0"
+  `,
+			mappings: mappings{
+				{
+					statsdMetric: "test1.total_requests.count",
+					name:         "name",
+					labels: map[string]string{
+						"original": "test1.total_requests.count",
+					},
+				},
+			},
+		},
+		{
+			testName: "Config with $0 bracing behavior in glob mode",
+			config: `---
+mappings:
+- match: test1.*.*
+  name: "name"
+  labels:
+    unbraced: "$0_suffix"
+    braced: "${0}_suffix"
+  `,
+			mappings: mappings{
+				{
+					statsdMetric: "test1.total_requests.count",
+					name:         "name",
+					labels: map[string]string{
+						// $0_suffix is parsed as a single (unsupported) capture
+						// reference named "0_suffix" and resolves to empty, same
+						// as existing $N behavior without bracing.
+						"unbraced": "",
+						"braced":   "test1.total_requests.count_suffix",
+					},
+				},
+			},
+		},
+		{
 			testName: "Config with bad metric name",
 			config: `---
 mappings:
