@@ -260,7 +260,7 @@ mappings:
 
 #### Special match groups
 
-The `$0` reference expands to the original, unmodified statsd metric name and can be used with both `glob` and `regex` matching to attach labels to the metric.
+With `glob`, `$0` expands to the complete StatsD metric name. With `regex`, `$0` expands to the complete regex match. Both can be used to attach labels to the metric.
 Example:
 
 ```yaml
@@ -277,7 +277,7 @@ But the metric will also have the label `statsd_metric_name` with the value `my.
 
 Note: If you use the `match` like the example (i.e. `.+`), be aware that it will be a "catch-all" block. So it should come at the very end of the mapping list.
 
-Note: as with other `$n` references, use the `${0}` form (rather than `$0`) when it is immediately followed by other word characters or another `$`-reference, e.g. `${0}_total`, otherwise the reference will not be recognized and will resolve to an empty string.
+Note: as with other `$n` references (for both `glob` and `regex` templates), use the `${0}` form (rather than `$0`) when it is immediately followed by other word characters or another `$`-reference, e.g. `${0}_total`, otherwise the reference will not be recognized and will resolve to an empty string.
 
 ### Naming, labels, and help
 
