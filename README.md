@@ -277,7 +277,7 @@ But the metric will also have the label `statsd_metric_name` with the value `my.
 
 Note: If you use the `match` like the example (i.e. `.+`), be aware that it will be a "catch-all" block. So it should come at the very end of the mapping list.
 
-Note: as with other `$n` references (for both `glob` and `regex` templates), use the `${0}` form (rather than `$0`) when it is immediately followed by other word characters or another `$`-reference, e.g. `${0}_total`, otherwise the reference will not be recognized and will resolve to an empty string.
+Note: as with other `$n` references (for both `glob` and `regex` templates), use the `${0}` form (rather than `$0`) when it is immediately followed by other word characters, e.g. `${0}_total`, otherwise the reference will not be recognized and will resolve to an empty string. For `glob` templates this also applies when `$0` is immediately followed by another `$`-reference, e.g. `${0}$1`; `regex` templates don't need bracing in that case, so `$0$1` works as-is.
 
 ### Naming, labels, and help
 
