@@ -26,6 +26,10 @@ type mappingState struct {
 	// result* members are nil unless there's a metric ends with this state
 	Result         interface{}
 	ResultPriority int
+	// Prefix denotes a wildcard state that acts as a prefix matcher.
+	// When true, the FSM may traverse through this state into
+	// deeper transitions even if no result is anchored at this state.
+	Prefix bool
 }
 
 type fsmBacktrackStackCursor struct {
@@ -105,6 +109,10 @@ func (f *FSM) AddState(match, matchMetricType string, maxPossibleTransitions int
 			}
 			if field == "*" {
 				captureCount++
+				// Mark as prefix state so GetMapping knows to traverse deeper
+				// This allows patterns like "prefix.*.metric" to match any
+				// number of segments after the prefix
+				state.Prefix = true
 			}
 
 			// goto next state
@@ -157,7 +165,13 @@ func (f *FSM) GetMapping(statsdMetric, statsdMetricType string) (*mappingState, 
 					if !present || fieldsLeft > state.maxRemainingLength || fieldsLeft < state.minRemainingLength {
 						state, present = currentState.transitions["*"]
 						if !present || fieldsLeft > state.maxRemainingLength || fieldsLeft < state.minRemainingLength {
-							break
+							// Check for prefix wildcard: if current state is a prefix
+							// wildcard, try to traverse deeper from its transitions
+							if currentState.Prefix && len(currentState.transitions) > 0 {
+								// This is a prefix match - continue traversing
+							} else {
+								break
+							}
 						} else {
 							captures[captureIdx] = field
 							captureIdx++
