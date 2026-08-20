@@ -178,7 +178,7 @@ func serveHTTP(mux http.Handler, listenAddress string, logger *slog.Logger) {
 	os.Exit(1)
 }
 
-func sighupConfigReloader(fileName string, mapper *mapper.MetricMapper, logger *slog.Logger) {
+func sighupConfigReloader(fileName string, mapper *mapper.MetricMapper, registry exporter.Registry, logger *slog.Logger) {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGHUP)
 
@@ -190,16 +190,19 @@ func sighupConfigReloader(fileName string, mapper *mapper.MetricMapper, logger *
 
 		logger.Info("Received signal, attempting reload", "signal", s)
 
-		reloadConfig(fileName, mapper, logger)
+		reloadConfig(fileName, mapper, registry, logger)
 	}
 }
 
-func reloadConfig(fileName string, mapper *mapper.MetricMapper, logger *slog.Logger) {
+func reloadConfig(fileName string, mapper *mapper.MetricMapper, registry exporter.Registry, logger *slog.Logger) {
 	err := mapper.InitFromFile(fileName)
 	if err != nil {
 		logger.Info("Error reloading config", "error", err)
 		configLoads.WithLabelValues("failure").Inc()
 	} else {
+		// Reset registry so that metrics with updated bucket/quantile settings
+		// are re-registered with the new configuration.
+		registry.Reset()
 		logger.Info("Config reloaded successfully")
 		configLoads.WithLabelValues("success").Inc()
 	}
@@ -327,6 +330,7 @@ func main() {
 	}
 
 	exporter := exporter.NewExporter(prometheus.DefaultRegisterer, thisMapper, logger, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	exporterRegistry := exporter.Registry
 
 	if *checkConfig {
 		logger.Info("Configuration check successful, exiting")
@@ -519,7 +523,7 @@ func main() {
 					return
 				}
 				logger.Info("Received lifecycle api reload, attempting reload")
-				reloadConfig(*mappingConfig, thisMapper, logger)
+				reloadConfig(*mappingConfig, thisMapper, exporterRegistry, logger)
 			}
 		})
 		mux.HandleFunc("/-/quit", func(w http.ResponseWriter, r *http.Request) {
@@ -548,7 +552,7 @@ func main() {
 
 	go serveHTTP(mux, *listenAddress, logger)
 
-	go sighupConfigReloader(*mappingConfig, thisMapper, logger)
+	go sighupConfigReloader(*mappingConfig, thisMapper, exporterRegistry, logger)
 	go exporter.Listen(events)
 
 	signals := make(chan os.Signal, 1)
