@@ -1,8 +1,13 @@
 ## Unreleased
 
+## 0.31.0 / 2026-09-02
+
 * [FEATURE] Support the optional DogStatsD v1.3 metric timestamp field (`|T<unix_timestamp>`) ([#716](https://github.com/prometheus/statsd_exporter/pull/716))
 * [FEATURE] Support `$0` template reference in `glob` mappings, expanding to the complete StatsD metric name (matching regex mappings, where `$0` expands to the complete regex match) ([#735](https://github.com/prometheus/statsd_exporter/pull/735))
 * [CHANGE][library] `fsm.TemplateFormatter.Format` now takes the original metric name as an additional first argument: `Format(metricName string, captures []string)` instead of `Format(captures []string)` ([#735](https://github.com/prometheus/statsd_exporter/pull/735))
+* [CHANGE] Reject unknown mapping configuration fields and remove support for deprecated `timer_type`, top-level `buckets` and `quantiles`, and `match_metric_type: timer` ([#673](https://github.com/prometheus/statsd_exporter/pull/673))
+* [BUGFIX] Avoid a nil logger panic when initializing a metric mapper ([#709](https://github.com/prometheus/statsd_exporter/pull/709))
+* [CHANGE] Update dependencies, including `github.com/prometheus/client_golang`, `github.com/prometheus/common`, `github.com/prometheus/exporter-toolkit`, and `golang.org/x/net` ([#707](https://github.com/prometheus/statsd_exporter/pull/707), [#717](https://github.com/prometheus/statsd_exporter/pull/717), [#718](https://github.com/prometheus/statsd_exporter/pull/718), [#725](https://github.com/prometheus/statsd_exporter/pull/725), [#732](https://github.com/prometheus/statsd_exporter/pull/732), [#742](https://github.com/prometheus/statsd_exporter/pull/742))
 
 ## 0.30.0 / 2026-05-28
 * [CHANGE] Remove the Dockerfile `HEALTHCHECK` from published container images ([#671](https://github.com/prometheus/statsd_exporter/pull/671))
