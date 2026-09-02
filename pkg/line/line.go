@@ -226,6 +226,20 @@ func (p *Parser) LineToEvents(line string, sampleErrors prometheus.CounterVec, s
 		return events
 	}
 
+	// A DogStatsD line may carry a v1.2 container ID field (|c:<id>) without any
+	// |# tags. The container ID field is always the final pipe-delimited field and
+	// its value may itself contain ':' (for example |c:sha256:...), so such a line
+	// must skip the legacy multi-metric ':' split below, which would otherwise
+	// shred the field and drop the sample as malformed_container_id. A valid legacy
+	// line always ends in a bare stat type (c, g, ms, ...), never "c:<id>", so this
+	// check does not affect legacy multi-metric parsing.
+	usingDogStatsDContainerID := false
+	if idx := strings.LastIndex(elements[1], "|"); idx >= 0 {
+		if last := elements[1][idx+1:]; strings.HasPrefix(last, "c:") && len(last) > len("c:") {
+			usingDogStatsDContainerID = true
+		}
+	}
+
 	var samples []string
 	lineParts := strings.SplitN(elements[1], "|", 3)
 	if len(lineParts) < 2 {
@@ -258,8 +272,8 @@ func (p *Parser) LineToEvents(line string, sampleErrors prometheus.CounterVec, s
 			logger.Debug("bad line: invalid extended aggregate type", "line", line)
 			return events
 		}
-	} else if usingDogStatsDTags {
-		// disable multi-metrics
+	} else if usingDogStatsDTags || usingDogStatsDContainerID {
+		// disable multi-metrics for DogStatsD lines (|# tags and/or |c: container ID)
 		samples = elements[1:]
 	} else {
 		samples = strings.Split(elements[1], ":")
