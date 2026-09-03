@@ -110,7 +110,7 @@ func parseTag(component, tag string, separator rune, labels map[string]string, t
 			if len(k) == 0 || len(v) == 0 {
 				// Empty key or value is an error
 				tagErrors.Inc()
-				logger.Debug("Malformed name tag", "k", k, "v", v, "component", component)
+				logger.Warn("Malformed name tag", "k", k, "v", v, "component", component)
 			} else {
 				labels[mapper.EscapeMetricName(k)] = v
 			}
@@ -120,7 +120,7 @@ func parseTag(component, tag string, separator rune, labels map[string]string, t
 
 	// Missing separator (no value) is an error
 	tagErrors.Inc()
-	logger.Debug("Malformed name tag", "tag", tag, "component", component)
+	logger.Warn("Malformed name tag", "tag", tag, "component", component)
 }
 
 func parseNameTags(component string, labels map[string]string, tagErrors prometheus.Counter, logger *slog.Logger) {
