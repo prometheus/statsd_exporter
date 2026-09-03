@@ -37,6 +37,7 @@ type Registry interface {
 	GetHistogram(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Observer, error)
 	GetSummary(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Observer, error)
 	RemoveStaleMetrics()
+	ClearRegistry()
 }
 
 type Exporter struct {

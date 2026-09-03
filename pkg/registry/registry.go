@@ -395,6 +395,25 @@ func (r *Registry) RemoveStaleMetrics() {
 	}
 }
 
+func (r *Registry) ClearRegistry() {
+	for metricName, metric := range r.Metrics {
+		for hash, rm := range metric.Metrics {
+			metric.Vectors[rm.VecKey].Holder.Delete(rm.Labels)
+			metric.Vectors[rm.VecKey].RefCount--
+			delete(metric.Metrics, hash)
+		}
+		// Clear vectors that have no remaining metrics
+		for vecHash, vec := range metric.Vectors {
+			if vec.RefCount <= 0 {
+				delete(metric.Vectors, vecHash)
+			}
+		}
+		if len(metric.Vectors) == 0 {
+			delete(r.Metrics, metricName)
+		}
+	}
+}
+
 // Calculates a hash of both the label names and values.
 func (r *Registry) HashLabels(labels prometheus.Labels) (metrics.LabelHash, []string) {
 	r.Hasher.Reset()
