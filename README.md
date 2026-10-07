@@ -393,7 +393,7 @@ Set [`use_ms=True`](https://datadogpy.readthedocs.io/en/latest/index.html?highli
 Another capability when using YAML configuration is the ability to define matches
 using raw regular expressions as opposed to the default globbing style of match.
 This may allow for pulling structured data from otherwise poorly named statsd
-metrics AND allow for more precise targetting of match rules. When no `match_type`
+metrics AND allow for more precise targeting of match rules. When no `match_type`
 parameter is specified the default value of `glob` will be assumed:
 
 ```yaml
@@ -418,7 +418,7 @@ By setting this to `true`, `glob` match type will not honor the occurrence of ru
 
 If `summary_options` is present in a mapping config, it will only override the fields set in the mapping. Unset fields in the mapping will take the values from the defaults. 
 
-See [`config.exmple.yml`](config.example.yml) for an annotated example configuration.
+See [`config.example.yml`](config.example.yml) for an annotated example configuration.
 
 ### `drop` action
 
