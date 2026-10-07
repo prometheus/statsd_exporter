@@ -64,7 +64,8 @@ var (
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_events_unmapped_total",
 			Help: "The total number of StatsD events no mapping was found for.",
-		})
+		},
+	)
 	udpPackets = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "statsd_exporter_udp_packets_total",

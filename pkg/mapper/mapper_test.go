@@ -1555,61 +1555,61 @@ mappings:
 				}
 				m, labels, present := mapper.GetMapping(mapping.statsdMetric, mapType)
 				if present && mapping.name != "" && m.Name != mapping.name {
-					t.Fatalf("%d.%q: Expected name %v, got %v", i, metric, m.Name, mapping.name)
+					t.Fatalf("%d.%d: Expected name %v, got %v", i, metric, m.Name, mapping.name)
 				}
 				if mapping.notPresent && present {
-					t.Fatalf("%d.%q: Expected metric to not be present", i, metric)
+					t.Fatalf("%d.%d: Expected metric to not be present", i, metric)
 				}
 				if len(labels) != len(mapping.labels) {
-					t.Fatalf("%d.%q: Expected %d labels, got %d", i, metric, len(mapping.labels), len(labels))
+					t.Fatalf("%d.%d: Expected %d labels, got %d", i, metric, len(mapping.labels), len(labels))
 				}
 				for label, value := range labels {
 					if mapping.labels[label] != value {
-						t.Fatalf("%d.%q: Expected labels %v, got %v", i, metric, mapping, labels)
+						t.Fatalf("%d.%d: Expected labels %v, got %v", i, metric, mapping, labels)
 					}
 				}
 				if mapping.ttl > 0 && mapping.ttl != m.Ttl {
-					t.Fatalf("%d.%q: Expected ttl of %s, got %s", i, metric, mapping.ttl.String(), m.Ttl.String())
+					t.Fatalf("%d.%d: Expected ttl of %s, got %s", i, metric, mapping.ttl.String(), m.Ttl.String())
 				}
 				if mapping.metricType != "" && mapType != m.MatchMetricType {
-					t.Fatalf("%d.%q: Expected match metric of %s, got %s", i, metric, mapType, m.MatchMetricType)
+					t.Fatalf("%d.%d: Expected match metric of %s, got %s", i, metric, mapType, m.MatchMetricType)
 				}
 
 				if len(mapping.buckets) != 0 {
 					if len(mapping.buckets) != len(m.HistogramOptions.Buckets) {
-						t.Fatalf("%d.%q: Expected %d buckets, got %d", i, metric, len(mapping.buckets), len(m.HistogramOptions.Buckets))
+						t.Fatalf("%d.%d: Expected %d buckets, got %d", i, metric, len(mapping.buckets), len(m.HistogramOptions.Buckets))
 					}
 					for i, bucket := range mapping.buckets {
 						if bucket != m.HistogramOptions.Buckets[i] {
-							t.Fatalf("%d.%q: Expected bucket %v, got %v", i, metric, m.HistogramOptions.Buckets[i], bucket)
+							t.Fatalf("%d.%d: Expected bucket %v, got %v", i, metric, m.HistogramOptions.Buckets[i], bucket)
 						}
 					}
 				}
 
 				if len(mapping.quantiles) != 0 {
 					if len(mapping.quantiles) != len(m.SummaryOptions.Quantiles) {
-						t.Fatalf("%d.%q: Expected %d quantiles, got %d", i, metric, len(mapping.quantiles), len(m.SummaryOptions.Quantiles))
+						t.Fatalf("%d.%d: Expected %d quantiles, got %d", i, metric, len(mapping.quantiles), len(m.SummaryOptions.Quantiles))
 					}
 					for i, quantile := range mapping.quantiles {
 						if quantile.Quantile != m.SummaryOptions.Quantiles[i].Quantile {
-							t.Fatalf("%d.%q: Expected quantile %v, got %v", i, metric, m.SummaryOptions.Quantiles[i].Quantile, quantile.Quantile)
+							t.Fatalf("%d.%d: Expected quantile %v, got %v", i, metric, m.SummaryOptions.Quantiles[i].Quantile, quantile.Quantile)
 						}
 						if quantile.Error != m.SummaryOptions.Quantiles[i].Error {
-							t.Fatalf("%d.%q: Expected Error margin %v, got %v", i, metric, m.SummaryOptions.Quantiles[i].Error, quantile.Error)
+							t.Fatalf("%d.%d: Expected Error margin %v, got %v", i, metric, m.SummaryOptions.Quantiles[i].Error, quantile.Error)
 						}
 					}
 				}
 				if mapping.maxAge != 0 && mapping.maxAge != m.SummaryOptions.MaxAge {
-					t.Fatalf("%d.%q: Expected max age %v, got %v", i, metric, mapping.maxAge, m.SummaryOptions.MaxAge)
+					t.Fatalf("%d.%d: Expected max age %v, got %v", i, metric, mapping.maxAge, m.SummaryOptions.MaxAge)
 				}
 				if mapping.ageBuckets != 0 && mapping.ageBuckets != m.SummaryOptions.AgeBuckets {
-					t.Fatalf("%d.%q: Expected max age %v, got %v", i, metric, mapping.ageBuckets, m.SummaryOptions.AgeBuckets)
+					t.Fatalf("%d.%d: Expected max age %v, got %v", i, metric, mapping.ageBuckets, m.SummaryOptions.AgeBuckets)
 				}
 				if mapping.bufCap != 0 && mapping.bufCap != m.SummaryOptions.BufCap {
-					t.Fatalf("%d.%q: Expected max age %v, got %v", i, metric, mapping.bufCap, m.SummaryOptions.BufCap)
+					t.Fatalf("%d.%d: Expected max age %v, got %v", i, metric, mapping.bufCap, m.SummaryOptions.BufCap)
 				}
 				if present && mapping.scale != m.Scale {
-					t.Fatalf("%d.%q: Expected scale %v, got %v", i, metric, mapping.scale, m.Scale)
+					t.Fatalf("%d.%d: Expected scale %v, got %v", i, metric, mapping.scale, m.Scale)
 				}
 			}
 		})
