@@ -37,6 +37,9 @@ type Registry interface {
 	GetHistogram(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Observer, error)
 	GetSummary(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Observer, error)
 	RemoveStaleMetrics()
+	// Reset clears all cached metrics, forcing re-registration on next use.
+	// This is needed after config reload to pick up new bucket/quantile settings.
+	Reset()
 }
 
 type Exporter struct {
