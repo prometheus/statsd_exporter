@@ -839,6 +839,46 @@ func TestLineToEvents(t *testing.T) {
 				},
 			},
 		},
+		"dogstatsd container ID without tags (counter)": {
+			in: "foo:100|c|c:container123",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"container_id": "container123"},
+				},
+			},
+		},
+		"dogstatsd container ID without tags (gauge)": {
+			in: "foo:50|g|c:gauge_container",
+			out: event.Events{
+				&event.GaugeEvent{
+					GMetricName: "foo",
+					GValue:      50,
+					GLabels:     map[string]string{"container_id": "gauge_container"},
+				},
+			},
+		},
+		"dogstatsd container ID without tags (timer)": {
+			in: "foo:1000|ms|c:timer_container",
+			out: event.Events{
+				&event.ObserverEvent{
+					OMetricName: "foo",
+					OValue:      1,
+					OLabels:     map[string]string{"container_id": "timer_container"},
+				},
+			},
+		},
+		"dogstatsd container ID without tags (complex value)": {
+			in: "foo:100|c|c:sha256:abcd1234efgh5678",
+			out: event.Events{
+				&event.CounterEvent{
+					CMetricName: "foo",
+					CValue:      100,
+					CLabels:     map[string]string{"container_id": "sha256:abcd1234efgh5678"},
+				},
+			},
+		},
 		"dogstatsd container ID with tags": {
 			in: "foo:100|c|#tag1:bar,tag2:baz|c:container456",
 			out: event.Events{
