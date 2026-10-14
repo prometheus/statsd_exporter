@@ -20,7 +20,8 @@ The relay feature allows for a gradual transition.
 
 Introduce the exporter by adding it as a sidecar alongside the application instances.
 In Kubernetes, this means adding it to the [pod](https://kubernetes.io/docs/concepts/workloads/pods/).
-Use the `--statsd.relay.address` to forward metrics to your existing StatsD UDP endpoint.
+Use `--statsd.relay.address` to forward metrics to an existing StatsD UDP endpoint.
+Repeat the flag to relay to multiple targets.
 Relaying forwards statsd events unmodified, preserving the original metric name and tags in any format.
 
     +-------------+    +----------+                  +------------+
@@ -119,6 +120,14 @@ by sending a `PUT` or `POST` request to the `/-/reload` or `/-/quit` endpoints.
 ## Relay
 
 The `statsd_exporter` has an optional mode that will buffer and relay incoming statsd lines to a remote server. This is useful to "tee" the data when migrating to using the exporter. The relay will flush the buffer at least once per second to avoid delaying delivery of metrics.
+
+Repeat `--statsd.relay.address` to relay the same lines to multiple UDP targets:
+
+```
+--statsd.relay.address=statsd-a.example.org:8125 --statsd.relay.address=statsd-b.example.org:8125
+```
+
+Each target is independent. Relay metrics include a `target` label.
 
 ## Tests
 
