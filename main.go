@@ -266,7 +266,7 @@ func main() {
 		influxdbTagsEnabled  = kingpin.Flag("statsd.parse-influxdb-tags", "Parse InfluxDB style tags. Enabled by default.").Default("true").Bool()
 		libratoTagsEnabled   = kingpin.Flag("statsd.parse-librato-tags", "Parse Librato style tags. Enabled by default.").Default("true").Bool()
 		signalFXTagsEnabled  = kingpin.Flag("statsd.parse-signalfx-tags", "Parse SignalFX style tags. Enabled by default.").Default("true").Bool()
-		relayAddr            = kingpin.Flag("statsd.relay.address", "The UDP relay target address (host:port)").String()
+		relayAddr            = kingpin.Flag("statsd.relay.address", "The UDP relay target address (host:port). Repeat to relay to multiple targets.").Strings()
 		relayPacketLen       = kingpin.Flag("statsd.relay.packet-length", "Maximum relay output packet length to avoid fragmentation").Default("1400").Uint()
 		udpPacketQueueSize   = kingpin.Flag("statsd.udp-packet-queue-size", "Size of internal queue for processing UDP packets.").Default("10000").Int()
 	)
@@ -334,13 +334,21 @@ func main() {
 		return
 	}
 
-	var relayTarget *relay.Relay
-	if *relayAddr != "" {
-		var err error
-		relayTarget, err = relay.NewRelay(logger, *relayAddr, *relayPacketLen)
-		if err != nil {
-			logger.Error("Unable to create relay", "err", err)
-			os.Exit(1)
+	var relayTarget listener.LineRelayer
+	if len(*relayAddr) > 0 {
+		relays := make([]*relay.Relay, 0, len(*relayAddr))
+		for _, addr := range *relayAddr {
+			r, err := relay.NewRelay(logger, addr, *relayPacketLen)
+			if err != nil {
+				logger.Error("Unable to create relay", "err", err)
+				os.Exit(1)
+			}
+			relays = append(relays, r)
+		}
+		if len(relays) == 1 {
+			relayTarget = relays[0]
+		} else {
+			relayTarget = relay.NewRelays(relays)
 		}
 	}
 
