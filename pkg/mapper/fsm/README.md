@@ -5,14 +5,14 @@
 This package implements a fast and efficient algorithm for generic glob style
 string matching using a finite state machine (FSM).
 
-### Source Hierachy
+### Source Hierarchy
 
 ```
   '-- fsm
       '-- dump.go // functionality to dump the FSM to Dot file
       '-- formatter.go // format glob templates using captured * groups
       '-- fsm.go // manipulating and searching of FSM
-      '-- minmax.go // min() max() function for interger
+      '-- minmax.go // min() max() function for integer
 ```
 
 ## FSM Explained
@@ -27,7 +27,7 @@ Per [Wikipedia](https://en.wikipedia.org/wiki/Finite-state_machine):
 > another is called a transition. An FSM is defined by a list of its states, its
 > initial state, and the conditions for each transition.
 
-In our use case, each *state* is a substring after the input StatsD metric name is splitted by `.`.
+In our use case, each *state* is a substring after the input StatsD metric name is split by `.`.
 
 ### Add state to FSM
 
