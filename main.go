@@ -213,16 +213,19 @@ type metricsClearer interface {
 
 func clearMetricsHandler(clearer metricsClearer, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPut || r.Method == http.MethodPost {
-			cleared, err := clearer.ClearMetrics(r.Context())
-			if err != nil {
-				logger.Error("Failed to clear metrics", "error", err)
-				http.Error(w, err.Error(), http.StatusServiceUnavailable)
-				return
-			}
-			logger.Info("Received lifecycle api clear", "metrics", cleared)
-			fmt.Fprintf(w, "Cleared %d metric series", cleared)
+		if r.Method != http.MethodPut && r.Method != http.MethodPost {
+			w.Header().Set("Allow", "PUT, POST")
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			return
 		}
+		cleared, err := clearer.ClearMetrics(r.Context())
+		if err != nil {
+			logger.Error("Failed to clear metrics", "error", err)
+			http.Error(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		logger.Info("Received lifecycle api clear", "metrics", cleared)
+		fmt.Fprintf(w, "Cleared %d metric series", cleared)
 	}
 }
 

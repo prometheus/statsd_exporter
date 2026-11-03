@@ -68,3 +68,29 @@ func TestClearMetricsHandlerError(t *testing.T) {
 		t.Fatalf("unexpected response body: %q", body)
 	}
 }
+
+func TestClearMetricsHandlerMethods(t *testing.T) {
+	for _, method := range []string{http.MethodPut, http.MethodPost} {
+		clearer := &fakeMetricsClearer{}
+		response := httptest.NewRecorder()
+		clearMetricsHandler(clearer, promslog.NewNopLogger()).ServeHTTP(response, httptest.NewRequest(method, "/-/clear", nil))
+
+		if response.Code != http.StatusOK || clearer.called != 1 {
+			t.Fatalf("%s: expected status %d and one clear, got %d and %d", method, http.StatusOK, response.Code, clearer.called)
+		}
+	}
+
+	clearer := &fakeMetricsClearer{}
+	response := httptest.NewRecorder()
+	clearMetricsHandler(clearer, promslog.NewNopLogger()).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/-/clear", nil))
+
+	if response.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected status %d, got %d", http.StatusMethodNotAllowed, response.Code)
+	}
+	if allow := response.Header().Get("Allow"); allow != "PUT, POST" {
+		t.Fatalf("unexpected Allow header: %q", allow)
+	}
+	if clearer.called != 0 {
+		t.Fatalf("expected clearer not to be called, got %d", clearer.called)
+	}
+}

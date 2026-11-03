@@ -116,6 +116,10 @@ func (b *Exporter) Listen(e <-chan event.Events) {
 }
 
 // ClearMetrics clears all dynamically registered StatsD time series.
+//
+// Clearing runs inside the exporter event loop, so no StatsD events are
+// processed until it finishes. With a large number of registered series this
+// can take a while and the exporter may appear to hang.
 func (b *Exporter) ClearMetrics(ctx context.Context) (int, error) {
 	if ctx == nil {
 		ctx = context.Background()
