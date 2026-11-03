@@ -113,7 +113,7 @@ NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/king
 
 ## Lifecycle API
 
-The `statsd_exporter` has an optional lifecycle API (disabled by default) that can be used to reload, quit, or clear the exporter
+The `statsd_exporter` has an optional lifecycle API (disabled by default) that can be used to reload, quit, or clear dynamically registered StatsD metric series
 by sending a `PUT` or `POST` request to the `/-/reload`, `/-/quit`, or `/-/clear` endpoints.
 
 ## Relay

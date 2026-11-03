@@ -14,6 +14,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -25,11 +27,12 @@ import (
 type fakeMetricsClearer struct {
 	cleared int
 	called  int
+	err     error
 }
 
-func (f *fakeMetricsClearer) ClearMetrics() int {
+func (f *fakeMetricsClearer) ClearMetrics(_ context.Context) (int, error) {
 	f.called++
-	return f.cleared
+	return f.cleared, f.err
 }
 
 func TestClearMetricsHandler(t *testing.T) {
@@ -45,6 +48,23 @@ func TestClearMetricsHandler(t *testing.T) {
 		t.Fatalf("expected clearer to be called once, got %d", clearer.called)
 	}
 	if body := response.Body.String(); !strings.Contains(body, "Cleared 3 metric series") {
+		t.Fatalf("unexpected response body: %q", body)
+	}
+}
+
+func TestClearMetricsHandlerError(t *testing.T) {
+	clearer := &fakeMetricsClearer{err: errors.New("clear failed")}
+	handler := clearMetricsHandler(clearer, promslog.NewNopLogger())
+
+	request := httptest.NewRequest(http.MethodPost, "/-/clear", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected status %d, got %d", http.StatusServiceUnavailable, response.Code)
+	}
+	if body := response.Body.String(); !strings.Contains(body, "clear failed") {
 		t.Fatalf("unexpected response body: %q", body)
 	}
 }
