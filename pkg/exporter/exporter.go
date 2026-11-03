@@ -37,6 +37,7 @@ type Registry interface {
 	GetHistogram(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Observer, error)
 	GetSummary(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Observer, error)
 	RemoveStaleMetrics()
+	ClearMetrics() int
 }
 
 type Exporter struct {
@@ -49,6 +50,7 @@ type Exporter struct {
 	EventStats            *prometheus.CounterVec
 	ConflictingEventStats *prometheus.CounterVec
 	MetricsCount          *prometheus.GaugeVec
+	clearMetrics          chan chan int
 }
 
 // Listen handles all events sent to the given channel sequentially. It
@@ -60,6 +62,8 @@ func (b *Exporter) Listen(e <-chan event.Events) {
 		select {
 		case <-removeStaleMetricsTicker.C:
 			b.Registry.RemoveStaleMetrics()
+		case cleared := <-b.clearMetrics:
+			cleared <- b.Registry.ClearMetrics()
 		case events, ok := <-e:
 			if !ok {
 				b.Logger.Debug("Channel is closed. Break out of Exporter.Listener.")
@@ -71,6 +75,13 @@ func (b *Exporter) Listen(e <-chan event.Events) {
 			}
 		}
 	}
+}
+
+// ClearMetrics clears all dynamically registered StatsD time series.
+func (b *Exporter) ClearMetrics() int {
+	cleared := make(chan int)
+	b.clearMetrics <- cleared
+	return <-cleared
 }
 
 // handleEvent processes a single Event according to the configured mapping.
@@ -207,5 +218,6 @@ func NewExporter(reg prometheus.Registerer, mapper *mapper.MetricMapper, logger 
 		EventStats:            eventStats,
 		ConflictingEventStats: conflictingEventStats,
 		MetricsCount:          metricsCount,
+		clearMetrics:          make(chan chan int),
 	}
 }

@@ -206,6 +206,20 @@ func reloadConfig(fileName string, mapper *mapper.MetricMapper, logger *slog.Log
 	}
 }
 
+type metricsClearer interface {
+	ClearMetrics() int
+}
+
+func clearMetricsHandler(clearer metricsClearer, logger *slog.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut || r.Method == http.MethodPost {
+			cleared := clearer.ClearMetrics()
+			logger.Info("Received lifecycle api clear", "metrics", cleared)
+			fmt.Fprintf(w, "Cleared %d metric series", cleared)
+		}
+	}
+}
+
 func dumpFSM(mapper *mapper.MetricMapper, dumpFilename string, logger *slog.Logger) error {
 	f, err := os.Create(dumpFilename)
 	if err != nil {
@@ -529,6 +543,7 @@ func main() {
 				quitChan <- struct{}{}
 			}
 		})
+		mux.HandleFunc("/-/clear", clearMetricsHandler(exporter, logger))
 	}
 
 	mux.HandleFunc("/-/healthy", func(w http.ResponseWriter, r *http.Request) {
