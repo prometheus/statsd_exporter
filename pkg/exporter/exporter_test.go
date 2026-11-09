@@ -673,7 +673,7 @@ mappings:
 
 // TestEmptyStringMetric validates when a metric name ends up
 // being the empty string after applying the match replacements
-// tha we don't panic the Exporter Listener.
+// that we don't panic the Exporter Listener.
 func TestEmptyStringMetric(t *testing.T) {
 	events := make(chan event.Events)
 	go func() {

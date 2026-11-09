@@ -988,7 +988,7 @@ mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)
 }
 
 func BenchmarkGlob100RulesCached100MetricsRandomSmallCache(b *testing.B) {
-	// Slighly more realistic benchmark with a smaller cache.
+	// Slightly more realistic benchmark with a smaller cache.
 	// Randomly match metrics so we should have some cache hits.
 	config := `---
 mappings:` + duplicateRules(100, ruleTemplateSingleMatchGlob)

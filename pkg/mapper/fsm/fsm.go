@@ -234,7 +234,7 @@ func (f *FSM) GetMapping(statsdMetric, statsdMetricType string) (*mappingState, 
 // and whether ordering is disabled.
 func TestIfNeedBacktracking(mappings []string, orderingDisabled bool, logger *slog.Logger) bool {
 	backtrackingNeeded := false
-	// A has * in rules, but there's other transisitions at the same state,
+	// A has * in rules, but there are other transitions at the same state,
 	// this makes A the cause of backtracking
 	ruleByLength := make(map[int][]string)
 	ruleREByLength := make(map[int][]*regexp.Regexp)
@@ -316,7 +316,7 @@ func TestIfNeedBacktracking(mappings []string, orderingDisabled bool, logger *sl
 	}
 
 	// backtracking will always be needed if ordering of rules is not disabled
-	// since transistions are stored in (unordered) map
+	// since transitions are stored in (unordered) map
 	// note: don't move this branch to the beginning of this function
 	// since we need logs for superset rules
 

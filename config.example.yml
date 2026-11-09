@@ -31,7 +31,7 @@ defaults:
     buf_cap: 1000
   # Match using glob patterns by default, it is much faster than regex.
   match_type: glob
-  # Sepecific matches take precedence over *, ignoring the order of the mapping rules.
+  # Specific matches take precedence over *, ignoring the order of the mapping rules.
   # Regex matches are always evaluated after glob matches, and do honor the
   # order of mapping rules. Avoid using regex matches where possible.
   glob_disable_ordering: true
