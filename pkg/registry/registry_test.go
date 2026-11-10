@@ -22,6 +22,7 @@ import (
 
 	"github.com/prometheus/statsd_exporter/pkg/clock"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
+	"github.com/prometheus/statsd_exporter/pkg/metrics"
 )
 
 func newTestRegistry() (*Registry, *prometheus.Registry, *prometheus.GaugeVec) {
@@ -181,6 +182,40 @@ func TestRemoveStaleMetricsRefCountGuard(t *testing.T) {
 	for _, v := range metric.Vectors {
 		if v.RefCount != 0 {
 			t.Fatalf("expected RefCount to stay 0, got %d", v.RefCount)
+		}
+	}
+}
+
+// deleteOnlyHolder is a VectorHolder without Reset.
+type deleteOnlyHolder struct{ deleted int }
+
+func (h *deleteOnlyHolder) Delete(prometheus.Labels) bool {
+	h.deleted++
+	return true
+}
+
+func TestClearMetricsHolderWithoutReset(t *testing.T) {
+	r, _, _ := newTestRegistry()
+	holder := &deleteOnlyHolder{}
+	for _, value := range []string{"a", "b"} {
+		labels := prometheus.Labels{"env": value}
+		hash, _ := r.HashLabels(labels)
+		r.Store("delete_only", hash, labels, holder, nil, metrics.GaugeMetricType, 0)
+	}
+
+	if cleared := r.ClearMetrics(); cleared != 2 {
+		t.Fatalf("expected ClearMetrics to return 2, got %d", cleared)
+	}
+	if holder.deleted != 2 {
+		t.Fatalf("expected 2 per-series deletes, got %d", holder.deleted)
+	}
+	metric := r.Metrics["delete_only"]
+	if len(metric.Metrics) != 0 {
+		t.Fatalf("expected no registered series, got %d", len(metric.Metrics))
+	}
+	for _, v := range metric.Vectors {
+		if v.RefCount != 0 {
+			t.Fatalf("expected RefCount 0, got %d", v.RefCount)
 		}
 	}
 }
