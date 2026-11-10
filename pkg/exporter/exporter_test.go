@@ -1615,3 +1615,105 @@ func BenchmarkHashNameAndLabels(b *testing.B) {
 		})
 	}
 }
+
+// TestClearMetricsDropsPendingSets checks that values a set received before
+// the registry was cleared are not counted at the next flush.
+func TestClearMetricsDropsPendingSets(t *testing.T) {
+	clockInstance := clock.ClockInstance
+	clock.ClockInstance = nil
+	defer func() {
+		clock.ClockInstance = clockInstance
+	}()
+
+	reg := prometheus.NewRegistry()
+	testMapper := mapper.MetricMapper{}
+	ex := NewExporter(reg, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	events := make(chan event.Events)
+	done := make(chan struct{})
+	go func() {
+		ex.Listen(events)
+		close(done)
+	}()
+
+	set := func(value string) *event.SetEvent {
+		return &event.SetEvent{SMetricName: "active_users", SValue: value, SLabels: map[string]string{}}
+	}
+
+	events <- event.Events{set("alice"), set("bob")}
+	events <- event.Events{}
+
+	if _, err := ex.ClearMetrics(context.Background()); err != nil {
+		t.Fatalf("ClearMetrics should not fail: %v", err)
+	}
+
+	events <- event.Events{set("carol")}
+	events <- event.Events{}
+	close(events)
+	<-done
+
+	ex.FlushSets()
+	metrics, err := reg.Gather()
+	if err != nil {
+		t.Fatalf("Cannot gather: %v", err)
+	}
+	value := getFloat64(metrics, "active_users", prometheus.Labels{})
+	if value == nil || *value != 1 {
+		t.Fatalf("Expected only the value received after the clear to be counted, got %v", value)
+	}
+}
+
+func TestSetFlush(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	testMapper := mapper.MetricMapper{}
+	ex := NewExporter(reg, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+
+	labels := map[string]string{"env": "prod"}
+	set := func(value string, labels map[string]string) *event.SetEvent {
+		copied := map[string]string{}
+		for k, v := range labels {
+			copied[k] = v
+		}
+		return &event.SetEvent{SMetricName: "active_users", SValue: value, SLabels: copied}
+	}
+	value := func() float64 {
+		t.Helper()
+		metrics, err := reg.Gather()
+		if err != nil {
+			t.Fatalf("Cannot gather: %v", err)
+		}
+		v := getFloat64(metrics, "active_users", labels)
+		if v == nil {
+			t.Fatal("active_users gauge is missing")
+		}
+		return *v
+	}
+
+	for _, v := range []string{"alice", "bob", "alice", "carol", "bob"} {
+		ex.handleEvent(set(v, labels))
+	}
+	// A different label set is a different set.
+	ex.handleEvent(set("dave", map[string]string{"env": "dev"}))
+
+	if got := value(); got != 0 {
+		t.Fatalf("Set gauge should stay at 0 until the first flush, got %v", got)
+	}
+
+	ex.FlushSets()
+	if got := value(); got != 3 {
+		t.Fatalf("Expected 3 distinct values after the first flush, got %v", got)
+	}
+
+	ex.handleEvent(set("erin", labels))
+	ex.FlushSets()
+	if got := value(); got != 1 {
+		t.Fatalf("Expected the set to be emptied by the flush and hold 1 value, got %v", got)
+	}
+
+	ex.FlushSets()
+	if got := value(); got != 0 {
+		t.Fatalf("Expected 0 after a flush interval without values, got %v", got)
+	}
+	if _, ok := ex.sets[setKey("active_users", labels)]; ok {
+		t.Fatal("An empty set should be forgotten after reporting 0")
+	}
+}

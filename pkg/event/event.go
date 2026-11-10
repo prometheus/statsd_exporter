@@ -67,6 +67,22 @@ func (o *ObserverEvent) Labels() map[string]string     { return o.OLabels }
 func (o *ObserverEvent) MetricType() mapper.MetricType { return mapper.MetricTypeObserver }
 func (o *ObserverEvent) Values() []float64             { return []float64{o.OValue} }
 
+// SetEvent is a StatsD set sample. Sets count the distinct values received
+// during each set flush interval, so the value is kept as the raw string.
+type SetEvent struct {
+	SMetricName string
+	SValue      string
+	SLabels     map[string]string
+}
+
+func (s *SetEvent) MetricName() string        { return s.SMetricName }
+func (s *SetEvent) Value() float64            { return 0 }
+func (s *SetEvent) Labels() map[string]string { return s.SLabels }
+
+// MetricType returns the gauge type, since a set is exposed as a gauge of
+// the number of distinct values.
+func (s *SetEvent) MetricType() mapper.MetricType { return mapper.MetricTypeGauge }
+
 type Events []Event
 
 type EventQueue struct {
