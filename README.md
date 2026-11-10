@@ -116,6 +116,12 @@ NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/king
 The `statsd_exporter` has an optional lifecycle API (disabled by default) that can be used to reload, quit, or clear dynamically registered StatsD metric series
 by sending a `PUT` or `POST` request to the `/-/reload`, `/-/quit`, or `/-/clear` endpoints.
 
+`/-/clear` removes the current series but keeps each metric's type and vector configuration, the same way TTL expiry does.
+Incoming events recreate series with fresh state, for example counters start again from zero.
+Data that Prometheus has already scraped is not affected.
+Because metric types are kept, a type conflict is still rejected after a clear: if `foo` was registered as a gauge, a counter named `foo` is still rejected.
+To fix such a conflict, restart the exporter or change the metric name.
+
 ## Relay
 
 The `statsd_exporter` has an optional mode that will buffer and relay incoming statsd lines to a remote server. This is useful to "tee" the data when migrating to using the exporter. The relay will flush the buffer at least once per second to avoid delaying delivery of metrics.
