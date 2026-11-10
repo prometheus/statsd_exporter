@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -1264,6 +1266,83 @@ func TestClearMetrics(t *testing.T) {
 	gaugeValue = getFloat64(metrics, "clearable_gauge", prometheus.Labels{})
 	if gaugeValue == nil || *gaugeValue != 42 {
 		t.Fatalf("Gauge `clearable_gauge` should be gathered again with value 42, got %v", gaugeValue)
+	}
+}
+
+// TestClearMetricsConcurrentScrapeAndIngest clears while other goroutines
+// scrape and send events, including while series are being recreated. Run it
+// with -race.
+func TestClearMetricsConcurrentScrapeAndIngest(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	testMapper := mapper.MetricMapper{}
+	ex := NewExporter(reg, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	events := make(chan event.Events)
+	listenDone := make(chan struct{})
+	go func() {
+		ex.Listen(events)
+		close(listenDone)
+	}()
+	// Wait for Listen to start.
+	events <- event.Events{}
+
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for i := 0; ; i++ {
+			batch := event.Events{
+				&event.CounterEvent{CMetricName: "concurrent_counter", CValue: 1, CLabels: map[string]string{"series": strconv.Itoa(i % 50)}},
+				&event.GaugeEvent{GMetricName: "concurrent_gauge", GValue: 1, GLabels: map[string]string{"series": strconv.Itoa(i % 50)}},
+			}
+			select {
+			case events <- batch:
+			case <-stop:
+				return
+			}
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			if _, err := reg.Gather(); err != nil {
+				t.Error(err)
+				return
+			}
+		}
+	}()
+
+	for i := 0; i < 20; i++ {
+		if _, err := ex.ClearMetrics(context.Background()); err != nil {
+			t.Fatalf("ClearMetrics should not fail: %v", err)
+		}
+	}
+	close(stop)
+	wg.Wait()
+
+	// After the last clear, one event recreates one series of each metric.
+	if _, err := ex.ClearMetrics(context.Background()); err != nil {
+		t.Fatalf("ClearMetrics should not fail: %v", err)
+	}
+	events <- event.Events{&event.GaugeEvent{GMetricName: "concurrent_gauge", GValue: 7, GLabels: map[string]string{"series": "0"}}}
+	events <- event.Events{}
+	close(events)
+	<-listenDone
+
+	metrics, err := reg.Gather()
+	if err != nil {
+		t.Fatal("Gather should not fail")
+	}
+	if v := getFloat64(metrics, "concurrent_gauge", prometheus.Labels{"series": "0"}); v == nil || *v != 7 {
+		t.Fatalf("expected concurrent_gauge{series=\"0\"} to be recreated with 7, got %v", v)
+	}
+	if v := getFloat64(metrics, "concurrent_gauge", prometheus.Labels{"series": "1"}); v != nil {
+		t.Fatalf("expected concurrent_gauge{series=\"1\"} to stay cleared, got %v", *v)
 	}
 }
 
