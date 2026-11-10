@@ -378,6 +378,10 @@ func (r *Registry) GetSummary(metricName string, labels prometheus.Labels, help 
 	return observer, nil
 }
 
+func (r *Registry) Reset() {
+	r.Metrics = make(map[string]metrics.Metric)
+}
+
 func (r *Registry) RemoveStaleMetrics() {
 	now := clock.Now()
 	// delete timeseries with expired ttl
