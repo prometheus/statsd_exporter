@@ -1321,6 +1321,50 @@ func TestClearMetricsUnsupportedRegistry(t *testing.T) {
 	}
 }
 
+func TestClearMetricsStructLiteralExporter(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	testMapper := mapper.MetricMapper{}
+	ex := &Exporter{
+		Mapper:                &testMapper,
+		Registry:              registry.NewRegistry(reg, &testMapper),
+		Logger:                promslog.NewNopLogger(),
+		EventsActions:         eventsActions,
+		EventsUnmapped:        eventsUnmapped,
+		ErrorEventStats:       errorEventStats,
+		EventStats:            eventStats,
+		ConflictingEventStats: conflictingEventStats,
+		MetricsCount:          metricsCount,
+	}
+	events := make(chan event.Events)
+	done := make(chan struct{})
+	go func() {
+		ex.Listen(events)
+		close(done)
+	}()
+	defer func() {
+		close(events)
+		<-done
+	}()
+	events <- event.Events{
+		&event.GaugeEvent{
+			GMetricName: "struct_literal_gauge",
+			GValue:      1,
+		},
+	}
+	events <- event.Events{}
+
+	// Bound the call so a hang fails the test instead of blocking it.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cleared, err := ex.ClearMetrics(ctx)
+	if err != nil {
+		t.Fatalf("ClearMetrics on a struct-literal Exporter should not fail: %v", err)
+	}
+	if cleared != 1 {
+		t.Fatalf("Expected to clear 1 metric series, cleared %d", cleared)
+	}
+}
+
 func TestHashLabelNames(t *testing.T) {
 	r := registry.NewRegistry(prometheus.DefaultRegisterer, nil)
 	// Validate value hash changes and name has doesn't when just the value changes.

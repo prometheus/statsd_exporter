@@ -87,7 +87,9 @@ func (b *Exporter) Listen(e <-chan event.Events) {
 	b.listenStateMtx.Lock()
 	b.listening = true
 	b.listenDone = make(chan struct{})
+	b.clearMetrics = make(chan clearMetricsRequest)
 	done := b.listenDone
+	clearMetrics := b.clearMetrics
 	b.listenStateMtx.Unlock()
 
 	defer func() {
@@ -101,7 +103,7 @@ func (b *Exporter) Listen(e <-chan event.Events) {
 		select {
 		case <-removeStaleMetricsTicker.C:
 			b.Registry.RemoveStaleMetrics()
-		case request := <-b.clearMetrics:
+		case request := <-clearMetrics:
 			request.result <- b.clearRegistryMetrics()
 		case events, ok := <-e:
 			if !ok {
@@ -125,7 +127,7 @@ func (b *Exporter) ClearMetrics(ctx context.Context) (int, error) {
 		ctx = context.Background()
 	}
 
-	done, ok := b.listenState()
+	done, clearMetrics, ok := b.listenState()
 	if !ok {
 		return 0, ErrExporterNotRunning
 	}
@@ -135,7 +137,7 @@ func (b *Exporter) ClearMetrics(ctx context.Context) (int, error) {
 	}
 
 	select {
-	case b.clearMetrics <- request:
+	case clearMetrics <- request:
 	case <-done:
 		return 0, ErrExporterNotRunning
 	case <-ctx.Done():
@@ -150,10 +152,10 @@ func (b *Exporter) ClearMetrics(ctx context.Context) (int, error) {
 	}
 }
 
-func (b *Exporter) listenState() (<-chan struct{}, bool) {
+func (b *Exporter) listenState() (<-chan struct{}, chan<- clearMetricsRequest, bool) {
 	b.listenStateMtx.RLock()
 	defer b.listenStateMtx.RUnlock()
-	return b.listenDone, b.listening
+	return b.listenDone, b.clearMetrics, b.listening
 }
 
 func (b *Exporter) clearRegistryMetrics() clearMetricsResult {
@@ -298,6 +300,5 @@ func NewExporter(reg prometheus.Registerer, mapper *mapper.MetricMapper, logger 
 		EventStats:            eventStats,
 		ConflictingEventStats: conflictingEventStats,
 		MetricsCount:          metricsCount,
-		clearMetrics:          make(chan clearMetricsRequest),
 	}
 }
