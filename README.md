@@ -309,6 +309,18 @@ By default, labels specified in the mapping configuration take precedence over t
 To set the label value to the original tag value, if present, specify `honor_labels: true` in the mapping configuration.
 In this case, the label specified in the mapping acts as a default.
 
+### StatsD sets
+
+StatsD sets (`users.active:alice|s`) count how many distinct values were
+received. Like StatsD itself, the exporter counts them per flush interval: every
+`--statsd.set-flush-interval` (1 minute by default) it sets a gauge to the number
+of distinct values the set received since the previous flush and empties the
+set. A set that received nothing in an interval reports 0 once.
+
+The gauge is named and labelled like any other metric, so mappings apply to sets
+too. Sets are matched as gauges, so use `match_metric_type: gauge` to target them
+explicitly.
+
 ### StatsD timers and distributions
 
 By default, statsd timers and distributions (collectively "observers") are
@@ -466,6 +478,7 @@ mappings:
 ```
 
 Possible values for `match_metric_type` are `gauge`, `counter` and `observer`.
+Sets match `gauge`.
 
 ### Mapping cache size and cache replacement policy
 

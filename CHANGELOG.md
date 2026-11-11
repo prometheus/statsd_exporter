@@ -1,6 +1,7 @@
 ## Unreleased
 
 * [FEATURE] Add a lifecycle `/-/clear` endpoint to clear registered StatsD time series without restarting the exporter ([#714](https://github.com/prometheus/statsd_exporter/pull/714))
+* [FEATURE] Support StatsD sets, counted per `--statsd.set-flush-interval` and exposed as gauges ([#768](https://github.com/prometheus/statsd_exporter/pull/768))
 
 ## 0.31.0 / 2026-09-02
 
