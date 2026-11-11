@@ -14,9 +14,13 @@
 package exporter
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -1164,6 +1168,279 @@ mappings:
 	}
 	if foobarValue != nil {
 		t.Fatalf("Gauge `foobar` should not be gathered after expiration")
+	}
+}
+
+type noClearRegistry struct {
+	inner *registry.Registry
+}
+
+var _ Registry = (*noClearRegistry)(nil)
+
+func (r *noClearRegistry) GetCounter(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Counter, error) {
+	return r.inner.GetCounter(metricName, labels, help, mapping, metricsCount)
+}
+
+func (r *noClearRegistry) GetGauge(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Gauge, error) {
+	return r.inner.GetGauge(metricName, labels, help, mapping, metricsCount)
+}
+
+func (r *noClearRegistry) GetHistogram(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Observer, error) {
+	return r.inner.GetHistogram(metricName, labels, help, mapping, metricsCount)
+}
+
+func (r *noClearRegistry) GetSummary(metricName string, labels prometheus.Labels, help string, mapping *mapper.MetricMapping, metricsCount *prometheus.GaugeVec) (prometheus.Observer, error) {
+	return r.inner.GetSummary(metricName, labels, help, mapping, metricsCount)
+}
+
+func (r *noClearRegistry) RemoveStaleMetrics() {
+	r.inner.RemoveStaleMetrics()
+}
+
+func TestClearMetrics(t *testing.T) {
+	clockInstance := clock.ClockInstance
+	clock.ClockInstance = nil
+	defer func() {
+		clock.ClockInstance = clockInstance
+	}()
+
+	reg := prometheus.NewRegistry()
+	testMapper := mapper.MetricMapper{}
+	ex := NewExporter(reg, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	events := make(chan event.Events)
+	done := make(chan struct{})
+	go func() {
+		ex.Listen(events)
+		close(done)
+	}()
+	defer func() {
+		close(events)
+		<-done
+	}()
+
+	events <- event.Events{
+		&event.GaugeEvent{
+			GMetricName: "clearable_gauge",
+			GValue:      200,
+		},
+	}
+	events <- event.Events{}
+
+	metrics, err := reg.Gather()
+	if err != nil {
+		t.Fatal("Gather should not fail")
+	}
+	gaugeValue := getFloat64(metrics, "clearable_gauge", prometheus.Labels{})
+	if gaugeValue == nil || *gaugeValue != 200 {
+		t.Fatalf("Gauge `clearable_gauge` should be gathered with value 200, got %v", gaugeValue)
+	}
+
+	cleared, err := ex.ClearMetrics(context.Background())
+	if err != nil {
+		t.Fatalf("ClearMetrics should not fail: %v", err)
+	}
+	if cleared != 1 {
+		t.Fatalf("Expected to clear 1 metric series, cleared %d", cleared)
+	}
+
+	metrics, err = reg.Gather()
+	if err != nil {
+		t.Fatal("Gather should not fail")
+	}
+	if gaugeValue = getFloat64(metrics, "clearable_gauge", prometheus.Labels{}); gaugeValue != nil {
+		t.Fatalf("Gauge `clearable_gauge` should be cleared, got %v", *gaugeValue)
+	}
+
+	events <- event.Events{
+		&event.GaugeEvent{
+			GMetricName: "clearable_gauge",
+			GValue:      42,
+		},
+	}
+	events <- event.Events{}
+
+	metrics, err = reg.Gather()
+	if err != nil {
+		t.Fatal("Gather should not fail")
+	}
+	gaugeValue = getFloat64(metrics, "clearable_gauge", prometheus.Labels{})
+	if gaugeValue == nil || *gaugeValue != 42 {
+		t.Fatalf("Gauge `clearable_gauge` should be gathered again with value 42, got %v", gaugeValue)
+	}
+}
+
+// TestClearMetricsConcurrentScrapeAndIngest clears while other goroutines
+// scrape and send events, including while series are being recreated. Run it
+// with -race.
+func TestClearMetricsConcurrentScrapeAndIngest(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	testMapper := mapper.MetricMapper{}
+	ex := NewExporter(reg, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	events := make(chan event.Events)
+	listenDone := make(chan struct{})
+	go func() {
+		ex.Listen(events)
+		close(listenDone)
+	}()
+	// Wait for Listen to start.
+	events <- event.Events{}
+
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for i := 0; ; i++ {
+			batch := event.Events{
+				&event.CounterEvent{CMetricName: "concurrent_counter", CValue: 1, CLabels: map[string]string{"series": strconv.Itoa(i % 50)}},
+				&event.GaugeEvent{GMetricName: "concurrent_gauge", GValue: 1, GLabels: map[string]string{"series": strconv.Itoa(i % 50)}},
+			}
+			select {
+			case events <- batch:
+			case <-stop:
+				return
+			}
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			if _, err := reg.Gather(); err != nil {
+				t.Error(err)
+				return
+			}
+		}
+	}()
+
+	for i := 0; i < 20; i++ {
+		if _, err := ex.ClearMetrics(context.Background()); err != nil {
+			t.Fatalf("ClearMetrics should not fail: %v", err)
+		}
+	}
+	close(stop)
+	wg.Wait()
+
+	// After the last clear, one event recreates one series of each metric.
+	if _, err := ex.ClearMetrics(context.Background()); err != nil {
+		t.Fatalf("ClearMetrics should not fail: %v", err)
+	}
+	events <- event.Events{&event.GaugeEvent{GMetricName: "concurrent_gauge", GValue: 7, GLabels: map[string]string{"series": "0"}}}
+	events <- event.Events{}
+	close(events)
+	<-listenDone
+
+	metrics, err := reg.Gather()
+	if err != nil {
+		t.Fatal("Gather should not fail")
+	}
+	if v := getFloat64(metrics, "concurrent_gauge", prometheus.Labels{"series": "0"}); v == nil || *v != 7 {
+		t.Fatalf("expected concurrent_gauge{series=\"0\"} to be recreated with 7, got %v", v)
+	}
+	if v := getFloat64(metrics, "concurrent_gauge", prometheus.Labels{"series": "1"}); v != nil {
+		t.Fatalf("expected concurrent_gauge{series=\"1\"} to stay cleared, got %v", *v)
+	}
+}
+
+func TestClearMetricsBeforeListen(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	testMapper := mapper.MetricMapper{}
+	ex := NewExporter(reg, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+
+	_, err := ex.ClearMetrics(context.Background())
+	if !errors.Is(err, ErrExporterNotRunning) {
+		t.Fatalf("expected ErrExporterNotRunning, got %v", err)
+	}
+}
+
+func TestClearMetricsAfterListenStops(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	testMapper := mapper.MetricMapper{}
+	ex := NewExporter(reg, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	events := make(chan event.Events)
+	done := make(chan struct{})
+	go func() {
+		ex.Listen(events)
+		close(done)
+	}()
+
+	close(events)
+	<-done
+
+	_, err := ex.ClearMetrics(context.Background())
+	if !errors.Is(err, ErrExporterNotRunning) {
+		t.Fatalf("expected ErrExporterNotRunning, got %v", err)
+	}
+}
+
+func TestClearMetricsUnsupportedRegistry(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	testMapper := mapper.MetricMapper{}
+	ex := NewExporter(reg, &testMapper, promslog.NewNopLogger(), eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	ex.Registry = &noClearRegistry{inner: registry.NewRegistry(reg, &testMapper)}
+	events := make(chan event.Events)
+	done := make(chan struct{})
+	go func() {
+		ex.Listen(events)
+		close(done)
+	}()
+	defer func() {
+		close(events)
+		<-done
+	}()
+	events <- event.Events{}
+
+	_, err := ex.ClearMetrics(context.Background())
+	if !errors.Is(err, ErrClearMetricsUnsupported) {
+		t.Fatalf("expected ErrClearMetricsUnsupported, got %v", err)
+	}
+}
+
+func TestClearMetricsStructLiteralExporter(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	testMapper := mapper.MetricMapper{}
+	ex := &Exporter{
+		Mapper:                &testMapper,
+		Registry:              registry.NewRegistry(reg, &testMapper),
+		Logger:                promslog.NewNopLogger(),
+		EventsActions:         eventsActions,
+		EventsUnmapped:        eventsUnmapped,
+		ErrorEventStats:       errorEventStats,
+		EventStats:            eventStats,
+		ConflictingEventStats: conflictingEventStats,
+		MetricsCount:          metricsCount,
+	}
+	events := make(chan event.Events)
+	done := make(chan struct{})
+	go func() {
+		ex.Listen(events)
+		close(done)
+	}()
+	defer func() {
+		close(events)
+		<-done
+	}()
+	events <- event.Events{
+		&event.GaugeEvent{
+			GMetricName: "struct_literal_gauge",
+			GValue:      1,
+		},
+	}
+	events <- event.Events{}
+
+	// Bound the call so a hang fails the test instead of blocking it.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cleared, err := ex.ClearMetrics(ctx)
+	if err != nil {
+		t.Fatalf("ClearMetrics on a struct-literal Exporter should not fail: %v", err)
+	}
+	if cleared != 1 {
+		t.Fatalf("Expected to clear 1 metric series, cleared %d", cleared)
 	}
 }
 
