@@ -1,5 +1,6 @@
 ## Unreleased
 
+* [FEATURE] Add the `statsd_exporter_active_metric_vectors` gauge: the current number of metric vectors with at least one time series, by type. Unlike `statsd_exporter_metrics_total` it goes down when series expire by TTL or the registry is cleared ([#769](https://github.com/prometheus/statsd_exporter/pull/769))
 * [FEATURE] Add a lifecycle `/-/clear` endpoint to clear registered StatsD time series without restarting the exporter ([#714](https://github.com/prometheus/statsd_exporter/pull/714))
 
 ## 0.31.0 / 2026-09-02
