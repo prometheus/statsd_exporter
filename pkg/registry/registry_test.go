@@ -219,3 +219,98 @@ func TestClearMetricsHolderWithoutReset(t *testing.T) {
 		}
 	}
 }
+
+// activeVectors reads the active-vectors gauge for one metric type.
+func activeVectors(t *testing.T, g *prometheus.GaugeVec, typ string) float64 {
+	t.Helper()
+	var m dto.Metric
+	assertNoErr(t, g.WithLabelValues(typ).Write(&m))
+	return m.GetGauge().GetValue()
+}
+
+func TestActiveVectorsGauge(t *testing.T) {
+	clockInstance := clock.ClockInstance
+	defer func() {
+		clock.ClockInstance = clockInstance
+	}()
+	clock.ClockInstance = &clock.Clock{Instant: time.Unix(0, 0)}
+
+	r, _, metricsCount := newTestRegistry()
+	active := prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "active_vectors"}, []string{"type"})
+	r.SetActiveVectorsGauge(active)
+	ttl := &mapper.MetricMapping{Ttl: time.Second}
+
+	// Two series of one vector count once; another label set is another vector.
+	for _, labels := range []prometheus.Labels{{"env": "a"}, {"env": "b"}, {"env": "a", "zone": "x"}} {
+		_, err := r.GetCounter("active_counter", labels, "help", ttl, metricsCount)
+		assertNoErr(t, err)
+	}
+	_, err := r.GetGauge("active_gauge", prometheus.Labels{}, "help", ttl, metricsCount)
+	assertNoErr(t, err)
+	_, err = r.GetHistogram("active_histogram", prometheus.Labels{}, "help", ttl, metricsCount)
+	assertNoErr(t, err)
+	_, err = r.GetSummary("active_summary", prometheus.Labels{}, "help", ttl, metricsCount)
+	assertNoErr(t, err)
+
+	for typ, want := range map[string]float64{"counter": 2, "gauge": 1, "histogram": 1, "summary": 1} {
+		if got := activeVectors(t, active, typ); got != want {
+			t.Fatalf("after registration: %s = %v, want %v", typ, got, want)
+		}
+	}
+
+	// Expiry of every series brings the gauge back to zero.
+	clock.ClockInstance.Instant = time.Unix(2, 0)
+	r.RemoveStaleMetrics()
+	for _, typ := range []string{"counter", "gauge", "histogram", "summary"} {
+		if got := activeVectors(t, active, typ); got != 0 {
+			t.Fatalf("after expiry: %s = %v, want 0", typ, got)
+		}
+	}
+
+	// The same vector becoming active again counts again.
+	_, err = r.GetCounter("active_counter", prometheus.Labels{"env": "a"}, "help", ttl, metricsCount)
+	assertNoErr(t, err)
+	if got := activeVectors(t, active, "counter"); got != 1 {
+		t.Fatalf("after re-registration: counter = %v, want 1", got)
+	}
+
+	// A vector stays active while one of its series is alive.
+	clock.ClockInstance.Instant = time.Unix(3, 0)
+	_, err = r.GetCounter("active_counter", prometheus.Labels{"env": "b"}, "help", ttl, metricsCount)
+	assertNoErr(t, err)
+	clock.ClockInstance.Instant = time.Unix(3, 500)
+	r.RemoveStaleMetrics() // env=a expired, env=b did not
+	if got := activeVectors(t, active, "counter"); got != 1 {
+		t.Fatalf("with one live series: counter = %v, want 1", got)
+	}
+
+	// Clearing the registry deactivates every vector.
+	_, err = r.GetGauge("active_gauge", prometheus.Labels{}, "help", ttl, metricsCount)
+	assertNoErr(t, err)
+	r.ClearMetrics()
+	for _, typ := range []string{"counter", "gauge"} {
+		if got := activeVectors(t, active, typ); got != 0 {
+			t.Fatalf("after clear: %s = %v, want 0", typ, got)
+		}
+	}
+}
+
+func TestActiveVectorsGaugeHolderWithoutReset(t *testing.T) {
+	r, _, _ := newTestRegistry()
+	active := prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "active_vectors"}, []string{"type"})
+	r.SetActiveVectorsGauge(active)
+
+	holder := &deleteOnlyHolder{}
+	for _, value := range []string{"a", "b"} {
+		labels := prometheus.Labels{"env": value}
+		hash, _ := r.HashLabels(labels)
+		r.Store("custom", hash, labels, holder, struct{}{}, metrics.GaugeMetricType, 0)
+	}
+	if got := activeVectors(t, active, "gauge"); got != 1 {
+		t.Fatalf("after registration: gauge = %v, want 1", got)
+	}
+	r.ClearMetrics()
+	if got := activeVectors(t, active, "gauge"); got != 0 {
+		t.Fatalf("after clear: gauge = %v, want 0", got)
+	}
+}
