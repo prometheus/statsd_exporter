@@ -1,6 +1,7 @@
 ## Unreleased
 
 * [FEATURE] Add a lifecycle `/-/clear` endpoint to clear registered StatsD time series without restarting the exporter ([#714](https://github.com/prometheus/statsd_exporter/pull/714))
+* [BUGFIX] Accept single character label names in mapping configuration ([#770](https://github.com/prometheus/statsd_exporter/pull/770))
 
 ## 0.31.0 / 2026-09-02
 

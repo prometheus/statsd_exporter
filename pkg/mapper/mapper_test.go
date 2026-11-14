@@ -631,6 +631,38 @@ mappings:
 			configBad: true,
 		},
 		{
+			testName: "Config with single character label names",
+			config: `---
+mappings:
+- match: test.*.*
+  name: "foo"
+  labels:
+    a: "$1"
+    b: "$2"
+  `,
+			mappings: mappings{
+				{
+					statsdMetric: "test.x.y",
+					name:         "foo",
+					labels: map[string]string{
+						"a": "x",
+						"b": "y",
+					},
+				},
+			},
+		},
+		{
+			testName: "Config with bad label name",
+			config: `---
+mappings:
+- match: test.*
+  name: "foo"
+  labels:
+    1a: "$1"
+  `,
+			configBad: true,
+		},
+		{
 			testName: "Config with no mappings",
 			config:   ``,
 			mappings: mappings{},
