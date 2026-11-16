@@ -70,6 +70,29 @@ func TestLineToEvents(t *testing.T) {
 				},
 			},
 		},
+		"simple set": {
+			in: "users:alice|s",
+			out: event.Events{
+				&event.SetEvent{
+					SMetricName: "users",
+					SValue:      "alice",
+					SLabels:     map[string]string{},
+				},
+			},
+		},
+		"set with dogstatsd tags and sample rate": {
+			in: "users:bob|s|@0.5|#env:prod",
+			out: event.Events{
+				&event.SetEvent{
+					SMetricName: "users",
+					SValue:      "bob",
+					SLabels:     map[string]string{"env": "prod"},
+				},
+			},
+		},
+		"set without a value": {
+			in: "users:|s",
+		},
 		"simple gauge": {
 			in: "foo:3|g",
 			out: event.Events{

@@ -60,7 +60,7 @@ func (p *Parser) EnableSignalFXParsing() {
 	p.SignalFXTagsEnabled = true
 }
 
-func buildEvent(statType, metric string, value float64, relative bool, labels map[string]string) (event.Event, error) {
+func buildEvent(statType, metric, valueStr string, value float64, relative bool, labels map[string]string) (event.Event, error) {
 	switch statType {
 	case "c":
 		return &event.CounterEvent{
@@ -88,7 +88,11 @@ func buildEvent(statType, metric string, value float64, relative bool, labels ma
 			OLabels:     labels,
 		}, nil
 	case "s":
-		return nil, fmt.Errorf("no support for StatsD sets")
+		return &event.SetEvent{
+			SMetricName: metric,
+			SValue:      valueStr,
+			SLabels:     labels,
+		}, nil
 	default:
 		return nil, fmt.Errorf("bad stat type %s", statType)
 	}
@@ -281,11 +285,23 @@ samples:
 			relative = true
 		}
 
-		value, err := strconv.ParseFloat(valueStr, 64)
-		if err != nil {
-			logger.Debug("bad value", "value", valueStr, "line", line)
-			sampleErrors.WithLabelValues("malformed_value").Inc()
-			continue
+		// Set members are arbitrary strings (user IDs and so on), so they
+		// are only checked for being present.
+		var value float64
+		if statType == "s" {
+			if valueStr == "" {
+				logger.Debug("bad value", "value", valueStr, "line", line)
+				sampleErrors.WithLabelValues("malformed_value").Inc()
+				continue
+			}
+		} else {
+			var err error
+			value, err = strconv.ParseFloat(valueStr, 64)
+			if err != nil {
+				logger.Debug("bad value", "value", valueStr, "line", line)
+				sampleErrors.WithLabelValues("malformed_value").Inc()
+				continue
+			}
 		}
 
 		multiplyEvents := 1
@@ -348,7 +364,7 @@ samples:
 		}
 
 		for i := 0; i < multiplyEvents; i++ {
-			event, err := buildEvent(statType, metric, value, relative, labels)
+			event, err := buildEvent(statType, metric, valueStr, value, relative, labels)
 			if err != nil {
 				logger.Debug("Error building event", "line", line, "error", err)
 				sampleErrors.WithLabelValues("illegal_event").Inc()

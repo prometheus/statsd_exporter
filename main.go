@@ -283,6 +283,7 @@ func main() {
 		eventQueueSize       = kingpin.Flag("statsd.event-queue-size", "Size of internal queue for processing events.").Default("10000").Uint()
 		eventFlushThreshold  = kingpin.Flag("statsd.event-flush-threshold", "Number of events to hold in queue before flushing.").Default("1000").Int()
 		eventFlushInterval   = kingpin.Flag("statsd.event-flush-interval", "Maximum time between event queue flushes.").Default("200ms").Duration()
+		setFlushInterval     = kingpin.Flag("statsd.set-flush-interval", "How often the number of distinct values received for each StatsD set is published and the sets are emptied.").Default("1m").Duration()
 		dumpFSMPath          = kingpin.Flag("debug.dump-fsm", "The path to dump internal FSM generated for glob matching as Dot file.").Default("").String()
 		checkConfig          = kingpin.Flag("check-config", "Check configuration and exit.").Default("false").Bool()
 		dogstatsdTagsEnabled = kingpin.Flag("statsd.parse-dogstatsd-tags", "Parse DogStatsd style tags. Enabled by default.").Default("true").Bool()
@@ -351,6 +352,7 @@ func main() {
 	}
 
 	exporter := exporter.NewExporter(prometheus.DefaultRegisterer, thisMapper, logger, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	exporter.SetFlushInterval = *setFlushInterval
 
 	if *checkConfig {
 		logger.Info("Configuration check successful, exiting")
