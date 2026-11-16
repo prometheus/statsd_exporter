@@ -50,6 +50,10 @@ type Registry struct {
 	// hash.
 	ValueBuf, NameBuf bytes.Buffer
 	Hasher            hash.Hash64
+
+	// activeVectors, when set, tracks the number of vectors that have at
+	// least one registered time series, by metric type.
+	activeVectors *prometheus.GaugeVec
 }
 
 func NewRegistry(reg prometheus.Registerer, mapper *mapper.MetricMapper) *Registry {
@@ -58,6 +62,47 @@ func NewRegistry(reg prometheus.Registerer, mapper *mapper.MetricMapper) *Regist
 		Metrics:    make(map[string]metrics.Metric),
 		Mapper:     mapper,
 		Hasher:     fnv.New64a(),
+	}
+}
+
+// SetActiveVectorsGauge makes the registry maintain g as the current number
+// of metric vectors that have at least one time series, labelled by metric
+// type ("counter", "gauge", "histogram", "summary"). A vector is one metric
+// name with one set of label names; it counts once however many label values
+// it has, and stops counting when its last series expires or is cleared.
+//
+// g needs a single label, the type. It should be set before the registry is
+// used. Without it the registry keeps no such count.
+func (r *Registry) SetActiveVectorsGauge(g *prometheus.GaugeVec) {
+	r.activeVectors = g
+}
+
+// metricTypeLabel is the value of the type label for self-metrics.
+func metricTypeLabel(t metrics.MetricType) string {
+	switch t {
+	case metrics.CounterMetricType:
+		return "counter"
+	case metrics.GaugeMetricType:
+		return "gauge"
+	case metrics.SummaryMetricType:
+		return "summary"
+	case metrics.HistogramMetricType:
+		return "histogram"
+	}
+	return "unknown"
+}
+
+// vectorActivated records that a vector got its first time series.
+func (r *Registry) vectorActivated(t metrics.MetricType) {
+	if r.activeVectors != nil {
+		r.activeVectors.WithLabelValues(metricTypeLabel(t)).Inc()
+	}
+}
+
+// vectorDeactivated records that a vector lost its last time series.
+func (r *Registry) vectorDeactivated(t metrics.MetricType) {
+	if r.activeVectors != nil {
+		r.activeVectors.WithLabelValues(metricTypeLabel(t)).Dec()
 	}
 }
 
@@ -123,6 +168,9 @@ func (r *Registry) Store(metricName string, hash metrics.LabelHash, labels prome
 		}
 		metric.Metrics[hash.Values] = rm
 		v.RefCount++
+		if v.RefCount == 1 {
+			r.vectorActivated(metric.MetricType)
+		}
 		return
 	}
 	rm.LastRegisteredAt = now
@@ -408,6 +456,9 @@ func (r *Registry) ClearMetrics() int {
 				continue
 			}
 			holder.Reset()
+			if vector.RefCount > 0 {
+				r.vectorDeactivated(metric.MetricType)
+			}
 			vector.RefCount = 0
 		}
 		if resetAll {
@@ -427,6 +478,9 @@ func (r *Registry) removeMetric(metric metrics.Metric, hash metrics.ValueHash, r
 	vector.Holder.Delete(rm.Labels)
 	if vector.RefCount > 0 {
 		vector.RefCount--
+		if vector.RefCount == 0 {
+			r.vectorDeactivated(metric.MetricType)
+		}
 	}
 	delete(metric.Metrics, hash)
 }

@@ -44,6 +44,7 @@ import (
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 	"github.com/prometheus/statsd_exporter/pkg/mappercache/lru"
 	"github.com/prometheus/statsd_exporter/pkg/mappercache/randomreplacement"
+	"github.com/prometheus/statsd_exporter/pkg/registry"
 	"github.com/prometheus/statsd_exporter/pkg/relay"
 )
 
@@ -170,6 +171,13 @@ var (
 		prometheus.GaugeOpts{
 			Name: "statsd_exporter_metrics_total",
 			Help: "The total number of metrics.",
+		},
+		[]string{"type"},
+	)
+	activeMetricVectors = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "statsd_exporter_active_metric_vectors",
+			Help: "Current number of metric vectors that have at least one active time series.",
 		},
 		[]string{"type"},
 	)
@@ -351,6 +359,9 @@ func main() {
 	}
 
 	exporter := exporter.NewExporter(prometheus.DefaultRegisterer, thisMapper, logger, eventsActions, eventsUnmapped, errorEventStats, eventStats, conflictingEventStats, metricsCount)
+	if r, ok := exporter.Registry.(*registry.Registry); ok {
+		r.SetActiveVectorsGauge(activeMetricVectors)
+	}
 
 	if *checkConfig {
 		logger.Info("Configuration check successful, exiting")
