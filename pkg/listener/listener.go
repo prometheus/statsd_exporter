@@ -24,11 +24,15 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/prometheus/statsd_exporter/pkg/event"
-	"github.com/prometheus/statsd_exporter/pkg/relay"
 )
 
 type Parser interface {
 	LineToEvents(line string, sampleErrors prometheus.CounterVec, samplesReceived, tagErrors, tagsReceived prometheus.Counter, logger *slog.Logger) event.Events
+}
+
+// LineRelayer forwards a raw statsd line to one or more relay targets.
+type LineRelayer interface {
+	RelayLine(line string)
 }
 
 type StatsDUDPListener struct {
@@ -40,7 +44,7 @@ type StatsDUDPListener struct {
 	UDPPacketDrops  prometheus.Counter
 	LinesReceived   prometheus.Counter
 	EventsFlushed   prometheus.Counter
-	Relay           *relay.Relay
+	Relay           LineRelayer
 	SampleErrors    prometheus.CounterVec
 	SamplesReceived prometheus.Counter
 	TagErrors       prometheus.Counter
@@ -109,7 +113,7 @@ type StatsDTCPListener struct {
 	LineParser      Parser
 	LinesReceived   prometheus.Counter
 	EventsFlushed   prometheus.Counter
-	Relay           *relay.Relay
+	Relay           LineRelayer
 	SampleErrors    prometheus.CounterVec
 	SamplesReceived prometheus.Counter
 	TagErrors       prometheus.Counter
@@ -176,7 +180,7 @@ type StatsDUnixgramListener struct {
 	UnixgramPackets prometheus.Counter
 	LinesReceived   prometheus.Counter
 	EventsFlushed   prometheus.Counter
-	Relay           *relay.Relay
+	Relay           LineRelayer
 	SampleErrors    prometheus.CounterVec
 	SamplesReceived prometheus.Counter
 	TagErrors       prometheus.Counter
