@@ -1,5 +1,6 @@
 ## Unreleased
 
+* [ENHANCEMENT] Log a rate limited warning, with an example and a count of skipped ones, for each kind of malformed StatsD input, controlled by `--statsd.malformed-log-interval` ([#552](https://github.com/prometheus/statsd_exporter/issues/552))
 * [FEATURE] Add a lifecycle `/-/clear` endpoint to clear registered StatsD time series without restarting the exporter ([#714](https://github.com/prometheus/statsd_exporter/pull/714))
 * [BUGFIX] Accept single character label names in mapping configuration ([#770](https://github.com/prometheus/statsd_exporter/pull/770))
 

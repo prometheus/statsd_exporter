@@ -289,6 +289,7 @@ func main() {
 		influxdbTagsEnabled  = kingpin.Flag("statsd.parse-influxdb-tags", "Parse InfluxDB style tags. Enabled by default.").Default("true").Bool()
 		libratoTagsEnabled   = kingpin.Flag("statsd.parse-librato-tags", "Parse Librato style tags. Enabled by default.").Default("true").Bool()
 		signalFXTagsEnabled  = kingpin.Flag("statsd.parse-signalfx-tags", "Parse SignalFX style tags. Enabled by default.").Default("true").Bool()
+		malformedLogInterval = kingpin.Flag("statsd.malformed-log-interval", "Log a warning about malformed StatsD input at most once per this interval for each kind of problem, with an example and the number of skipped ones. 0 disables the warnings.").Default("1m").Duration()
 		relayAddr            = kingpin.Flag("statsd.relay.address", "The UDP relay target address (host:port)").String()
 		relayPacketLen       = kingpin.Flag("statsd.relay.packet-length", "Maximum relay output packet length to avoid fragmentation").Default("1400").Uint()
 		udpPacketQueueSize   = kingpin.Flag("statsd.udp-packet-queue-size", "Size of internal queue for processing UDP packets.").Default("10000").Int()
@@ -316,6 +317,8 @@ func main() {
 	if *signalFXTagsEnabled {
 		parser.EnableSignalFXParsing()
 	}
+
+	parser.SetMalformedLogInterval(*malformedLogInterval)
 
 	logger.Info("Starting StatsD -> Prometheus Exporter", "version", version.Info())
 	logger.Info("Build context", "context", version.BuildContext())
