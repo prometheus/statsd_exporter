@@ -22,10 +22,14 @@ import (
 	"unicode/utf8"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/time/rate"
 
 	"github.com/prometheus/statsd_exporter/pkg/event"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
+
+// maxExampleLen caps how much of an offending line ends up in a warning.
+const maxExampleLen = 256
 
 // Parser is a struct to hold configuration for parsing behavior
 type Parser struct {
@@ -34,9 +38,9 @@ type Parser struct {
 	LibratoTagsEnabled   bool
 	SignalFXTagsEnabled  bool
 
-	// limiter throttles the warnings about dropped input. It is nil unless
-	// SetMalformedLogInterval was called with a positive interval.
-	limiter *warnLimiter
+	// warnLimiter throttles the warnings about dropped input. It is nil unless
+	// SetMalformedLogPerMinute was called with a positive count.
+	warnLimiter *rate.Limiter
 }
 
 // NewParser returns a new line parser
@@ -45,17 +49,28 @@ func NewParser() *Parser {
 	return &p
 }
 
-// SetMalformedLogInterval makes the parser log a warning for input it has to
-// drop, at most once per interval for each kind of problem. The warning shows
-// one example and how many similar problems were not logged in between. A
-// zero or negative interval turns the warnings off, which is the default. The
+// SetMalformedLogPerMinute makes the parser log up to n warnings per minute
+// about input it has to drop, each with an example of the offending input. A
+// zero or negative n turns the warnings off, which is the default. The
 // per-line debug logs are not affected.
-func (p *Parser) SetMalformedLogInterval(interval time.Duration) {
-	if interval <= 0 {
-		p.limiter = nil
+func (p *Parser) SetMalformedLogPerMinute(n int) {
+	if n <= 0 {
+		p.warnLimiter = nil
 		return
 	}
-	p.limiter = newWarnLimiter(interval, time.Now)
+	p.warnLimiter = rate.NewLimiter(rate.Every(time.Minute/time.Duration(n)), n)
+}
+
+// warnMalformed logs a warning about dropped input unless the per-minute
+// budget is used up.
+func (p *Parser) warnMalformed(logger *slog.Logger, reason, example string) {
+	if p.warnLimiter == nil || !p.warnLimiter.Allow() {
+		return
+	}
+	if len(example) > maxExampleLen {
+		example = example[:maxExampleLen] + "..."
+	}
+	logger.Warn("Dropped malformed StatsD input", "reason", reason, "example", example)
 }
 
 // EnableDogstatsdParsing option to enable dogstatsd tag parsing

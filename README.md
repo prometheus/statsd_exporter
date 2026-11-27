@@ -114,8 +114,7 @@ NOTE: Version 0.7.0 switched to the [kingpin](https://github.com/alecthomas/king
 ### Malformed input warnings
 
 Lines and tags the exporter cannot parse are counted in `statsd_exporter_sample_errors_total` and `statsd_exporter_tag_errors_total`, and logged one by one at debug level.
-Because that is too noisy to leave on, the exporter also logs a warning for each kind of problem (the `reason` label of the counters), at most once per `--statsd.malformed-log-interval`, which defaults to one minute.
-The warning contains one example of the offending input and how many warnings of that kind were skipped since the previous one.
+Because that is too noisy to leave on, the exporter also logs a warning with an example of the offending input, up to `--statsd.malformed-log-per-minute` times per minute (default 10).
 Set the flag to `0` to turn these warnings off.
 
 ## Lifecycle API
