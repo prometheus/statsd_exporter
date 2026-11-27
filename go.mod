@@ -11,6 +11,7 @@ require (
 	github.com/prometheus/exporter-toolkit v0.20.0
 	github.com/stvp/go-udp-testing v0.0.0-20201019212854-469649b16807
 	go.yaml.in/yaml/v2 v2.4.4
+	golang.org/x/time v0.15.0
 )
 
 require (
@@ -33,6 +34,5 @@ require (
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
-	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )

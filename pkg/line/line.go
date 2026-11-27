@@ -18,13 +18,18 @@ import (
 	"log/slog"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/time/rate"
 
 	"github.com/prometheus/statsd_exporter/pkg/event"
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
+
+// maxExampleLen caps how much of an offending line ends up in a warning.
+const maxExampleLen = 256
 
 // Parser is a struct to hold configuration for parsing behavior
 type Parser struct {
@@ -32,12 +37,40 @@ type Parser struct {
 	InfluxdbTagsEnabled  bool
 	LibratoTagsEnabled   bool
 	SignalFXTagsEnabled  bool
+
+	// warnLimiter throttles the warnings about dropped input. It is nil unless
+	// SetMalformedLogPerMinute was called with a positive count.
+	warnLimiter *rate.Limiter
 }
 
 // NewParser returns a new line parser
 func NewParser() *Parser {
 	p := Parser{}
 	return &p
+}
+
+// SetMalformedLogPerMinute makes the parser log up to n warnings per minute
+// about input it has to drop, each with an example of the offending input. A
+// zero or negative n turns the warnings off, which is the default. The
+// per-line debug logs are not affected.
+func (p *Parser) SetMalformedLogPerMinute(n int) {
+	if n <= 0 {
+		p.warnLimiter = nil
+		return
+	}
+	p.warnLimiter = rate.NewLimiter(rate.Every(time.Minute/time.Duration(n)), n)
+}
+
+// warnMalformed logs a warning about dropped input unless the per-minute
+// budget is used up.
+func (p *Parser) warnMalformed(logger *slog.Logger, reason, example string) {
+	if p.warnLimiter == nil || !p.warnLimiter.Allow() {
+		return
+	}
+	if len(example) > maxExampleLen {
+		example = example[:maxExampleLen] + "..."
+	}
+	logger.Warn("Dropped malformed StatsD input", "reason", reason, "example", example)
 }
 
 // EnableDogstatsdParsing option to enable dogstatsd tag parsing
@@ -94,11 +127,12 @@ func buildEvent(statType, metric string, value float64, relative bool, labels ma
 	}
 }
 
-func parseTag(component, tag string, separator rune, labels map[string]string, tagErrors prometheus.Counter, logger *slog.Logger) {
+func (p *Parser) parseTag(component, tag string, separator rune, labels map[string]string, tagErrors prometheus.Counter, logger *slog.Logger) {
 	// Entirely empty tag is an error
 	if len(tag) == 0 {
 		tagErrors.Inc()
 		logger.Debug("Empty name tag", "component", component)
+		p.warnMalformed(logger, "malformed_tag", component)
 		return
 	}
 
@@ -111,6 +145,7 @@ func parseTag(component, tag string, separator rune, labels map[string]string, t
 				// Empty key or value is an error
 				tagErrors.Inc()
 				logger.Debug("Malformed name tag", "k", k, "v", v, "component", component)
+				p.warnMalformed(logger, "malformed_tag", component)
 			} else {
 				labels[mapper.EscapeMetricName(k)] = v
 			}
@@ -121,22 +156,23 @@ func parseTag(component, tag string, separator rune, labels map[string]string, t
 	// Missing separator (no value) is an error
 	tagErrors.Inc()
 	logger.Debug("Malformed name tag", "tag", tag, "component", component)
+	p.warnMalformed(logger, "malformed_tag", component)
 }
 
-func parseNameTags(component string, labels map[string]string, tagErrors prometheus.Counter, logger *slog.Logger) {
+func (p *Parser) parseNameTags(component string, labels map[string]string, tagErrors prometheus.Counter, logger *slog.Logger) {
 	lastTagEndIndex := 0
 	for i, c := range component {
 		if c == ',' {
 			tag := component[lastTagEndIndex:i]
 			lastTagEndIndex = i + 1
-			parseTag(component, tag, '=', labels, tagErrors, logger)
+			p.parseTag(component, tag, '=', labels, tagErrors, logger)
 		}
 	}
 
 	// If we're not off the end of the string, add the last tag
 	if lastTagEndIndex < len(component) {
 		tag := component[lastTagEndIndex:]
-		parseTag(component, tag, '=', labels, tagErrors, logger)
+		p.parseTag(component, tag, '=', labels, tagErrors, logger)
 	}
 }
 
@@ -154,14 +190,14 @@ func (p *Parser) ParseDogStatsDTags(component string, labels map[string]string, 
 			if c == ',' {
 				tag := component[lastTagEndIndex:i]
 				lastTagEndIndex = i + 1
-				parseTag(component, trimLeftHash(tag), ':', labels, tagErrors, logger)
+				p.parseTag(component, trimLeftHash(tag), ':', labels, tagErrors, logger)
 			}
 		}
 
 		// If we're not off the end of the string, add the last tag
 		if lastTagEndIndex < len(component) {
 			tag := component[lastTagEndIndex:]
-			parseTag(component, trimLeftHash(tag), ':', labels, tagErrors, logger)
+			p.parseTag(component, trimLeftHash(tag), ':', labels, tagErrors, logger)
 		}
 	}
 }
@@ -178,11 +214,12 @@ func (p *Parser) parseNameAndTags(name string, labels map[string]string, tagErro
 		switch {
 		case startIdx != -1 && endIdx != -1:
 			// good signalfx tags
-			parseNameTags(name[startIdx+1:endIdx], labels, tagErrors, logger)
+			p.parseNameTags(name[startIdx+1:endIdx], labels, tagErrors, logger)
 			return name[:startIdx] + name[endIdx+1:]
 		case (startIdx != -1) != (endIdx != -1):
 			// only one bracket, return unparsed
 			logger.Debug("invalid SignalFx tags, not parsing", "metric", name)
+			p.warnMalformed(logger, "invalid_signalfx_tags", name)
 			tagErrors.Inc()
 			return name
 		}
@@ -194,7 +231,7 @@ func (p *Parser) parseNameAndTags(name string, labels map[string]string, tagErro
 		// `,` delimits start of tags by InfluxDB
 		// https://www.influxdata.com/blog/getting-started-with-sending-statsd-metrics-to-telegraf-influxdb/#introducing-influx-statsd
 		if (c == '#' && p.LibratoTagsEnabled) || (c == ',' && p.InfluxdbTagsEnabled) {
-			parseNameTags(name[i+1:], labels, tagErrors, logger)
+			p.parseNameTags(name[i+1:], labels, tagErrors, logger)
 			return name[:i]
 		}
 	}
@@ -210,6 +247,7 @@ func (p *Parser) LineToEvents(line string, sampleErrors prometheus.CounterVec, s
 	elements := strings.SplitN(line, ":", 2)
 	if len(elements) < 2 || len(elements[0]) == 0 || !utf8.ValidString(line) {
 		sampleErrors.WithLabelValues("malformed_line").Inc()
+		p.warnMalformed(logger, "malformed_line", line)
 		logger.Debug("bad line", "line", line)
 		return events
 	}
@@ -222,6 +260,7 @@ func (p *Parser) LineToEvents(line string, sampleErrors prometheus.CounterVec, s
 
 		// don't allow mixed tagging styles
 		sampleErrors.WithLabelValues("mixed_tagging_styles").Inc()
+		p.warnMalformed(logger, "mixed_tagging_styles", line)
 		logger.Debug("bad line: multiple tagging styles", "line", line)
 		return events
 	}
@@ -230,6 +269,7 @@ func (p *Parser) LineToEvents(line string, sampleErrors prometheus.CounterVec, s
 	lineParts := strings.SplitN(elements[1], "|", 3)
 	if len(lineParts) < 2 {
 		sampleErrors.WithLabelValues("not_enough_parts_after_colon").Inc()
+		p.warnMalformed(logger, "not_enough_parts_after_colon", line)
 		logger.Debug("bad line: not enough '|'-delimited parts after first ':'", "line", line)
 		return events
 	}
@@ -255,6 +295,7 @@ func (p *Parser) LineToEvents(line string, sampleErrors prometheus.CounterVec, s
 			samples = aggLines
 		} else {
 			sampleErrors.WithLabelValues("invalid_extended_aggregate_type").Inc()
+			p.warnMalformed(logger, "invalid_extended_aggregate_type", line)
 			logger.Debug("bad line: invalid extended aggregate type", "line", line)
 			return events
 		}
@@ -271,6 +312,7 @@ samples:
 		components := strings.Split(sample, "|")
 		if len(components) < 2 || len(components) > 6 {
 			sampleErrors.WithLabelValues("malformed_component").Inc()
+			p.warnMalformed(logger, "malformed_component", line)
 			logger.Debug("bad component", "line", line)
 			continue
 		}
@@ -285,6 +327,7 @@ samples:
 		if err != nil {
 			logger.Debug("bad value", "value", valueStr, "line", line)
 			sampleErrors.WithLabelValues("malformed_value").Inc()
+			p.warnMalformed(logger, "malformed_value", line)
 			continue
 		}
 
@@ -294,6 +337,7 @@ samples:
 				if len(component) == 0 {
 					logger.Debug("Empty component", "line", line)
 					sampleErrors.WithLabelValues("malformed_component").Inc()
+					p.warnMalformed(logger, "malformed_component", line)
 					continue samples
 				}
 			}
@@ -306,6 +350,7 @@ samples:
 					if err != nil {
 						logger.Debug("Invalid sampling factor", "component", component[1:], "line", line)
 						sampleErrors.WithLabelValues("invalid_sample_factor").Inc()
+						p.warnMalformed(logger, "invalid_sample_factor", line)
 					}
 					if samplingFactor == 0 {
 						samplingFactor = 1
@@ -327,6 +372,7 @@ samples:
 					} else {
 						logger.Debug("Malformed container ID section", "component", component, "line", line)
 						sampleErrors.WithLabelValues("malformed_container_id").Inc()
+						p.warnMalformed(logger, "malformed_container_id", line)
 						continue samples
 					}
 				case 'T':
@@ -338,6 +384,7 @@ samples:
 				default:
 					logger.Debug("Invalid sampling factor, tag section, or container ID section", "component", components[2], "line", line)
 					sampleErrors.WithLabelValues("invalid_sample_factor").Inc()
+					p.warnMalformed(logger, "invalid_sample_factor", line)
 					continue samples
 				}
 			}
@@ -352,6 +399,7 @@ samples:
 			if err != nil {
 				logger.Debug("Error building event", "line", line, "error", err)
 				sampleErrors.WithLabelValues("illegal_event").Inc()
+				p.warnMalformed(logger, "illegal_event", line)
 				continue
 			}
 			events = append(events, event)

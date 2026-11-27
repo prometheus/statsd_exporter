@@ -1,5 +1,6 @@
 ## Unreleased
 
+* [ENHANCEMENT] Log up to `--statsd.malformed-log-per-minute` warnings per minute, each with an example, for malformed StatsD input ([#552](https://github.com/prometheus/statsd_exporter/issues/552))
 * [FEATURE] Add a lifecycle `/-/clear` endpoint to clear registered StatsD time series without restarting the exporter ([#714](https://github.com/prometheus/statsd_exporter/pull/714))
 * [BUGFIX] Accept single character label names in mapping configuration ([#770](https://github.com/prometheus/statsd_exporter/pull/770))
 
